@@ -20,7 +20,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 app.config['SECRET_KEY'] = 'change_this_to_a_random_value'
 
-engine = create_engine('sqlite:///raft.db', connect_args={'check_same_thread': False}, echo=False)
+engine = create_engine('sqlite:///safe.db', connect_args={'check_same_thread': False}, echo=False)
 
 course_name = 'cs1'
 term_name = 'sp21'
@@ -47,8 +47,8 @@ def load_user(user_id):
         sys.exit(1)
 
 class GetTestResultsForm(FlaskForm):
-    username = StringField(label=('RAFT Username:'), validators=[DataRequired()])
-    password = PasswordField(label=('RAFT Password:'), validators=[DataRequired()])
+    username = StringField(label=('SAFE Username:'), validators=[DataRequired()])
+    password = PasswordField(label=('SAFE Password:'), validators=[DataRequired()])
     submit = SubmitField(label=('Submit'))
 
 def is_section_instructor(user, section_num):
@@ -273,7 +273,7 @@ def logout():
 
 @app.route("/")
 def hello():
-    return "Welcome to the Reliable Automated Feedback Test (RAFT) server."
+    return "Welcome to the Simplified Automatic Feedback environment (SAFE)."
 
 
 def handle_requests(request_queue):

@@ -7,7 +7,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash
 
 
-engine = create_engine('sqlite:///raft.db', echo=True)
+engine = create_engine('sqlite:///safe.db', echo=True)
 Base = declarative_base()
 
 student_team = Table(

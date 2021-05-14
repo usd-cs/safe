@@ -17,13 +17,13 @@ RUN apk add py3-pillow
 RUN apk add sqlite
 
 # copy server files
-COPY raft_server.py /var/raft/
-COPY server/db_models.py /var/raft/
-COPY server/templates /var/raft/templates
-COPY server/raft.db /var/raft/
+COPY safe_server.py /var/safe/
+COPY server/db_models.py /var/safe/
+COPY server/templates /var/safe/templates
+COPY server/safe.db /var/safe/
 
 RUN git config --global pull.rebase false
 
 EXPOSE 6000
-WORKDIR /var/raft
-CMD python3 raft_server.py
+WORKDIR /var/safe
+CMD python3 safe_server.py
