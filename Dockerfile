@@ -17,7 +17,7 @@ RUN apk add py3-pillow
 RUN apk add sqlite
 
 # copy server files
-COPY safe_server.py /var/safe/
+COPY server/safe_server.py /var/safe/
 COPY server/db_models.py /var/safe/
 COPY server/templates /var/safe/templates
 COPY server/safe.db /var/safe/
