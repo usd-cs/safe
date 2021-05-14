@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block body %}
+{% if error %}
+    <p class=error><strong>Error:</strong> {{ error }}
+{% endif %}
+<h1>RAFT: Login</h1>
+<p>Enter your assigned username and password.</p>
+<form method="POST" action="">
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            {{ form.csrf_token() }}
+			<b>{{ form.username.label }}</b>
+            {{ form.username }}
+			<p/><b>{{ form.password.label }}</b>
+            {{ form.password }}
+
+            {% for field, errors in form.errors.items() %}
+                <small class="form-text text-muted ">
+                    {{ ', '.join(errors) }}
+                </small>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            {{ form.submit(class="btn btn-primary")}}
+        </div>
+    </div>
+</form>
+{% endblock %}
