@@ -1,0 +1,54 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="container">
+        <h1>Sections</h1>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Instructor(s)</th>
+                    <th scope="col">Number of Students</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">comp110-sp21-s01</th>
+                    <td>Jennifer Olsen</td>
+                    <td>18</td>
+                    <td>Delete</td>
+                </tr>
+                <tr>
+                    <th scope="row">comp110-sp21-s02</th>
+                    <td>Sat Garcia</td>
+                    <td>22</td>
+                    <td>Delete</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="container border pt-3 pb-3">
+        <h2>Add New Section</h2>
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="secnum">Section Number:</label>
+                <input type="text" class="form-control" placeholder="Enter section number" id="secnum">
+            </div>
+            <label>Instructor(s):</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="sat" value="" id="option-sat">
+                <label class="form-check-label" for="option-sat">
+                    Sat Garcia
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="jenniferolsen" value="" id="option-jenniferolsen">
+                <label class="form-check-label" for="option-jenniferolsen">
+                    Jennifer Olsen
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+{% endblock %}

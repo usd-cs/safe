@@ -24,12 +24,20 @@ def create_app(test_config=None):
     Session = sessionmaker(db_engine)
 
     @app.route('/admin')
-    def admin():
-        return render_template("admin.html", page_title="SAFE @ USD: Admin")
+    def admin_home():
+        return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
+
+    @app.route('/admin/instructors')
+    def admin_instructors():
+        return render_template("admin_instructors.html", page_title="Admin Instructors: SAFE @ USD")
+
+    @app.route('/admin/sections')
+    def admin_sections():
+        return render_template("admin_sections.html", page_title="Admin Sections: SAFE @ USD")
 
     @app.route('/')
     def root():
-        return render_template("main.html", page_title="SAFE @ USD")
+        return render_template("main.html", page_title="Home: SAFE @ USD")
 
     #next_assignment_num = 12
 
