@@ -21,13 +21,15 @@ def create_app(test_config=None):
 
     from . import db
     db_engine = db.init_db(app)
-
-
     Session = sessionmaker(db_engine)
+
+    @app.route('/admin')
+    def admin():
+        return render_template("admin.html", page_title="SAFE @ USD: Admin")
 
     @app.route('/')
     def root():
-        return render_template("main.html")
+        return render_template("main.html", page_title="SAFE @ USD")
 
     #next_assignment_num = 12
 

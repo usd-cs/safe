@@ -1,15 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-	<!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-
-	<title>Testing out bootstrap!</title>
-</head>
-<body>
+{% extends "header.html" %}
+{% block body %}
 	<div class="container">
 		<div class="row bg-info text-white">
 			<div class="col">
@@ -23,5 +13,4 @@
 			</div>
 		</div>
 	</div>
-</body>
-</html>
+{% endblock %}
