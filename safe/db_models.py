@@ -15,6 +15,8 @@ student_team = Table(
     Column("team_id", Integer, ForeignKey("team.team_id")),
 )
 
+# TODO: make columns unique=True where appropriate
+
 class Instructor(UserMixin, Base):
     __tablename__ = "instructor"
     instructor_id = Column(Integer, primary_key=True)
