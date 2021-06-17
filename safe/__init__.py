@@ -1,8 +1,12 @@
 import os
 
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, url_for
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, SelectField, PasswordField
+from wtforms.validators import ValidationError, DataRequired, Length
+from werkzeug.security import check_password_hash, generate_password_hash
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -20,16 +24,42 @@ def create_app(test_config=None):
         pass
 
     from . import db
+    from . import db_models
     db_engine = db.init_db(app)
     Session = sessionmaker(db_engine)
+
+    def check_instructor_username(form, field):
+        with Session() as session:
+            if session.query(db_models.Instructor).filter(db_models.Instructor.username == field.data).count() != 0:
+                raise ValidationError("An instructor with that username already exists")
+
+
+    class NewInstructorForm(FlaskForm):
+        username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
+        password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
+        submit = SubmitField('Submit')
 
     @app.route('/admin')
     def admin_home():
         return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
 
-    @app.route('/admin/instructors')
+    @app.route('/admin/instructors', methods=['get', 'post'])
     def admin_instructors():
-        return render_template("admin_instructors.html", page_title="Admin Instructors: SAFE @ USD")
+        form = NewInstructorForm()
+
+        if form.validate_on_submit():
+            with Session() as session:
+                print("Number of instructor in DB:",
+                        session.query(db_models.Instructor).count())
+                new_instructor = db_models.Instructor(username=form.username.data,
+                                                        password=generate_password_hash(form.password.data))
+                session.add(new_instructor)
+                session.commit()
+                return redirect(url_for('admin_instructors'))
+
+        return render_template("admin_instructors.html", 
+                                page_title="Admin Instructors: SAFE @ USD", 
+                                form=form) 
 
     @app.route('/admin/sections')
     def admin_sections():

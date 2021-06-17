@@ -31,18 +31,33 @@
     <div class="container border pt-3 pb-3">
         <h2>Add New Instructor</h2>
         <form method="POST" action="">
+            {{ form.csrf_token() }}
             <div class="form-group">
-                <label for="username">USD Username:</label>
+                {{ form.username.label }}:
                 <div class="input-group mb-3">
-                    <input type="text" class="form-control" placeholder="Enter USD username" id="username">
+                    {{ form.username(class_="form-control", placeholder="Enter USD username") }}
                     <span class="input-group-text" id="basic-addon2">@sandiego.edu</span>
                 </div>
+                {% if form.username.errors %} 
+                <small class="text-danger">
+                    {% for error in form.username.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </small>
+                {% endif %}
             </div>
             <div class="form-group">
-                <label for="pwd">Password:</label>
-                <input type="password" class="form-control" placeholder="Enter password" id="pwd">
+                {{ form.password.label }}:
+                {{ form.password(class_="form-control", placeholder="Enter temporary password") }}
+                {% if form.password.errors %} 
+                <small class="text-danger">
+                    {% for error in form.password.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </small>
+                {% endif %}
             </div>
-            <button type="submit" class="btn btn-primary">Submit</button>
+            {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
 {% endblock %}
