@@ -27,7 +27,9 @@ def init_db(app):
                         CREATE TABLE instructor (
                           instructor_id INTEGER NOT NULL PRIMARY KEY,
                           username VARCHAR NOT NULL UNIQUE,
-                          password VARCHAR NOT NULL
+                          password VARCHAR NOT NULL,
+                          first_name VARCHAR NOT NULL,
+                          last_name VARCHAR NOT NULL
                         )
                         """)
         engine.execute("""

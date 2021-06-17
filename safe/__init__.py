@@ -35,6 +35,8 @@ def create_app(test_config=None):
 
 
     class NewInstructorForm(FlaskForm):
+        first_name = StringField('First Name', validators=[DataRequired()])
+        last_name = StringField('First Name', validators=[DataRequired()])
         username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
         password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
         submit = SubmitField('Submit')
@@ -48,18 +50,26 @@ def create_app(test_config=None):
         form = NewInstructorForm()
 
         if form.validate_on_submit():
+            # add user to database
             with Session() as session:
                 print("Number of instructor in DB:",
                         session.query(db_models.Instructor).count())
                 new_instructor = db_models.Instructor(username=form.username.data,
-                                                        password=generate_password_hash(form.password.data))
+                                                        password=generate_password_hash(form.password.data),
+                                                        first_name=form.first_name.data,
+                                                        last_name=form.last_name.data)
                 session.add(new_instructor)
                 session.commit()
-                return redirect(url_for('admin_instructors'))
+            return redirect(url_for('admin_instructors'))
+
+        # form wasn't valid so re-render the page
+        with Session() as session:
+            instructors = session.query(db_models.Instructor).order_by(db_models.Instructor.last_name)
 
         return render_template("admin_instructors.html", 
                                 page_title="Admin Instructors: SAFE @ USD", 
-                                form=form) 
+                                form=form,
+                                instructors=instructors) 
 
     @app.route('/admin/sections')
     def admin_sections():

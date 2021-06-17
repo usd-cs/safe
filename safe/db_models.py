@@ -22,6 +22,8 @@ class Instructor(UserMixin, Base):
     instructor_id = Column(Integer, primary_key=True)
     username = Column(String, nullable=False)
     password = Column(String, nullable=False)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
     sections = relationship("Section", backref=backref("instructor"))
 
     def get_id(self):

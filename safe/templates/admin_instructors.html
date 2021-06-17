@@ -1,8 +1,8 @@
 {% extends "admin_base.html" %}
 
 {% block content %}
-    <div class="container">
-        <h2>Instructors</h2>
+    <div class="container pt-3">
+        <h2>Current Instructors</h2>
         <table class="table">
             <thead>
                 <tr>
@@ -13,18 +13,14 @@
                 </tr>
             </thead>
             <tbody>
+                {% for inst in instructors %}
                 <tr>
-                    <th scope="row">Garcia</th>
-                    <td>Sat</td>
-                    <td>sat</td>
-                    <td>comp110-sp21-s02</td>
+                    <th scope="row">{{ inst.last_name }}</th>
+                    <td>{{ inst.first_name }}</td>
+                    <td>{{ inst.username }}</td>
+                    <td>FIXME</td>
                 </tr>
-                <tr>
-                    <th scope="row">Olsen</th>
-                    <td>Jennifer</td>
-                    <td>jenniferolsen</td>
-                    <td>comp110-sp21-s01</td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -32,6 +28,14 @@
         <h2>Add New Instructor</h2>
         <form method="POST" action="">
             {{ form.csrf_token() }}
+            <div class="form-group">
+                {{ form.first_name.label }}:
+                {{ form.first_name(class_="form-control", placeholder="Enter Instructor's First Name") }}
+            </div>
+            <div class="form-group">
+                {{ form.last_name.label }}:
+                {{ form.last_name(class_="form-control", placeholder="Enter Instructor's Last Name") }}
+            </div>
             <div class="form-group">
                 {{ form.username.label }}:
                 <div class="input-group mb-3">
