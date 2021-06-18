@@ -6,25 +6,29 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th scope="col">Name</th>
+                    <th scope="col">Course</th>
+                    <th scope="col">Semester</th>
+                    <th scope="col">Section #</th>
                     <th scope="col">Instructor(s)</th>
                     <th scope="col">Number of Students</th>
-                    <th scope="col">Action</th>
+                    <th scope="col">Action(s)</th>
                 </tr>
             </thead>
             <tbody>
+                {% for (section, instructor) in sections %}
                 <tr>
-                    <th scope="row">comp110-sp21-s01</th>
-                    <td>Jennifer Olsen</td>
-                    <td>18</td>
-                    <td>Delete</td>
+                    <td>{{ section.course }}</td>
+                    <td>{{ section.semester }}</td>
+                    <td>{{ section.section_num }}</td>
+                    {% if instructor %}
+                    <td>{{ instructor.first_name }} {{ instructor.last_name }}</td>
+                    {% else %}
+                    <td>None</td>
+                    {% endif %}
+                    <td>FIXME</td>
+                    <td>FIXME</td>
                 </tr>
-                <tr>
-                    <th scope="row">comp110-sp21-s02</th>
-                    <td>Sat Garcia</td>
-                    <td>22</td>
-                    <td>Delete</td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>

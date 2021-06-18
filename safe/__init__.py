@@ -95,6 +95,9 @@ def create_app(test_config=None):
 
         with Session() as session:
             instructors = session.query(db_models.Instructor).order_by(db_models.Instructor.last_name).all()
+            sections = session.query(db_models.Section, db_models.Instructor).join(db_models.Instructor, isouter=True).order_by(db_models.Section.course,
+                                                                    db_models.Section.semester, 
+                                                                    db_models.Section.section_num)
 
         id_list = [i.instructor_id for i in instructors]
         name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in instructors]
@@ -102,12 +105,11 @@ def create_app(test_config=None):
         form.instructors.choices = zip(id_list, name_list)
 
         if form.validate_on_submit():
-            selected_instructors = form.instructors.data
-
             with Session() as session:
                 new_section = db_models.Section(course=form.course.data,
                                                 semester=form.semester.data,
-                                                section_num=int(form.section_num.data))
+                                                section_num=int(form.section_num.data),
+                                                instructor_id=form.instructors.data[0])
                 session.add(new_section)
                 session.commit()
 
@@ -125,7 +127,8 @@ def create_app(test_config=None):
 
         return render_template("admin_sections.html",
                                 page_title="Admin Sections: SAFE @ USD",
-                                form=form)
+                                form=form,
+                                sections=sections)
 
     @app.route('/')
     def root():
