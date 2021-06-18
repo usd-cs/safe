@@ -4,8 +4,9 @@ from flask import Flask, render_template, redirect, url_for
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField, PasswordField
-from wtforms.validators import ValidationError, DataRequired, Length
+from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField
+from wtforms.widgets import ListWidget, CheckboxInput
+from wtforms.validators import ValidationError, DataRequired, Length, AnyOf
 from werkzeug.security import check_password_hash, generate_password_hash
 
 def create_app(test_config=None):
@@ -41,6 +42,7 @@ def create_app(test_config=None):
         password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
         submit = SubmitField('Submit')
 
+
     @app.route('/admin')
     def admin_home():
         return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
@@ -52,14 +54,15 @@ def create_app(test_config=None):
         if form.validate_on_submit():
             # add user to database
             with Session() as session:
-                print("Number of instructor in DB:",
-                        session.query(db_models.Instructor).count())
                 new_instructor = db_models.Instructor(username=form.username.data,
                                                         password=generate_password_hash(form.password.data),
                                                         first_name=form.first_name.data,
                                                         last_name=form.last_name.data)
                 session.add(new_instructor)
                 session.commit()
+
+                print("Number of instructor in DB:",
+                        session.query(db_models.Instructor).count())
             return redirect(url_for('admin_instructors'))
 
         # form wasn't valid so re-render the page
@@ -71,9 +74,58 @@ def create_app(test_config=None):
                                 form=form,
                                 instructors=instructors) 
 
-    @app.route('/admin/sections')
+
+    class MultiCheckboxField(SelectMultipleField):
+        widget = ListWidget(prefix_label=False)
+        option_widget = CheckboxInput()
+
+
+    class NewSectionForm(FlaskForm):
+        # TODO: use regex for course, semester, and section_num
+        course = StringField('Course', validators=[AnyOf(['comp110'])])
+        semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
+        section_num = StringField('Section Number', validators=[DataRequired()])
+        instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
+        submit = SubmitField("Submit")
+
+
+    @app.route('/admin/sections', methods=['get', 'post'])
     def admin_sections():
-        return render_template("admin_sections.html", page_title="Admin Sections: SAFE @ USD")
+        form = NewSectionForm()
+
+        with Session() as session:
+            instructors = session.query(db_models.Instructor).order_by(db_models.Instructor.last_name).all()
+
+        id_list = [i.instructor_id for i in instructors]
+        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in instructors]
+
+        form.instructors.choices = zip(id_list, name_list)
+
+        if form.validate_on_submit():
+            selected_instructors = form.instructors.data
+
+            with Session() as session:
+                new_section = db_models.Section(course=form.course.data,
+                                                semester=form.semester.data,
+                                                section_num=int(form.section_num.data))
+                session.add(new_section)
+                session.commit()
+
+                print("Number of Sections in DB:",
+                        session.query(db_models.Section).count())
+                pass
+
+            return redirect(url_for('admin_sections'))
+
+        print("form errors:", form.errors)
+
+        # NOTE: I'm not sure why validating resets the instructor choices but
+        # we need to reset them in case validation fails
+        form.instructors.choices = zip(id_list, name_list)
+
+        return render_template("admin_sections.html",
+                                page_title="Admin Sections: SAFE @ USD",
+                                form=form)
 
     @app.route('/')
     def root():

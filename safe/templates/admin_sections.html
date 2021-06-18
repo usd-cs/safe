@@ -1,7 +1,7 @@
 {% extends "admin_base.html" %}
 
 {% block content %}
-    <div class="container">
+    <div class="container pt-3">
         <h1>Existing Sections</h1>
         <table class="table">
             <thead>
@@ -31,24 +31,33 @@
     <div class="container border pt-3 pb-3">
         <h2>Add New Section</h2>
         <form method="POST" action="">
-            <div class="form-group">
-                <label for="secnum">Section Number:</label>
-                <input type="text" class="form-control" placeholder="Enter section number" id="secnum">
+            <!-- FIXME: add code to display validation errors -->
+            {{ form.csrf_token() }}
+            <div class="row">
+                <div class="col">
+                    {{ form.course(class_="form-control", placeholder="Course (e.g. comp110)") }}
+                </div>
+                <div class="col">
+                    {{ form.semester(class_="form-control", placeholder="Semester (e.g. sp21)") }}
+                </div>
+                <div class="col">
+                    {{ form.section_num(class_="form-control", placeholder="Section number") }}
+                </div>
             </div>
-            <label>Instructor(s):</label>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="sat" value="" id="option-sat">
-                <label class="form-check-label" for="option-sat">
-                    Sat Garcia
-                </label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="jenniferolsen" value="" id="option-jenniferolsen">
-                <label class="form-check-label" for="option-jenniferolsen">
-                    Jennifer Olsen
-                </label>
+
+            <div class="form-group pt-2">
+                <label>Instructor(s):</label>
+                <div class="container">
+                    {% for choice in form.instructors %}
+                    <div class="form-check">
+                        {{ choice(class="form-check-input") }}
+                        {{ choice.label(class="form-check-label") }}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
     </div>
+
 {% endblock %}

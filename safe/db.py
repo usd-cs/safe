@@ -35,6 +35,9 @@ def init_db(app):
         engine.execute("""
                         CREATE TABLE section (
                           section_id INTEGER NOT NULL PRIMARY KEY,
+                          course VARCHAR NOT NULL,
+                          semester VARCHAR NOT NULL,
+                          section_num INTEGER NOT NULL,
                           instructor_id INTEGER REFERENCES instructor
                         )
                         """)
