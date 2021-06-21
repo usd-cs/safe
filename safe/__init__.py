@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, abort
 from sqlalchemy import create_engine, inspect, insert, and_
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
@@ -172,6 +172,36 @@ def create_app(test_config=None):
                                 page_title="Admin Sections: SAFE @ USD",
                                 form=form,
                                 sections=section_info)
+
+    @app.route('/profile/<username>')
+    def user_profile(username):
+        with Session() as session:
+            selected_user = (
+                session.query(db_models.User)
+                    .filter(db_models.User.username == username)
+                    .first()
+            )
+
+
+        if selected_user:
+            # if user exists, grab the list of classes they are enrolled in and
+            # render the profile page view
+            with Session() as session:
+                enrolled_courses = (
+                    session.query(db_models.Section)
+                        .join(db_models.section_enrollment)
+                        .join(db_models.User)
+                        .filter(db_models.User.username == selected_user.username)
+                        .all()
+                )
+
+            return render_template("user_profile.html",
+                                    page_title=f"User Profile ({selected_user.username})",
+                                    user=selected_user,
+                                    courses=enrolled_courses)
+        else:
+            # the user doesn't exist so 404 'em
+            abort(404)
 
     @app.route('/')
     def root():

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="container pt-3">
+	<h1>User Info</h1>
+    <ul class="list-group">
+        <li class="list-group-item"><strong>Name:</strong> {{user.first_name}} {{user.last_name}}</li>
+        <li class="list-group-item"><strong>Email:</strong> {{user.username}}@sandiego.edu</li>
+    </ul>
+</div>
+{% if courses|length > 0 %}
+<div class="container pt-3">
+	<h1>Courses</h1>
+    <ul class="list-group">
+        {% for course in courses %}
+        <li class="list-group-item">{{course.course|upper}} ({{course.semester|upper}},
+            Section {{ "%02d" % course.section_num}})</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
