@@ -196,7 +196,7 @@ def create_app(test_config=None):
                 )
 
             return render_template("user_profile.html",
-                                    page_title=f"User Profile ({selected_user.username})",
+                                    page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
                                     user=selected_user,
                                     courses=enrolled_courses)
         else:
