@@ -1,7 +1,7 @@
 import os
 
 from flask import Flask, render_template, redirect, url_for
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, insert, and_
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField
@@ -31,7 +31,7 @@ def create_app(test_config=None):
 
     def check_instructor_username(form, field):
         with Session() as session:
-            if session.query(db_models.Instructor).filter(db_models.Instructor.username == field.data).count() != 0:
+            if session.query(db_models.User).filter(db_models.User.username == field.data).count() != 0:
                 raise ValidationError("An instructor with that username already exists")
 
 
@@ -54,20 +54,22 @@ def create_app(test_config=None):
         if form.validate_on_submit():
             # add user to database
             with Session() as session:
-                new_instructor = db_models.Instructor(username=form.username.data,
-                                                        password=generate_password_hash(form.password.data),
-                                                        first_name=form.first_name.data,
-                                                        last_name=form.last_name.data)
+                new_instructor = db_models.User(username=form.username.data,
+                                                    password=generate_password_hash(form.password.data),
+                                                    first_name=form.first_name.data,
+                                                    last_name=form.last_name.data,
+                                                    instructor=True,
+                                                    admin=True)  # FIXME: limit who is admin
                 session.add(new_instructor)
                 session.commit()
 
                 print("Number of instructor in DB:",
-                        session.query(db_models.Instructor).count())
+                        session.query(db_models.User).count())
             return redirect(url_for('admin_instructors'))
 
         # form wasn't valid so re-render the page
         with Session() as session:
-            instructors = session.query(db_models.Instructor).order_by(db_models.Instructor.last_name)
+            instructors = session.query(db_models.User).order_by(db_models.User.last_name)
 
         return render_template("admin_instructors.html", 
                                 page_title="Admin Instructors: SAFE @ USD", 
@@ -94,13 +96,43 @@ def create_app(test_config=None):
         form = NewSectionForm()
 
         with Session() as session:
-            instructors = session.query(db_models.Instructor).order_by(db_models.Instructor.last_name).all()
-            sections = session.query(db_models.Section, db_models.Instructor).join(db_models.Instructor, isouter=True).order_by(db_models.Section.course,
-                                                                    db_models.Section.semester, 
-                                                                    db_models.Section.section_num)
+            #instructors = session.query(db_models.User).order_by(db_models.User.last_name).all()
+            all_instructors = (
+                session.query(db_models.User)
+                    .filter(db_models.User.instructor == True)
+            )
 
-        id_list = [i.instructor_id for i in instructors]
-        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in instructors]
+            all_sections = (
+                session.query(db_models.Section)
+                    .order_by(db_models.Section.course, db_models.Section.semester, db_models.Section.section_num)
+            )
+
+            # create a list of (section, instructors) tuples
+            section_info = []
+
+            for section in all_sections:
+                section_instructors = (
+                    session.query(db_models.User)
+                        .join(db_models.section_enrollment)
+                        .join(db_models.Section)
+                        .filter(and_(db_models.Section.section_id == section.section_id, 
+                                        db_models.User.instructor == True))
+                        .order_by(db_models.User.last_name)
+                        .all()
+                )
+                num_students = (
+                    session.query(db_models.User)
+                        .join(db_models.section_enrollment)
+                        .join(db_models.Section)
+                        .filter(and_(db_models.Section.section_id == section.section_id, 
+                                        db_models.User.instructor == False))
+                        .count()
+                )
+                print(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
+                section_info.append((section, section_instructors, num_students))
+
+        id_list = [i.user_id for i in all_instructors]
+        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
 
         form.instructors.choices = zip(id_list, name_list)
 
@@ -108,14 +140,25 @@ def create_app(test_config=None):
             with Session() as session:
                 new_section = db_models.Section(course=form.course.data,
                                                 semester=form.semester.data,
-                                                section_num=int(form.section_num.data),
-                                                instructor_id=form.instructors.data[0])
+                                                section_num=int(form.section_num.data))
+
+
                 session.add(new_section)
+                session.flush() # causes DB to give the new_section a section_id
+
+                # add instructors to section
+                for instructor_id in form.instructors.data:
+                    statement = (
+                        insert(db_models.section_enrollment)
+                            .values(user_id=instructor_id, section_id=new_section.section_id)
+                    )
+                    session.execute(statement)
+
                 session.commit()
+
 
                 print("Number of Sections in DB:",
                         session.query(db_models.Section).count())
-                pass
 
             return redirect(url_for('admin_sections'))
 
@@ -128,7 +171,7 @@ def create_app(test_config=None):
         return render_template("admin_sections.html",
                                 page_title="Admin Sections: SAFE @ USD",
                                 form=form,
-                                sections=sections)
+                                sections=section_info)
 
     @app.route('/')
     def root():

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
 from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,26 +8,45 @@ from werkzeug.security import check_password_hash
 
 Base = declarative_base()
 
-student_team = Table(
-    "student_team",
+# Intermediate entity for many-many relationship between users and groups (AKA teams)
+team_enrollment = Table(
+    "team_enrollment",
     Base.metadata,
-    Column("student_id", Integer, ForeignKey("student.student_id")),
+    Column("user_id", Integer, ForeignKey("user.user_id")),
     Column("team_id", Integer, ForeignKey("team.team_id")),
+)
+
+# Intermediate entity for many-many relationship between users and sections
+section_enrollment = Table(
+    "section_enrollment",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("user.user_id")),
+    Column("section_id", Integer, ForeignKey("section.section_id")),
 )
 
 # TODO: make columns unique=True where appropriate
 
-class Instructor(UserMixin, Base):
-    __tablename__ = "instructor"
-    instructor_id = Column(Integer, primary_key=True)
+class User(UserMixin, Base):
+    __tablename__ = "user"
+    user_id = Column(Integer, primary_key=True)
+    admin = Column(Boolean, nullable=False, default=False)
+    instructor = Column(Boolean, nullable=False, default=False)
     username = Column(String, nullable=False)
     password = Column(String, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    sections = relationship("Section", backref=backref("instructor"))
 
+    # setting up many-to-many relationships
+    sections = relationship(
+        "Section", secondary=section_enrollment, back_populates="users"
+    )
+    teams = relationship(
+        "Team", secondary=team_enrollment, back_populates="members"
+    )
+
+    # The following functions are used for login
     def get_id(self):
-        return self.instructor_id
+        return self.user_id
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
@@ -38,49 +57,44 @@ class Section(Base):
     course = Column(String, nullable=False)
     semester = Column(String, nullable=False)
     section_num = Column(Integer, nullable=False)
-    instructor_id = Column(Integer, ForeignKey("instructor.instructor_id"))
-    teams = relationship("Team", backref=backref("section"))
-    students = relationship("Student", backref=backref("section"))
 
-class PSA(Base):
-    __tablename__ = "psa"
-    psa_id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
-    files = relationship("SourceFile", backref=backref("psa"))
-    teams = relationship("Team", backref=backref("psa"))
-
-class Student(UserMixin, Base):
-    __tablename__ = "student"
-    student_id = Column(Integer, primary_key=True)
-    username = Column(String, nullable=False)
-    password = Column(String, nullable=False)
-    section_id = Column(Integer, ForeignKey("section.section_id"))
-    teams = relationship(
-        "Team", secondary=student_team, back_populates="students"
+    # many-to-many relationship
+    users = relationship(
+        "User", secondary=section_enrollment, back_populates="sections"
     )
 
-    def get_id(self):
-        return str(self.student_id)
+    # one section to many assignments
+    assignments = relationship("Assignment", backref=backref("section"))
 
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
+
+class Assignment(Base):
+    __tablename__ = "assignment"
+    assignment_id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    # TODO: add deadline column?
+
+    section_id = Column(Integer, ForeignKey("section.section_id"))
+
+    # one assignment has many files and teams
+    files = relationship("SourceFile", backref=backref("assignment"))
+    teams = relationship("Team", backref=backref("assignment"))
+
 
 class Team(Base):
     __tablename__ = "team"
     team_id = Column(Integer, primary_key=True)
     team_num = Column(Integer, nullable=False)
-    psa_id = Column(Integer, ForeignKey("psa.psa_id"))
-    section_id = Column(Integer, ForeignKey("section.section_id"))
-    students = relationship(
-        "Student", secondary=student_team, back_populates="teams"
+    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
+
+    # many-to-many relationship between teams and users
+    members = relationship(
+        "User", secondary=team_enrollment, back_populates="teams"
     )
+
 
 class SourceFile(Base):
     __tablename__ = "source_file"
     source_file_id = Column(Integer, primary_key=True)
-    psa_id = Column(Integer, ForeignKey("psa.psa_id"))
     filename = Column(String, nullable=False)
+    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
-# create tables
-#engine = create_engine('sqlite:///comp110_sp21.db', echo=True)
-#Base.metadata.create_all(engine)

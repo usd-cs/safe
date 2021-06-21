@@ -15,17 +15,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% for (section, instructor) in sections %}
+                {% for (section, instructors, num_students) in sections %}
                 <tr>
                     <td>{{ section.course }}</td>
                     <td>{{ section.semester }}</td>
                     <td>{{ section.section_num }}</td>
-                    {% if instructor %}
-                    <td>{{ instructor.first_name }} {{ instructor.last_name }}</td>
+                    {% if instructors|length > 0 %}
+                    <td>
+                        {% for instructor in instructors %}
+                        {{ instructor.first_name }} {{ instructor.last_name }}<br/>
+                        {% endfor %}
+                    </td>
                     {% else %}
-                    <td>None</td>
+                    <td>-</td>
                     {% endif %}
-                    <td>FIXME</td>
+                    <td>{{ num_students }}</td>
                     <td>FIXME</td>
                 </tr>
                 {% endfor %}

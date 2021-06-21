@@ -24,8 +24,10 @@ def init_db(app):
 
         # FIXME: use "with engine.connect() as connection" here for executing
         engine.execute("""
-                        CREATE TABLE instructor (
-                          instructor_id INTEGER NOT NULL PRIMARY KEY,
+                        CREATE TABLE user (
+                          user_id INTEGER NOT NULL PRIMARY KEY,
+                          admin BOOLEAN NOT NULL,
+                          instructor BOOLEAN NOT NULL,
                           username VARCHAR NOT NULL UNIQUE,
                           password VARCHAR NOT NULL,
                           first_name VARCHAR NOT NULL,
@@ -37,21 +39,12 @@ def init_db(app):
                           section_id INTEGER NOT NULL PRIMARY KEY,
                           course VARCHAR NOT NULL,
                           semester VARCHAR NOT NULL,
-                          section_num INTEGER NOT NULL,
-                          instructor_id INTEGER REFERENCES instructor
+                          section_num INTEGER NOT NULL
                         )
                         """)
         engine.execute("""
-                        CREATE TABLE student (
-                          student_id INTEGER NOT NULL PRIMARY KEY,
-                          username VARCHAR NOT NULL UNIQUE,
-                          password VARCHAR NOT NULL,
-                          section_id INTEGER REFERENCES section
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE psa (
-                          psa_id INTEGER NOT NULL PRIMARY KEY,
+                        CREATE TABLE assignment (
+                          assignment_id INTEGER NOT NULL PRIMARY KEY,
                           title VARCHAR NOT NULL
                         )
                         """)
@@ -59,22 +52,26 @@ def init_db(app):
                         CREATE TABLE team (
                           team_id INTEGER NOT NULL PRIMARY KEY,
                           team_num INTEGER NOT NULL,
-                          psa_id INTEGER REFERENCES psa,
-                          section_id INTEGER REFERENCES section,
-                          CONSTRAINT uc_teaminfo UNIQUE (team_num, psa_id, section_id)
+                          assignment_id INTEGER REFERENCES assignment
                         )
                         """)
         engine.execute("""
                         CREATE TABLE source_file (
                           source_file_id INTEGER NOT NULL PRIMARY KEY,
-                          psa_id INTEGER REFERENCES psa,
-                          filename VARCHAR NOT NULL
+                          filename VARCHAR NOT NULL,
+                          assignment_id INTEGER REFERENCES psa
                         )
                         """)
         engine.execute("""
-                        CREATE TABLE student_team (
-                          student_id INTEGER REFERENCES student,
+                        CREATE TABLE team_enrollment (
+                          user_id INTEGER REFERENCES student,
                           team_id INTEGER REFERENCES team
+                        )
+                        """)
+        engine.execute("""
+                        CREATE TABLE section_enrollment (
+                          user_id INTEGER REFERENCES student,
+                          section_id INTEGER REFERENCES section
                         )
                         """)
 
