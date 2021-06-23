@@ -1,13 +1,15 @@
 import os
 
-from flask import Flask, render_template, redirect, url_for, abort
+from flask import Flask, render_template, redirect, url_for, abort, request
 from sqlalchemy import create_engine, inspect, insert, and_
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField
+from flask_wtf.file import FileField, FileRequired
 from wtforms.widgets import ListWidget, CheckboxInput
-from wtforms.validators import ValidationError, DataRequired, Length, AnyOf
+from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -208,10 +210,82 @@ def create_app(test_config=None):
         return render_template("main.html", page_title="Home: SAFE @ USD")
 
 
-    @app.route('/comp110/<semester>/s<int:section_num>/')
+    class RosterUploadForm(FlaskForm):
+        roster_file = FileField('Class Roster', validators=[FileRequired()])
+                #validators=[Regexp('^.*\.(csv|CSV)$', message="Must be CSV file format")])
+        submit = SubmitField('Upload Roster')
+
+    @app.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
     def section_overview(semester, section_num):
+        roster_upload_form = RosterUploadForm()
+
+        if roster_upload_form.validate_on_submit():
+            # add users to database
+            uploaded_file = roster_upload_form.roster_file.data
+
+            # save uploaded file to temporary file
+            filename = secure_filename(uploaded_file.filename)
+
+            temp_dir = file_location = os.path.join(app.instance_path, 'tmp')
+            if not os.path.isdir(temp_dir):
+                os.mkdir(temp_dir)
+
+            file_location = os.path.join(temp_dir, filename)
+            uploaded_file.save(file_location)
+
+            with open(file_location, 'r') as roster_data:
+                header = roster_data.readline()
+
+                with Session() as session:
+                    for line in roster_data:
+                        columns = line.strip().split(',')
+
+                        # FIXME: validate format of CSV file
+                        print(columns[2], columns[3], columns[-1])
+                        username = columns[-1].split("@")[0]
+                        last_name = columns[2]
+                        first_name = columns[3]
+
+                        # check that student with that username doesn't exist
+                        if session.query(db_models.User).filter(db_models.User.username == username).count() > 0:
+                            # found the student already so skip it
+                            print(f"User with {username} already exists. Skipping creation!")
+                        else:
+                            # Create new User and add to database
+                            print(f"Adding student with username {username}")
+                            new_student = db_models.User(username=username,
+                                                            password=generate_password_hash("FIXME"),
+                                                            first_name=first_name,
+                                                            last_name=last_name,
+                                                            instructor=False,
+                                                            admin=False)
+                            session.add(new_student)
+                            session.flush()
+
+                            # Add user to this section
+                            section = (
+                                # FIXME: filter on course and semester too!!!
+                                session.query(db_models.Section)
+                                    .filter(db_models.Section.section_id == section_num)
+                                    .first()
+                            )
+
+                            # FIXME: confirm this section actually exists!
+                            statement = (
+                                insert(db_models.section_enrollment)
+                                    .values(user_id=new_student.user_id, section_id=section.section_id)
+                            )
+                            session.execute(statement)
+
+                            session.commit()
+
+            os.remove(file_location)
+
+            return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
+
         with Session() as session:
             section = (
+                # FIXME: filter on course and semester too!!!
                 session.query(db_models.Section)
                     .filter(db_models.Section.section_id == section_num)
                     .first()
@@ -231,7 +305,8 @@ def create_app(test_config=None):
             return render_template("section_overview.html", 
                                     page_title="Section Overview: SAFE @ USD",
                                     section=section,
-                                    users=enrolled_users
+                                    users=enrolled_users,
+                                    form=roster_upload_form
                                     )
 
     #next_assignment_num = 12
