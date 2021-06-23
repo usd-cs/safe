@@ -10,9 +10,28 @@
     <title>{{ page_title }}</title>
 </head>
 <body>
-{% block body %}
-<h1>Welcome!</h1>
-<p>Some text goes here</p>
-{% endblock %}
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <strong><a class="navbar-brand" href="#">Simplified Automatic Feedback
+                    Environment</a></strong>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <div class="nav-item">
+                    <a class="nav-link" href="/">Home</a>
+                </div>
+                <div class="container d-flex flex-row-reverse">
+                    <a class="btn btn-danger nav-link" href="/logout" role="button">Log Out</a>
+                    <a class="nav-link" href="/profile">Profile</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {% block body %}
+    <h1>Welcome!</h1>
+    <p>Some text goes here</p>
+    {% endblock %}
 </body>
 </html>
