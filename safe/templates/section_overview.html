@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="container pt-3">
+	<h1>Course Info</h1>
+    <ul class="list-group">
+        <li class="list-group-item"><strong>Name:</strong> {{section.course}}</li>
+        <li class="list-group-item"><strong>Semester:</strong> {{section.semester}}</li>
+        <li class="list-group-item"><strong>Section:</strong> {{section.section_num}}</li>
+    </ul>
+</div>
+
+<div class="container pt-3">
+	<h1>Assignments</h1>
+    <ul class="list-group">
+        {% if section.assignments|length > 0 %}
+            {% for assignment in section.assignments %}
+            <li class="list-group-item">{{assignment.title}}</li>
+            {% endfor %}
+        {% else %}
+            <li class="list-group-item">No assignments found</li>
+        {% endif %}
+    </ul>
+    <div class="container pl-1 pt-3">
+        <a class="btn btn-primary" href="#" role="button">Add Assignment</a>
+    </div>
+</div>
+
+<div class="container pt-3">
+	<h1>Roster</h1>
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Username</th>
+                <th scope="col">Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <th scope="row">{{ user.last_name }}, {{ user.first_name }}</th>
+                <td>{{ user.username }}</td>
+                <td>
+                    {% if user.instructor %} Instructor {% else %} Student {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="container pl-1 pt-3">
+        <a class="btn btn-primary" href="#" role="button">Upload Roster</a>
+    </div>
+</div>
+{% endblock %}

@@ -207,6 +207,33 @@ def create_app(test_config=None):
     def root():
         return render_template("main.html", page_title="Home: SAFE @ USD")
 
+
+    @app.route('/comp110/<semester>/s<int:section_num>/')
+    def section_overview(semester, section_num):
+        with Session() as session:
+            section = (
+                session.query(db_models.Section)
+                    .filter(db_models.Section.section_id == section_num)
+                    .first()
+            )
+
+            enrolled_users = (
+                session.query(db_models.User)
+                    .join(db_models.section_enrollment)
+                    .join(db_models.Section)
+                    # TODO: also filter for correct course
+                    .filter(and_(db_models.Section.section_id == section_num,
+                                    db_models.Section.semester == semester,
+                                    db_models.Section.course == "comp110"))
+                    .all()
+            )
+
+            return render_template("section_overview.html", 
+                                    page_title="Section Overview: SAFE @ USD",
+                                    section=section,
+                                    users=enrolled_users
+                                    )
+
     #next_assignment_num = 12
 
     @app.route('/assignments/add/')
