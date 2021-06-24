@@ -70,6 +70,7 @@ class Section(Base):
 class Assignment(Base):
     __tablename__ = "assignment"
     assignment_id = Column(Integer, primary_key=True)
+    num = Column(Integer, nullable=False)
     title = Column(String, nullable=False)
     # TODO: add deadline column?
 

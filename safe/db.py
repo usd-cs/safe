@@ -45,6 +45,7 @@ def init_db(app):
         engine.execute("""
                         CREATE TABLE assignment (
                           assignment_id INTEGER NOT NULL PRIMARY KEY,
+                          num INTEGER NOT NULL,
                           title VARCHAR NOT NULL,
                           section_id INTEGER REFERENCES section
                         )
