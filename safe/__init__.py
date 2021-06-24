@@ -238,10 +238,10 @@ def create_app(test_config=None):
                         .first()
                 )
 
-
                 num_matches = (
                         session.query(db_models.Assignment)
                             .filter(db_models.Assignment.section_id == section.section_id)
+                            .filter(db_models.Assignment.num == new_assignment_form.assignment_num.data)
                             .count()
                 )
 
@@ -368,14 +368,21 @@ def create_app(test_config=None):
                 abort(404)
 
             # TODO: add real assignment and team member info here
-            mock_assignment = db_models.Assignment(num=1, title="Turtle Name Drawer")
+            assignment = (
+                    session.query(db_models.Assignment)
+                        .filter(db_models.Assignment.section_id == section.section_id)
+                        .filter(db_models.Assignment.num == psa_num)
+                        .first()
+            )
+
+            #mock_assignment = db_models.Assignment(num=1, title="Turtle Name Drawer")
             mock_team = db_models.Team(team_num=1)
             mock_team_members = [db_models.User(username="jsmith", first_name="Joe", last_name="Smith")]
             mock_team2 = db_models.Team(team_num=4)
             mock_team2_members = [db_models.User(username="qworld", first_name="Quentin", last_name="World")]
 
             return render_template("assignment_overview.html", section=section,
-                    assignment=mock_assignment, groups=[(mock_team,
+                    assignment=assignment, groups=[(mock_team,
                         mock_team_members), (mock_team2, mock_team2_members)])
 
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
