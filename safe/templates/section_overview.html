@@ -15,14 +15,29 @@
     <ul class="list-group">
         {% if section.assignments|length > 0 %}
             {% for assignment in section.assignments %}
-            <li class="list-group-item">{{assignment.title}}</li>
+            <li class="list-group-item">
+                <strong>PSA {{assignment.num}}:</strong> {{assignment.title}}
+                (<a href="{{ url_for('psa_overview', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>)
+            </li>
             {% endfor %}
         {% else %}
             <li class="list-group-item">No assignments found</li>
         {% endif %}
     </ul>
-    <div class="container pl-1 pt-3">
-        <a class="btn btn-primary" href="#" role="button">Add Assignment</a>
+    <div class="container border pt-3 pb-3">
+        <h2>Add Assignment</h2>
+        <form method="POST" action="">
+            {{ assignment_form.csrf_token() }}
+            <div class="form-group">
+                {{ assignment_form.assignment_num.label }}:
+                {{ assignment_form.assignment_num(class_="form-control", placeholder="Enter assignment number (e.g. 3)") }}
+            </div>
+            <div class="form-group">
+                {{ assignment_form.title.label }}:
+                {{ assignment_form.title(class_="form-control", placeholder="Enter assignment title") }}
+            </div>
+            {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
+        </form>
     </div>
 </div>
 
@@ -51,12 +66,12 @@
 
     <div class="container pl-0">
         <form method="POST" action="" enctype="multipart/form-data">
-            {{ form.csrf_token() }}
+            {{ roster_form.csrf_token() }}
             <div class="form-group">
-                <h4>{{ form.roster_file.label }}:</h4>
-                {{ form.roster_file(class_="form-control-file") }}
+                <h4>{{ roster_form.roster_file.label }}:</h4>
+                {{ roster_form.roster_file(class_="form-control-file") }}
             </div>
-            {{ form.submit(class_="btn btn-outline-primary btn-sm") }}
+            {{ roster_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
 </div>

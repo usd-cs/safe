@@ -4,10 +4,10 @@ from flask import Flask, render_template, redirect, url_for, abort, request
 from sqlalchemy import create_engine, inspect, insert, and_
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField
+from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField
 from flask_wtf.file import FileField, FileRequired
 from wtforms.widgets import ListWidget, CheckboxInput
-from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp
+from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp, NumberRange
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -210,14 +210,56 @@ def create_app(test_config=None):
         return render_template("main.html", page_title="Home: SAFE @ USD")
 
 
+    class NewAssignmentForm(FlaskForm):
+        assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
+        title = StringField('Assignment Title', validators=[DataRequired()])
+        submit = SubmitField("Submit")
+
     class RosterUploadForm(FlaskForm):
         roster_file = FileField('Class Roster', validators=[FileRequired()])
                 #validators=[Regexp('^.*\.(csv|CSV)$', message="Must be CSV file format")])
         submit = SubmitField('Upload Roster')
 
+    # TODO: generalize for non-COMP110 courses
     @app.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
     def section_overview(semester, section_num):
+        # TODO: check that section actually exists, displaying 404 if not
+
+        new_assignment_form = NewAssignmentForm()
         roster_upload_form = RosterUploadForm()
+
+        if new_assignment_form.validate_on_submit():
+            with Session() as session:
+                section = (
+                    session.query(db_models.Section)
+                        .filter(db_models.Section.course == "comp110")
+                        .filter(db_models.Section.semester == semester)
+                        .filter(db_models.Section.section_num == section_num)
+                        .first()
+                )
+
+
+                num_matches = (
+                        session.query(db_models.Assignment)
+                            .filter(db_models.Assignment.section_id == section.section_id)
+                            .count()
+                )
+
+                if num_matches != 0:
+                    print("ERROR: assignment already exists!")
+                    # TODO: flash error with this message to alert user of the
+                    # issue
+
+                else:
+                    print("SUCCESS: Adding new assignment!")
+                    new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
+                                                            title=new_assignment_form.title.data,
+                                                            section_id=section.section_id)
+
+                    session.add(new_assignment)
+                    session.commit()
+
+                    return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
         if roster_upload_form.validate_on_submit():
             # add users to database
@@ -287,7 +329,7 @@ def create_app(test_config=None):
             section = (
                 # FIXME: filter on course and semester too!!!
                 session.query(db_models.Section)
-                    .filter(db_models.Section.section_id == section_num)
+                    .filter(db_models.Section.section_num == section_num)
                     .first()
             )
 
@@ -306,7 +348,8 @@ def create_app(test_config=None):
                                     page_title="Section Overview: SAFE @ USD",
                                     section=section,
                                     users=enrolled_users,
-                                    form=roster_upload_form
+                                    assignment_form=new_assignment_form,
+                                    roster_form=roster_upload_form
                                     )
 
     # TODO: generalize for non comp110-courses
