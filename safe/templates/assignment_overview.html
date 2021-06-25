@@ -13,32 +13,28 @@
 
 <div class="container pt-3">
 	<h1>Groups</h1>
-    <div class="container pl-1 pb-3">
-        <a class="btn btn-outline-primary" href="#" role="button">Create New
-            Group</a>
-    </div>
     <ul class="list-group">
-        {% if groups|length > 0 %}
-            {% for team, members in groups %}
+        {% if teams|length > 0 %}
+            {% for team in teams %}
             <li class="list-group-item">
                 <div class="container">
                     <div class="row">
                         <h5>Group {{team.team_num}}</h5>
                     </div>
                     <div class="row">
-                        <strong>Members:</strong>
-                        {% for m in members %} 
+                        <strong>Members:</strong>&nbsp;
+                        {% for m in team.members %} 
                             {{m.first_name}} {{m.last_name}}, 
                         {% endfor %}
                     </div>
                     <div class="row">
-                        <strong>Submission Time:</strong> FIXME
+                        <strong>Submission Time:</strong>&nbsp; FIXME
                     </div>
                     <div class="row">
-                        <strong>Commit Message:</strong> FIXME
+                        <strong>Commit Message:</strong>&nbsp; FIXME
                     </div>
                     <div class="row">
-                        <strong>Feedback Time:</strong> FIXME
+                        <strong>Feedback Time:</strong>&nbsp; FIXME
                     </div>
                     <div class="row">
                         <a href="{{ url_for('psa_results',
@@ -64,6 +60,29 @@
             <li class="list-group-item">No groups found</li>
         {% endif %}
     </ul>
+
+    <div class="container border pt-3 pb-3">
+        <h2>Create New Group</h2>
+        <form method="POST" action="">
+            {{ group_form.csrf_token() }}
+            <div class="form-group">
+                {{ group_form.group_num.label }}:
+                {{ group_form.group_num(class_="form-control", placeholder="Enter group number (e.g. 3)") }}
+            </div>
+            <div class="form-group pt-2">
+                <label>Group Member(s):</label>
+                <div class="container">
+                    {% for choice in group_form.members %}
+                    <div class="form-check">
+                        {{ choice(class="form-check-input") }}
+                        {{ choice.label(class="form-check-label") }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {{ group_form.submit(class_="btn btn-outline-primary btn-sm") }}
+        </form>
+    </div>
 </div>
 
 {% endblock %}

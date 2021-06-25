@@ -352,9 +352,16 @@ def create_app(test_config=None):
                                     roster_form=roster_upload_form
                                     )
 
+    class NewGroupForm(FlaskForm):
+        group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
+        members = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
+        submit = SubmitField("Submit")
+
     # TODO: generalize for non comp110-courses
-    @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/")
+    @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
     def psa_overview(semester, section_num, psa_num):
+        new_group_form = NewGroupForm()
+
         with Session() as session:
             section = (
                 session.query(db_models.Section)
@@ -367,7 +374,6 @@ def create_app(test_config=None):
             if not section:
                 abort(404)
 
-            # TODO: add real assignment and team member info here
             assignment = (
                     session.query(db_models.Assignment)
                         .filter(db_models.Assignment.section_id == section.section_id)
@@ -375,15 +381,52 @@ def create_app(test_config=None):
                         .first()
             )
 
-            #mock_assignment = db_models.Assignment(num=1, title="Turtle Name Drawer")
-            mock_team = db_models.Team(team_num=1)
-            mock_team_members = [db_models.User(username="jsmith", first_name="Joe", last_name="Smith")]
-            mock_team2 = db_models.Team(team_num=4)
-            mock_team2_members = [db_models.User(username="qworld", first_name="Quentin", last_name="World")]
+            enrolled_students = (
+                session.query(db_models.User)
+                    .join(db_models.section_enrollment)
+                    .join(db_models.Section)
+                    .filter(and_(db_models.Section.section_id == section.section_id, 
+                                    db_models.User.instructor == False))
+                    .order_by(db_models.User.last_name)
+                    .all()
+            )
 
-            return render_template("assignment_overview.html", section=section,
-                    assignment=assignment, groups=[(mock_team,
-                        mock_team_members), (mock_team2, mock_team2_members)])
+            id_list = [s.user_id for s in enrolled_students]
+            name_list = [f"{s.last_name}, {s.first_name} ({s.username})" for s in enrolled_students]
+
+            new_group_form.members.choices = zip(id_list, name_list)
+
+            if new_group_form.validate_on_submit():
+                # TODO: Check that group_num doesn't already exist
+                new_group = db_models.Team(team_num=new_group_form.group_num.data,
+                                                assignment_id=assignment.assignment_id)
+
+                session.add(new_group)
+                session.flush() # causes DB to give the new_group a team_id
+
+                # add selected students to team
+                for student_id in new_group_form.members.data:
+                    statement = (
+                        insert(db_models.team_enrollment)
+                            .values(user_id=student_id, team_id=new_group.team_id)
+                    )
+                    session.execute(statement)
+
+                session.commit()
+
+                return redirect(url_for('psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+
+            print("new group form errors:", new_group_form.errors)
+
+            # TRICKY: validating form seems to clear out choices so have to
+            # reset them here
+            new_group_form.members.choices = zip(id_list, name_list)
+
+            return render_template("assignment_overview.html", 
+                                    section=section,
+                                    assignment=assignment,
+                                    teams=assignment.teams,
+                                    group_form=new_group_form)
 
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
     def psa_results(semester, section_num, psa_num, group_num):
