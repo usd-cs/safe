@@ -1,4 +1,5 @@
 import os
+import json
 from collections import namedtuple
 
 from flask import Flask, render_template, redirect, url_for, abort, request
@@ -467,19 +468,35 @@ def create_app(test_config=None):
                         .filter(db_models.Assignment.num == psa_num)
                         .first()
             )
-
-            # TODO: read results from file and pass them into render_template
-            result1 = TestResult('PASS', 'Requirement 1', "All tests passed for this requirement.")
-            result2 = TestResult('FAIL', 'Requirement 2', "One or more tests failed for this requirement.")
-            result3 = TestResult('PASS', 'Requirement 3', "All tests passed for this requirement.")
+            
+            # Read results from JSON file, filling them in a dictionary that is
+            # organized by section.
 
             results = {}
-            results['Part 1: Yada yada yada'] = [result1, result2]
-            results['Part 2: Boop'] = [result3]
+            # FIXME: results file should depend on configured results directory
+            # and course/semester/section/psa/group.
+            with open('safe/mock_results.json', 'r') as results_file:
+
+                json_results = json.load(results_file)
+                for result in json_results["results"]:
+                    section_results = results.get(result["section"])
+                    new_test_result = TestResult(result["status"], result["summary"], result["detail"])
+
+                    if section_results:
+                        section_results.append(new_test_result)
+                    else:
+                        section_results = [new_test_result]
+
+                    results[result["section"]] = section_results
+
+                    print(result)
 
             return render_template("assignment_results.html",
                                     assignment=assignment,
                                     group_num=group_num,
+                                    submit_time=json_results["submission_time"],
+                                    commit_comment=json_results["commit_comment"],
+                                    results_time=json_results["results_time"],
                                     test_results=results)
 
     @app.route('/assignments/add/')

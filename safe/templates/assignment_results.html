@@ -23,6 +23,14 @@ bg-warning
 
 <div class="container pt-3">
 	<h1>Assignment Feedback</h1>
+    <ul class="list-group pb-3">
+        <li class="list-group-item"><strong>Submission Time:</strong>
+            {{submit_time}}</li>
+        <li class="list-group-item"><strong>Commit Comment:</strong>
+            {{commit_comment}}</li>
+        <li class="list-group-item"><strong>Feedback Time:</strong>
+            {{results_time}}</li>
+    </ul>
     {% for section, results in test_results.items() %}
     <div class="container pb-3">
         <h3>{{ section }}</h3>
