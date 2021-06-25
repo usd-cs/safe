@@ -477,7 +477,7 @@ def create_app(test_config=None):
             results['Part 1: Yada yada yada'] = [result1, result2]
             results['Part 2: Boop'] = [result3]
 
-            return render_template("psa_results.html",
+            return render_template("assignment_results.html",
                                     assignment=assignment,
                                     group_num=group_num,
                                     test_results=results)
