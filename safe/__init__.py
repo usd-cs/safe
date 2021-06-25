@@ -1,4 +1,5 @@
 import os
+from collections import namedtuple
 
 from flask import Flask, render_template, redirect, url_for, abort, request
 from sqlalchemy import create_engine, inspect, insert, and_
@@ -441,9 +442,45 @@ def create_app(test_config=None):
                                     teams=assignment.teams,
                                     group_form=new_group_form)
 
+
+    TestResult = namedtuple('TestResult', ['status', 'summary', 'detail'])
+
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
     def psa_results(semester, section_num, psa_num, group_num):
-        return "FIXME"
+        # TODO: validate semester, section num, psa_num, and group_num
+
+        with Session() as session:
+            section = (
+                session.query(db_models.Section)
+                    .filter(db_models.Section.course == "comp110")
+                    .filter(db_models.Section.semester == semester)
+                    .filter(db_models.Section.section_num == section_num)
+                    .first()
+            )
+
+            if not section:
+                abort(404)
+
+            assignment = (
+                    session.query(db_models.Assignment)
+                        .filter(db_models.Assignment.section_id == section.section_id)
+                        .filter(db_models.Assignment.num == psa_num)
+                        .first()
+            )
+
+            # TODO: read results from file and pass them into render_template
+            result1 = TestResult('PASS', 'Requirement 1', "All tests passed for this requirement.")
+            result2 = TestResult('FAIL', 'Requirement 2', "One or more tests failed for this requirement.")
+            result3 = TestResult('PASS', 'Requirement 3', "All tests passed for this requirement.")
+
+            results = {}
+            results['Part 1: Yada yada yada'] = [result1, result2]
+            results['Part 2: Boop'] = [result3]
+
+            return render_template("psa_results.html",
+                                    assignment=assignment,
+                                    group_num=group_num,
+                                    test_results=results)
 
     @app.route('/assignments/add/')
     def add_assignment():

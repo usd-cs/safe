@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="container pt-3">
+	<h1>Assignment Info</h1>
+    <ul class="list-group">
+        <li class="list-group-item"><strong>Name:</strong> PSA {{assignment.num}}</li>
+        <li class="list-group-item"><strong>Title:</strong> {{assignment.title}}</li>
+        <li class="list-group-item"><strong>Deadline:</strong> FIXME</li>
+        <li class="list-group-item"><strong>Group Number:</strong> {{group_num}}</li>
+    </ul>
+</div>
+
+{% macro badge_color(result) %}
+{% if result == "PASS" %}
+bg-primary
+{% elif result == "FAIL" %}
+bg-danger
+{% else %}
+bg-warning
+{% endif %}
+{% endmacro %}
+
+<div class="container pt-3">
+	<h1>Assignment Feedback</h1>
+    {% for section, results in test_results.items() %}
+    <div class="container pb-3">
+        <h3>{{ section }}</h3>
+        <ul class="list-group list-group-numbered">
+            {% for result in results %}
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div class="ms-2 me-auto">
+                    <div class="font-weight-bold">{{ result.summary }}</div>
+                    {{ result.detail }}
+                </div>
+                <!-- TODO: replace following badge this with an icon -->
+                <span class="badge {{ badge_color(result.status) }} rounded-pill text-light">{{ result.status }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
