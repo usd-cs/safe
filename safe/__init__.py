@@ -387,12 +387,25 @@ def create_app(test_config=None):
                     .join(db_models.Section)
                     .filter(and_(db_models.Section.section_id == section.section_id, 
                                     db_models.User.instructor == False))
-                    .order_by(db_models.User.last_name)
-                    .all()
             )
 
-            id_list = [s.user_id for s in enrolled_students]
-            name_list = [f"{s.last_name}, {s.first_name} ({s.username})" for s in enrolled_students]
+            students_in_groups = (
+                session.query(db_models.User)
+                    .join(db_models.team_enrollment)
+                    .join(db_models.Team)
+                    .filter(db_models.Team.assignment_id == assignment.assignment_id)
+            )
+
+            students_without_groups = (
+                    enrolled_students
+                        .except_(students_in_groups)
+                        .order_by(db_models.User.last_name)
+                        .all()
+            )
+
+            id_list = [s.user_id for s in students_without_groups]
+            name_list = [f"{s.last_name}, {s.first_name} ({s.username})" 
+                            for s in students_without_groups]
 
             new_group_form.members.choices = zip(id_list, name_list)
 
