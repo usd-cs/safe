@@ -6,7 +6,7 @@ from flask import Flask, render_template, redirect, url_for, abort, request
 from sqlalchemy import create_engine, inspect, insert, and_
 from sqlalchemy.orm import sessionmaker
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField
+from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField, BooleanField
 from flask_wtf.file import FileField, FileRequired
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp, NumberRange
@@ -49,6 +49,7 @@ def create_app(test_config=None):
         last_name = StringField('First Name', validators=[DataRequired()])
         username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
         password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
+        admin = BooleanField('Admin')
         submit = SubmitField('Submit')
 
 
@@ -146,8 +147,8 @@ def create_app(test_config=None):
                                                     password=generate_password_hash(form.password.data),
                                                     first_name=form.first_name.data,
                                                     last_name=form.last_name.data,
-                                                    instructor=True,
-                                                    admin=True)  # FIXME: limit who is admin
+                                                    admin=form.admin.data,
+                                                    instructor=True)
                 session.add(new_instructor)
                 session.commit()
 
