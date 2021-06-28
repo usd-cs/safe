@@ -12,6 +12,7 @@ from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp, NumberRange
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -21,6 +22,10 @@ def create_app(test_config=None):
         DATABASE_URI='sqlite:///safe.sqlite3',
         DATABASE_VERBOSE=True
     )
+
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
 
     # try to make the instance folder
     try:
@@ -47,11 +52,84 @@ def create_app(test_config=None):
         submit = SubmitField('Submit')
 
 
+    @login_manager.user_loader
+    def load_user(user_id):
+        print("loading user:", user_id)
+
+        with Session() as session:
+            matching_users = (
+                session.query(db_models.User)
+                    .filter(db_models.User.user_id == int(user_id))
+            )
+
+        if matching_users.count() == 1:
+            return matching_users.first()
+        else:
+            print(f"Couldn't find user with id {user_id}")
+            return None
+
+    class LoginForm(FlaskForm):
+        username = StringField(label=('Username'), validators=[DataRequired()])
+        password = PasswordField(label=('Password'), validators=[DataRequired()])
+        submit = SubmitField(label=('Submit'))
+
+    @app.route('/login/', methods = ['POST', 'GET'])
+    def login():
+        if current_user.is_authenticated:
+            next_url = request.args.get('next')
+            if next_url is None:
+                # TODO: flash message telling them they've already logged in
+                return redirect(url_for('root'))
+            else:
+                print(next_url)
+                return redirect(next_url)
+
+        form = LoginForm()
+        if form.validate_on_submit():
+            with Session() as session:
+                user_matches = (
+                    session.query(db_models.User)
+                        .filter(db_models.User.username == form.username.data)
+                )
+
+            if user_matches.count() == 1:
+                matching_user = user_matches.first()
+            else:
+                matching_user = None
+
+            if matching_user is None or not matching_user.check_password(form.password.data):
+                # TODO: log invalid attempts
+                flash("Invalid login credentials!")
+            else:
+                login_user(matching_user)
+                next_url = request.args.get('next')
+                if next_url is None:
+                    # TODO: flash message telling them they've successfully logged in
+                    return redirect(url_for('root'))
+                else:
+                    return redirect(next_url)
+
+        return render_template('login.html', form=form)
+
+    @app.route('/logout/')
+    def logout():
+        if current_user.is_authenticated:
+            logout_user()
+            # TODO: flash message telling them they've successfully logged out
+        else:
+            # TODO: flash message telling them they weren't logged in
+            pass
+
+        return redirect(url_for('root'))
+
+
     @app.route('/admin')
+    @login_required
     def admin_home():
         return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
 
     @app.route('/admin/instructors', methods=['get', 'post'])
+    @login_required
     def admin_instructors():
         form = NewInstructorForm()
 
@@ -100,6 +178,7 @@ def create_app(test_config=None):
 
 
     @app.route('/admin/sections', methods=['get', 'post'])
+    @login_required
     def admin_sections():
         form = NewSectionForm()
 
