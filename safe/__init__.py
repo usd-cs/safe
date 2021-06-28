@@ -309,6 +309,13 @@ def create_app(test_config=None):
     def root():
         return render_template("home.html", page_title="Home: SAFE @ USD")
 
+    @app.errorhandler(404)
+    def page_not_found(error):
+        return render_template("not_found.html")
+
+    @app.errorhandler(403)
+    def permission_denied(error):
+        return render_template("forbidden.html")
 
     class NewAssignmentForm(FlaskForm):
         assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
