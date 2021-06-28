@@ -307,7 +307,7 @@ def create_app(test_config=None):
 
     @app.route('/')
     def root():
-        return render_template("main.html", page_title="Home: SAFE @ USD")
+        return render_template("home.html", page_title="Home: SAFE @ USD")
 
 
     class NewAssignmentForm(FlaskForm):
