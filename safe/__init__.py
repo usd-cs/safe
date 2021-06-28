@@ -623,26 +623,4 @@ def create_app(test_config=None):
                                     results_time=json_results["results_time"],
                                     test_results=results)
 
-    @app.route('/assignments/add/')
-    def add_assignment():
-        with Session() as session:
-            #assignment_title = f"Cool assignment {next_assignment_num}"
-            new_psa = db_models.PSA( title="Farts")
-            session.add(new_psa)
-            session.commit()
-            #next_assignment_num += 1
-            return f"Successfully added assignment {new_psa.psa_id}"
-
-
-    @app.route('/assignments/')
-    def get_assignments():
-        with Session() as session:
-            print(f"found: {session.query(db_models.PSA).count()}")
-            html_str = ""
-            for psa in session.query(db_models.PSA).all():
-                print(psa)
-                html_str += psa.title + "<br/>"
-
-            return html_str
-
     return app
