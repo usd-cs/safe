@@ -124,7 +124,7 @@ def create_app(test_config=None):
         return redirect(url_for('root'))
 
 
-    @app.route('/admin')
+    @app.route('/admin/')
     @login_required
     def admin_home():
         if not current_user.admin:
@@ -193,7 +193,6 @@ def create_app(test_config=None):
         form = NewSectionForm()
 
         with Session() as session:
-            #instructors = session.query(db_models.User).order_by(db_models.User.last_name).all()
             all_instructors = (
                 session.query(db_models.User)
                     .filter(db_models.User.instructor == True)
@@ -325,7 +324,6 @@ def create_app(test_config=None):
     @app.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
     @login_required
     def section_overview(semester, section_num):
-        # TODO: check that section actually exists, displaying 404 if not
         with Session() as session:
             section = (
                 session.query(db_models.Section)
@@ -338,10 +336,9 @@ def create_app(test_config=None):
             if not section:
                 # section doesn't exist!
                 abort(404)
-            elif not (current_user.admin or current_user.instructor):
-                # only admins and instructors can view this page.
-                # TODO: don't allow instructors who don't teach this section to
-                # view it
+            elif not (current_user.admin 
+                        or (current_user.instructor and current_user in section.users)):
+                # only admins and seciton instructor(s) can view this page.
                 abort(403)
 
         new_assignment_form = NewAssignmentForm()
@@ -485,10 +482,9 @@ def create_app(test_config=None):
 
             if not section:
                 abort(404)
-            elif not (current_user.admin or current_user.instructor):
-                # only admins and instructors can view this page.
-                # TODO: don't allow instructors who don't teach this section to
-                # view it
+            elif not (current_user.admin 
+                        or (current_user.instructor and current_user in section.users)):
+                # only admins and section instructor(s) can view this page.
                 abort(403)
 
             assignment = (
@@ -581,11 +577,6 @@ def create_app(test_config=None):
 
             if not section:
                 abort(404)
-            elif not (current_user.admin or current_user.instructor):
-                # only admins and instructors can view this page.
-                # TODO: allow students in this group to view this page and limit
-                # to only instructors for this section
-                abort(403)
 
             assignment = (
                     session.query(db_models.Assignment)
@@ -593,6 +584,25 @@ def create_app(test_config=None):
                         .filter(db_models.Assignment.num == psa_num)
                         .first()
             )
+
+            if not assignment:
+                abort(404)
+
+            group = (
+                    session.query(db_models.Team)
+                        .filter(db_models.Team.assignment_id == assignment.assignment_id)
+                        .filter(db_models.Team.team_num == group_num)
+                        .first()
+            )
+
+            if not group:
+                abort(404)
+            elif not (current_user.admin 
+                        or (current_user.instructor and current_user in section.users)
+                        or (current_user in group.members)):
+                # only admins, section instructor(s), and students in this group
+                # can view this page.
+                abort(403)
             
             # Read results from JSON file, filling them in a dictionary that is
             # organized by section.
