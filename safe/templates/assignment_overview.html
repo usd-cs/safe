@@ -4,10 +4,12 @@
 <div class="container pt-3">
 	<h1>Assignment Info</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Course:</strong> {{section.course}},
-            Section {{section.section_num}} ({{section.semester}})</li>
-        <li class="list-group-item"><strong>Name:</strong> PSA {{assignment.num}}</li>
-        <li class="list-group-item"><strong>Title:</strong> {{assignment.title}}</li>
+        <li class="list-group-item">
+            <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.title}}
+        </li>
+        <li class="list-group-item">
+            <strong>Course:</strong> {{section.course}}, Section {{section.section_num}} ({{section.semester}})
+        </li>
     </ul>
 </div>
 
