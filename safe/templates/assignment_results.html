@@ -4,8 +4,8 @@
 <div class="container pt-3">
 	<h1>Assignment Info</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Name:</strong> PSA {{assignment.num}}</li>
-        <li class="list-group-item"><strong>Title:</strong> {{assignment.title}}</li>
+        <li class="list-group-item"><strong>Name:</strong> PSA
+            {{assignment.num}}: {{assignment.title}}</li>
         <li class="list-group-item"><strong>Deadline:</strong> FIXME</li>
         <li class="list-group-item"><strong>Group Number:</strong> {{group_num}}</li>
     </ul>
@@ -13,7 +13,7 @@
 
 {% macro badge_color(result) %}
 {% if result == "PASS" %}
-bg-primary
+bg-success
 {% elif result == "FAIL" %}
 bg-danger
 {% else %}
