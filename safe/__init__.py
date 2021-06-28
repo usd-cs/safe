@@ -126,11 +126,17 @@ def create_app(test_config=None):
     @app.route('/admin')
     @login_required
     def admin_home():
+        if not current_user.admin:
+            abort(403)
+            
         return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
 
     @app.route('/admin/instructors', methods=['get', 'post'])
     @login_required
     def admin_instructors():
+        if not current_user.admin:
+            abort(403)
+            
         form = NewInstructorForm()
 
         if form.validate_on_submit():
@@ -180,6 +186,9 @@ def create_app(test_config=None):
     @app.route('/admin/sections', methods=['get', 'post'])
     @login_required
     def admin_sections():
+        if not current_user.admin:
+            abort(403)
+            
         form = NewSectionForm()
 
         with Session() as session:
@@ -261,7 +270,12 @@ def create_app(test_config=None):
                                 sections=section_info)
 
     @app.route('/profile/<username>')
+    @login_required
     def user_profile(username):
+        if not (current_user.admin or current_user.instructor or
+                current_user.username == username):
+            abort(403)
+
         with Session() as session:
             selected_user = (
                 session.query(db_models.User)
@@ -270,10 +284,9 @@ def create_app(test_config=None):
             )
 
 
-        if selected_user:
-            # if user exists, grab the list of classes they are enrolled in and
-            # render the profile page view
-            with Session() as session:
+            if selected_user:
+                # if user exists, grab the list of classes they are enrolled in and
+                # render the profile page view
                 enrolled_courses = (
                     session.query(db_models.Section)
                         .join(db_models.section_enrollment)
@@ -282,13 +295,15 @@ def create_app(test_config=None):
                         .all()
                 )
 
-            return render_template("user_profile.html",
-                                    page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
-                                    user=selected_user,
-                                    courses=enrolled_courses)
-        else:
-            # the user doesn't exist so 404 'em
-            abort(404)
+                # TODO: don't need DB query here... use the user's sections
+                # field
+                return render_template("user_profile.html",
+                                        page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
+                                        user=selected_user,
+                                        courses=enrolled_courses)
+            else:
+                # the user doesn't exist so 404 'em
+                abort(404)
 
     @app.route('/')
     def root():
@@ -307,22 +322,32 @@ def create_app(test_config=None):
 
     # TODO: generalize for non-COMP110 courses
     @app.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
+    @login_required
     def section_overview(semester, section_num):
         # TODO: check that section actually exists, displaying 404 if not
+        with Session() as session:
+            section = (
+                session.query(db_models.Section)
+                    .filter(db_models.Section.course == "comp110")
+                    .filter(db_models.Section.semester == semester)
+                    .filter(db_models.Section.section_num == section_num)
+                    .first()
+            )
+
+            if not section:
+                # section doesn't exist!
+                abort(404)
+            elif not (current_user.admin or current_user.instructor):
+                # only admins and instructors can view this page.
+                # TODO: don't allow instructors who don't teach this section to
+                # view it
+                abort(403)
 
         new_assignment_form = NewAssignmentForm()
         roster_upload_form = RosterUploadForm()
 
         if new_assignment_form.validate_on_submit():
             with Session() as session:
-                section = (
-                    session.query(db_models.Section)
-                        .filter(db_models.Section.course == "comp110")
-                        .filter(db_models.Section.semester == semester)
-                        .filter(db_models.Section.section_num == section_num)
-                        .first()
-                )
-
                 num_matches = (
                         session.query(db_models.Assignment)
                             .filter(db_models.Assignment.section_id == section.section_id)
@@ -444,6 +469,7 @@ def create_app(test_config=None):
 
     # TODO: generalize for non comp110-courses
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
+    @login_required
     def psa_overview(semester, section_num, psa_num):
         new_group_form = NewGroupForm()
 
@@ -458,6 +484,11 @@ def create_app(test_config=None):
 
             if not section:
                 abort(404)
+            elif not (current_user.admin or current_user.instructor):
+                # only admins and instructors can view this page.
+                # TODO: don't allow instructors who don't teach this section to
+                # view it
+                abort(403)
 
             assignment = (
                     session.query(db_models.Assignment)
@@ -465,6 +496,10 @@ def create_app(test_config=None):
                         .filter(db_models.Assignment.num == psa_num)
                         .first()
             )
+
+            if not assignment:
+                # assignment doesn't exist!
+                abort(404)
 
             enrolled_students = (
                 session.query(db_models.User)
@@ -530,6 +565,7 @@ def create_app(test_config=None):
     TestResult = namedtuple('TestResult', ['status', 'summary', 'detail'])
 
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
+    @login_required
     def psa_results(semester, section_num, psa_num, group_num):
         # TODO: validate semester, section num, psa_num, and group_num
 
@@ -544,6 +580,11 @@ def create_app(test_config=None):
 
             if not section:
                 abort(404)
+            elif not (current_user.admin or current_user.instructor):
+                # only admins and instructors can view this page.
+                # TODO: allow students in this group to view this page and limit
+                # to only instructors for this section
+                abort(403)
 
             assignment = (
                     session.query(db_models.Assignment)
