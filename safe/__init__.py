@@ -73,7 +73,11 @@ def create_app(test_config=None):
 
         # form wasn't valid so re-render the page
         with Session() as session:
-            instructors = session.query(db_models.User).order_by(db_models.User.last_name)
+            instructors = (
+                session.query(db_models.User)
+                    .filter(db_models.User.instructor == True)
+                    .order_by(db_models.User.last_name)
+            )
 
         return render_template("admin_instructors.html", 
                                 page_title="Admin Instructors: SAFE @ USD", 
