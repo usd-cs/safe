@@ -4,7 +4,9 @@
 <div class="container pt-3">
     <h1>Course Info ({{section.course|upper}})</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Instructor(s):</strong> FIXME</li>
+        <li class="list-group-item"><strong>Instructor(s):</strong>
+            {{ instructors }}
+        </li>
         <li class="list-group-item"><strong>Semester:</strong> {{section.semester|upper}}</li>
         <li class="list-group-item"><strong>Section:</strong> {{"%02d"|format(section.section_num)}}</li>
     </ul>

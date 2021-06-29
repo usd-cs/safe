@@ -340,6 +340,9 @@ def create_app(test_config=None):
     @app.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
     @login_required
     def section_overview(semester, section_num):
+
+        # TODO: split this function into two separate functions, which will be
+        # called based on whether the user is a student or an instructor/admin
         with Session() as session:
             section = (
                 session.query(db_models.Section)
@@ -359,6 +362,16 @@ def create_app(test_config=None):
 
         if not (current_user.admin or current_user.instructor):
             with Session() as session:
+
+                instructors = (
+                    session.query(db_models.User)
+                        .join(db_models.Section.users)
+                        .filter(db_models.Section.section_id == section.section_id)
+                        .filter(db_models.User.instructor)
+                        .all()
+                )
+
+                instructor_info = ", ".join([f"{u.first_name} {u.last_name} ({u.username}@sandiego.edu)" for u in instructors])
 
                 # get intersection of section's assignments and user's teams
                 # assignments
@@ -384,6 +397,7 @@ def create_app(test_config=None):
                                         page_title="Section Overview: SAFE @ USD",
                                         user=current_user,
                                         section=section,
+                                        instructors=instructor_info,
                                         assignments=assignment_info
                                         )
 
