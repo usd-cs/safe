@@ -3,8 +3,8 @@ import json
 from collections import namedtuple
 
 from flask import Flask, render_template, redirect, url_for, abort, request
-from sqlalchemy import create_engine, inspect, insert, and_
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, inspect, insert, and_, select
+from sqlalchemy.orm import sessionmaker, with_parent
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField, BooleanField
 from flask_wtf.file import FileField, FileRequired
@@ -353,9 +353,39 @@ def create_app(test_config=None):
                 # section doesn't exist!
                 abort(404)
             elif not (current_user.admin 
-                        or (current_user.instructor and current_user in section.users)):
+                        or (current_user in section.users)):
                 # only admins and seciton instructor(s) can view this page.
                 abort(403)
+
+        if not (current_user.admin or current_user.instructor):
+            with Session() as session:
+
+                # get intersection of section's assignments and user's teams
+                # assignments
+                teams_in_section = (
+                    session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                        .join(db_models.Section.assignments)
+                        .join(db_models.Assignment.teams)
+                        .filter(db_models.Section.section_id == section.section_id)
+                )
+
+                teams_with_user = (
+                    session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                        .select_from(db_models.Team)
+                        .join(db_models.User.teams)
+                        .join(db_models.Assignment)
+                        .filter(db_models.User.username == current_user.username)
+                )
+
+                assignment_info = teams_in_section.intersect(teams_with_user).all()
+
+                # render view for a student user
+                return render_template("section_overview_student.html", 
+                                        page_title="Section Overview: SAFE @ USD",
+                                        user=current_user,
+                                        section=section,
+                                        assignments=assignment_info
+                                        )
 
         new_assignment_form = NewAssignmentForm()
         roster_upload_form = RosterUploadForm()
