@@ -130,7 +130,9 @@ def create_app(test_config=None):
         if not current_user.admin:
             abort(403)
             
-        return render_template("admin.html", page_title="Admin Home: SAFE @ USD")
+        return render_template("admin.html", 
+                page_title="Admin Home: SAFE @ USD",
+                user=current_user)
 
     @app.route('/admin/instructors', methods=['get', 'post'])
     @login_required
@@ -166,6 +168,7 @@ def create_app(test_config=None):
 
         return render_template("admin_instructors.html", 
                                 page_title="Admin Instructors: SAFE @ USD", 
+                                user=current_user,
                                 form=form,
                                 instructors=instructors) 
 
@@ -266,6 +269,7 @@ def create_app(test_config=None):
 
         return render_template("admin_sections.html",
                                 page_title="Admin Sections: SAFE @ USD",
+                                user=current_user,
                                 form=form,
                                 sections=section_info)
 
@@ -299,7 +303,8 @@ def create_app(test_config=None):
                 # field
                 return render_template("user_profile.html",
                                         page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
-                                        user=selected_user,
+                                        user=current_user,
+                                        selected_user=selected_user,
                                         courses=enrolled_courses)
             else:
                 # the user doesn't exist so 404 'em
@@ -307,15 +312,19 @@ def create_app(test_config=None):
 
     @app.route('/')
     def root():
-        return render_template("home.html", page_title="Home: SAFE @ USD")
+        return render_template("home.html", 
+                                page_title="Home: SAFE @ USD",
+                                user=current_user)
 
     @app.errorhandler(404)
     def page_not_found(error):
-        return render_template("not_found.html")
+        return render_template("not_found.html", 
+                                user=current_user)
 
     @app.errorhandler(403)
     def permission_denied(error):
-        return render_template("forbidden.html")
+        return render_template("forbidden.html",
+                                user=current_user)
 
     class NewAssignmentForm(FlaskForm):
         assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
@@ -461,6 +470,7 @@ def create_app(test_config=None):
 
             return render_template("section_overview.html", 
                                     page_title="Section Overview: SAFE @ USD",
+                                    user=current_user,
                                     section=section,
                                     users=enrolled_users,
                                     assignment_form=new_assignment_form,
@@ -560,6 +570,7 @@ def create_app(test_config=None):
             new_group_form.members.choices = zip(id_list, name_list)
 
             return render_template("assignment_overview.html", 
+                                    user=current_user,
                                     section=section,
                                     assignment=assignment,
                                     teams=assignment.teams,
@@ -634,6 +645,7 @@ def create_app(test_config=None):
                     print(result)
 
             return render_template("assignment_results.html",
+                                    user=current_user,
                                     assignment=assignment,
                                     group_num=group_num,
                                     submit_time=json_results["submission_time"],

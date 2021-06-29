@@ -4,8 +4,8 @@
 <div class="container pt-3">
 	<h1>User Info</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Name:</strong> {{user.first_name}} {{user.last_name}}</li>
-        <li class="list-group-item"><strong>Email:</strong> {{user.username}}@sandiego.edu</li>
+        <li class="list-group-item"><strong>Name:</strong> {{selected_user.first_name}} {{selected_user.last_name}}</li>
+        <li class="list-group-item"><strong>Email:</strong> {{selected_user.username}}@sandiego.edu</li>
     </ul>
 </div>
 {% if courses|length > 0 %}

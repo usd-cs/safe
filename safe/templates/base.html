@@ -21,10 +21,27 @@
                 <div class="nav-item">
                     <a class="nav-link" href="/">Home</a>
                 </div>
-                <div class="container d-flex flex-row-reverse">
-                    <a class="btn btn-danger nav-link" href="/logout" role="button">Log Out</a>
-                    <a class="nav-link" href="/profile">Profile</a>
+                {% if user and user.is_authenticated and user.admin %}
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Admin
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('admin_instructors') }}">Instructors</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin_sections') }}">Sections</a></li>
+                    </ul>
                 </div>
+                {% endif %}
+                {% if user and user.is_authenticated %}
+                <div class="container d-flex flex-row-reverse">
+                    <a class="btn btn-danger nav-link" href="{{ url_for('logout') }}" role="button">Log Out</a>
+                    <a class="nav-link" href="{{ url_for('user_profile', username=user.username) }}">Profile</a>
+                </div>
+                {% else %}
+                <div class="container d-flex flex-row-reverse">
+                    <a class="btn btn-primary nav-link" href="{{ url_for('login') }}" role="button">Sign In</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </nav>
