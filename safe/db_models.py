@@ -92,6 +92,9 @@ class Team(Base):
         "User", secondary=team_enrollment, back_populates="teams"
     )
 
+    def __repr__(self):
+        return f"Team(team_id={self.team_id}, team_num={self.team_num}, assignment_id={self.assignment_id})"
+
 
 class SourceFile(Base):
     __tablename__ = "source_file"
