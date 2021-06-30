@@ -154,8 +154,8 @@ def create_app(test_config=None):
                 session.add(new_instructor)
                 session.commit()
 
-                print("Number of instructor in DB:",
-                        session.query(db_models.User).count())
+                flash(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}", "success")
+
             return redirect(url_for('admin_instructors'))
 
         # form wasn't valid so re-render the page
@@ -237,6 +237,26 @@ def create_app(test_config=None):
 
         if form.validate_on_submit():
             with Session() as session:
+                num_matching_sections = (
+                    session.query(db_models.Section)
+                        .filter(db_models.Section.course == form.course.data)
+                        .filter(db_models.Section.semester == form.semester.data)
+                        .filter(db_models.Section.section_num == int(form.section_num.data))
+                        .count()
+                )
+
+                # make sure a section with given info doesn't already exist
+                if num_matching_sections != 0:
+                    flash("A section with that information already exists!", "danger")
+                    form.instructors.choices = zip(id_list, name_list)
+
+                    return render_template("admin_sections.html",
+                                            page_title="Admin Sections: SAFE @ USD",
+                                            user=current_user,
+                                            form=form,
+                                            sections=section_info)
+
+                # create the new section and add it to the database
                 new_section = db_models.Section(course=form.course.data,
                                                 semester=form.semester.data,
                                                 section_num=int(form.section_num.data))
@@ -255,16 +275,12 @@ def create_app(test_config=None):
 
                 session.commit()
 
-
-                print("Number of Sections in DB:",
-                        session.query(db_models.Section).count())
+                flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
 
             return redirect(url_for('admin_sections'))
 
         print("form errors:", form.errors)
 
-        # NOTE: I'm not sure why validating resets the instructor choices but
-        # we need to reset them in case validation fails
         form.instructors.choices = zip(id_list, name_list)
 
         return render_template("admin_sections.html",
