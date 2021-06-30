@@ -46,7 +46,7 @@ def create_app(test_config=None):
 
     class NewInstructorForm(FlaskForm):
         first_name = StringField('First Name', validators=[DataRequired()])
-        last_name = StringField('First Name', validators=[DataRequired()])
+        last_name = StringField('Last Name', validators=[DataRequired()])
         username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
         password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
         admin = BooleanField('Admin')
