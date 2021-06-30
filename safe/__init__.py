@@ -3,7 +3,7 @@ import json
 from collections import namedtuple
 
 from flask import Flask, render_template, redirect, url_for, abort, request, flash
-from sqlalchemy import create_engine, inspect, insert, and_, select
+from sqlalchemy import create_engine, inspect, insert, delete, and_, select
 from sqlalchemy.orm import sessionmaker, with_parent
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField, BooleanField
@@ -186,6 +186,85 @@ def create_app(test_config=None):
         instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
         submit = SubmitField("Submit")
 
+    class ModifySectionForm(FlaskForm):
+        instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
+        submit = SubmitField("Submit")
+
+
+    @app.route('/admin/sections/modify', methods=['get', 'post'])
+    @login_required
+    def modify_section():
+        if not current_user.admin:
+            abort(403)
+
+        section_id = request.args.get('section_id')
+
+        if not section_id:
+            abort(404)
+        else:
+            # TODO: error checking that the id is actually a number
+            section_id = int(section_id)
+
+        with Session() as session:
+            # verify there is a section with the given ID
+            section = (
+                session.query(db_models.Section)
+                    .filter(db_models.Section.section_id == section_id)
+                    .first()
+                )
+
+            if not section:
+                abort(404)
+
+            all_instructors = (
+                session.query(db_models.User)
+                    .filter(db_models.User.instructor == True)
+            )
+
+            section_instructors = [user for user in section.users if user.instructor == True]
+
+        form = ModifySectionForm()
+
+        id_list = [i.user_id for i in all_instructors]
+        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
+
+        form.instructors.choices = zip(id_list, name_list)
+        previous_instructors_ids = [i.user_id for i in section_instructors]
+
+        if form.validate_on_submit():
+            print("\n\n\nMOOOO selected:", form.instructors.data)
+            with Session() as session:
+                # add newly selected instructors to section
+                for instructor_id in form.instructors.data:
+                    if instructor_id not in previous_instructors_ids:
+                        statement = (
+                            insert(db_models.section_enrollment)
+                                .values(user_id=instructor_id, section_id=section_id)
+                        )
+                        session.execute(statement)
+
+                # remove old instructors who weren't selected this time
+                for instructor_id in previous_instructors_ids:
+                    if instructor_id not in form.instructors.data:
+                        statement = (
+                            delete(db_models.section_enrollment)
+                                .where(db_models.section_enrollment.c.user_id == instructor_id,
+                                    db_models.section_enrollment.c.section_id == section_id)
+                        )
+                        session.execute(statement)
+
+                session.commit()
+
+                return redirect(url_for('modify_section', section_id=section_id))
+
+        # pre-fill old instructors into selections
+        form.instructors.data = previous_instructors_ids[:]
+
+        return render_template("modify_section.html",
+                                page_title="Modify Section: SAFE @ USD",
+                                user=current_user,
+                                section=section,
+                                form=form)
 
     @app.route('/admin/sections', methods=['get', 'post'])
     @login_required
