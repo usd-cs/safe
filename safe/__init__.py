@@ -2,7 +2,7 @@ import os
 import json
 from collections import namedtuple
 
-from flask import Flask, render_template, redirect, url_for, abort, request
+from flask import Flask, render_template, redirect, url_for, abort, request, flash
 from sqlalchemy import create_engine, inspect, insert, and_, select
 from sqlalchemy.orm import sessionmaker, with_parent
 from flask_wtf import FlaskForm
@@ -79,7 +79,7 @@ def create_app(test_config=None):
         if current_user.is_authenticated:
             next_url = request.args.get('next')
             if next_url is None:
-                # TODO: flash message telling them they've already logged in
+                flash(f"You are already logged in as {current_user.username}", "warning")
                 return redirect(url_for('root'))
             else:
                 print(next_url)
@@ -100,12 +100,12 @@ def create_app(test_config=None):
 
             if matching_user is None or not matching_user.check_password(form.password.data):
                 # TODO: log invalid attempts
-                flash("Invalid login credentials!")
+                flash("Invalid username or password!", "danger")
             else:
                 login_user(matching_user)
                 next_url = request.args.get('next')
                 if next_url is None:
-                    # TODO: flash message telling them they've successfully logged in
+                    flash("You've successfully signed in!", "success")
                     return redirect(url_for('root'))
                 else:
                     return redirect(next_url)
@@ -116,9 +116,9 @@ def create_app(test_config=None):
     def logout():
         if current_user.is_authenticated:
             logout_user()
-            # TODO: flash message telling them they've successfully logged out
+            flash("You've successfully logged out!", "success")
         else:
-            # TODO: flash message telling them they weren't logged in
+            flash("You must be signed in before you can log out!", "warning")
             pass
 
         return redirect(url_for('root'))
@@ -414,18 +414,17 @@ def create_app(test_config=None):
                 )
 
                 if num_matches != 0:
-                    print("ERROR: assignment already exists!")
-                    # TODO: flash error with this message to alert user of the
-                    # issue
+                    flash(f"Assignment {new_assignment_form.assignment_num.data} already exists!", "danger")
 
                 else:
-                    print("SUCCESS: Adding new assignment!")
                     new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                             title=new_assignment_form.title.data,
                                                             section_id=section.section_id)
 
                     session.add(new_assignment)
                     session.commit()
+
+                    flash(f"Assignment {new_assignment_form.assignment_num.data} added!", "info")
 
                     return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
