@@ -3,7 +3,7 @@
 
 {% block body %}
 <div class="container pt-3">
-	<h1>Assignment Info</h1>
+	<h2>Assignment Info</h2>
     <ul class="list-group">
         <li class="list-group-item">
             <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.title}}
@@ -15,48 +15,43 @@
 </div>
 
 <div class="container pt-3">
-	<h1>Groups</h1>
+	<h2>Groups</h2>
     <ul class="list-group">
         {% if teams|length > 0 %}
             {% for team in teams %}
             <li class="list-group-item">
-                <div class="container">
-                    <div class="row">
-                        <h5>Group {{team.team_num}}</h5>
-                    </div>
-                    <div class="row">
-                        <strong>Members:</strong>&nbsp;
+                <h5>Group {{team.team_num}}</h5>
+                <hr/>
+                <dl class="row">
+                    <dt class="col-lg-2">Members</dt>
+                    <dd class="col-lg-10">
+                        <ul class="list-unstyled">
                         {% for m in team.members %} 
-                            {{m.first_name}} {{m.last_name}}, 
+                            <li>{{m.last_name}}, {{m.first_name}}</li>
                         {% endfor %}
-                    </div>
-                    <div class="row">
-                        <strong>Submission Time:</strong>&nbsp; FIXME
-                    </div>
-                    <div class="row">
-                        <strong>Commit Message:</strong>&nbsp; FIXME
-                    </div>
-                    <div class="row">
-                        <strong>Feedback Time:</strong>&nbsp; FIXME
-                    </div>
-                    <div class="row">
-                        <a href="{{ url_for('psa_results',
-                                 semester=section.semester,
-                                 section_num=section.section_num,
-                                 psa_num=assignment.num,group_num=team.team_num)
-                                 }}">View Feedback</a>
-                    </div>
-                </div>
-                <div class="container">
-                    <div class="row">
+                        </ul>
+                    </dd>
+
+                    <dt class="col-lg-2">Submission Time</dt>
+                    <dd class="col-lg-10">FIXME</dd>
+
+                    <dt class="col-lg-2">Commit Comment</dt>
+                    <dd class="col-lg-10">FIXME</dd>
+
+                    <dt class="col-lg-2">Feedback Time</dt>
+                    <dd class="col-lg-10">FIXME</dd>
+                </dl>
+                <ul class="list-unstyled">
+                    <li>
+                        <a href="{{ url_for('psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">View Feedback</a>
+                    </li>
+                    <li>
                         <a href="#">Regenerate Feedback</a>
-                    </div>
-                </div>
-                <div class="container">
-                    <div class="row">
+                    </li>
+                    <li>
                         <a href="#">Delete Group</a>
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </li>
             {% endfor %}
         {% else %}
