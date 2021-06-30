@@ -21,17 +21,34 @@
                 <div class="nav-item">
                     <a class="nav-link" href="/">Home</a>
                 </div>
+                {% if user and user.is_authenticated and user.sections|length > 0 %}
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarCoursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Courses
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarCoursesDropdown">
+                        {% for section in user.sections %}
+                        <li><a class="dropdown-item" href="{{ url_for('section_overview', semester=section.semester, section_num=section.section_num) }}">
+                                {{section.course|upper}} ({{section.semester|upper}},
+                                Section {{section.section_num}})
+                        </a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
                 {% if user and user.is_authenticated and user.admin %}
                 <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Admin
                     </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <ul class="dropdown-menu" aria-labelledby="navbarAdminDropdown">
                         <li><a class="dropdown-item" href="{{ url_for('admin_instructors') }}">Instructors</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('admin_sections') }}">Sections</a></li>
                     </ul>
                 </div>
                 {% endif %}
+
                 {% if user and user.is_authenticated %}
                 <div class="container d-flex flex-row-reverse">
                     <a class="btn btn-danger nav-link text-white" href="{{ url_for('logout') }}" role="button">Log Out</a>

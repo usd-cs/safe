@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from flask import Flask, render_template, redirect, url_for, abort, request, flash
 from sqlalchemy import create_engine, inspect, insert, delete, and_, select
-from sqlalchemy.orm import sessionmaker, with_parent
+from sqlalchemy.orm import sessionmaker, with_parent, joinedload
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField, BooleanField
 from flask_wtf.file import FileField, FileRequired
@@ -60,6 +60,7 @@ def create_app(test_config=None):
         with Session() as session:
             matching_users = (
                 session.query(db_models.User)
+                    .options(joinedload(db_models.User.sections))
                     .filter(db_models.User.user_id == int(user_id))
             )
 
@@ -166,11 +167,11 @@ def create_app(test_config=None):
                     .order_by(db_models.User.last_name)
             )
 
-        return render_template("admin_instructors.html", 
-                                page_title="Admin Instructors: SAFE @ USD", 
-                                user=current_user,
-                                form=form,
-                                instructors=instructors) 
+            return render_template("admin_instructors.html", 
+                                    page_title="Admin Instructors: SAFE @ USD", 
+                                    user=current_user,
+                                    form=form,
+                                    instructors=instructors) 
 
 
     class MultiCheckboxField(SelectMultipleField):
