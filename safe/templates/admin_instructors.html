@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import 'forms.html' as forms %}
 
 {% block body %}
     <div class="container pt-3">
@@ -28,17 +29,11 @@
         <h2>Add New Instructor</h2>
         <form method="POST" action="">
             {{ form.csrf_token() }}
+            {{ forms.input(form.first_name, "Enter Instructor's First Name") }}
+            {{ forms.input(form.last_name, "Enter Instructor's Last Name") }}
             <div class="form-group">
-                {{ form.first_name.label }}:
-                {{ form.first_name(class_="form-control", placeholder="Enter Instructor's First Name") }}
-            </div>
-            <div class="form-group">
-                {{ form.last_name.label }}:
-                {{ form.last_name(class_="form-control", placeholder="Enter Instructor's Last Name") }}
-            </div>
-            <div class="form-group">
-                {{ form.username.label }}:
-                <div class="input-group mb-3">
+                <strong>{{ form.username.label }}:</strong>
+                <div class="input-group">
                     {{ form.username(class_="form-control", placeholder="Enter USD username") }}
                     <span class="input-group-text" id="basic-addon2">@sandiego.edu</span>
                 </div>
@@ -50,19 +45,9 @@
                 </small>
                 {% endif %}
             </div>
-            <div class="form-group">
-                {{ form.password.label }}:
-                {{ form.password(class_="form-control", placeholder="Enter temporary password") }}
-                {% if form.password.errors %} 
-                <small class="text-danger">
-                    {% for error in form.password.errors %}
-                        {{ error }}
-                    {% endfor %}
-                </small>
-                {% endif %}
-            </div>
-            <div class="form-group pl-1">
-                {{ form.admin() }} {{ form.admin.label }}
+            {{ forms.input(form.password, "Enter temporary password") }}
+            <div class="form-group pt-2 pb-2">
+                {{ form.admin(class_="pl-2 form-check-input") }} {{ form.admin.label }}
             </div>
             {{ form.submit(class_="btn btn-primary") }}
         </form>

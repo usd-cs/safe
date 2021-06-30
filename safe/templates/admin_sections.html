@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import 'forms.html' as forms %}
 
 {% block body %}
     <div class="container pt-3">
@@ -39,27 +40,26 @@
     <div class="container border pt-3 pb-3">
         <h2>Add New Section</h2>
         <form method="POST" action="">
-            <!-- FIXME: add code to display validation errors -->
             {{ form.csrf_token() }}
             <div class="row">
                 <div class="col">
-                    {{ form.course(class_="form-control", placeholder="Course (e.g. comp110)") }}
+                    {{ forms.input(form.course, "Course (e.g. comp110)") }}
                 </div>
                 <div class="col">
-                    {{ form.semester(class_="form-control", placeholder="Semester (e.g. sp21)") }}
+                    {{ forms.input(form.semester, "Semester (e.g. sp21)") }}
                 </div>
                 <div class="col">
-                    {{ form.section_num(class_="form-control", placeholder="Section number") }}
+                    {{ forms.input(form.section_num, "Section Number") }}
                 </div>
             </div>
 
-            <div class="form-group pt-2">
-                <label>Instructor(s):</label>
+            <div class="form-group pt-2 pb-2">
+                <strong>{{ form.instructors.label }}:</strong>
                 <div class="container">
                     {% for choice in form.instructors %}
                     <div class="form-check">
-                        {{ choice(class="form-check-input") }}
-                        {{ choice.label(class="form-check-label") }}
+                        {{ choice(class_="form-check-input") }}
+                        {{ choice.label(class_="form-check-label") }}
                     </div>
                     {% endfor %}
                 </div>

@@ -182,7 +182,7 @@ def create_app(test_config=None):
         # TODO: use regex for course, semester, and section_num
         course = StringField('Course', validators=[AnyOf(['comp110'])])
         semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
-        section_num = StringField('Section Number', validators=[DataRequired()])
+        section_num = IntegerField('Section Number', validators=[NumberRange(min=1)])
         instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
         submit = SubmitField("Submit")
 
@@ -538,7 +538,7 @@ def create_app(test_config=None):
 
     class NewGroupForm(FlaskForm):
         group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
-        members = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
+        members = MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
         submit = SubmitField("Submit")
 
     # TODO: generalize for non comp110-courses

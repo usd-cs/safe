@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import 'forms.html' as forms %}
 
 {% block body %}
 <div class="container pt-3">
@@ -67,17 +68,14 @@
         <h2>Create New Group</h2>
         <form method="POST" action="">
             {{ group_form.csrf_token() }}
-            <div class="form-group">
-                {{ group_form.group_num.label }}:
-                {{ group_form.group_num(class_="form-control", placeholder="Enter group number (e.g. 3)") }}
-            </div>
-            <div class="form-group pt-2">
-                <label>Group Member(s):</label>
+            {{ forms.input(group_form.group_num, "Enter group number (e.g. 3)") }}
+            <div class="form-group pt-2 pb-2">
+                <strong>{{ group_form.members.label }}</strong>
                 <div class="container">
                     {% for choice in group_form.members %}
                     <div class="form-check">
-                        {{ choice(class="form-check-input") }}
-                        {{ choice.label(class="form-check-label") }}
+                        {{ choice(class_="form-check-input") }}
+                        {{ choice.label(class_="form-check-label") }}
                     </div>
                     {% endfor %}
                 </div>

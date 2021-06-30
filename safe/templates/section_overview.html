@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import 'forms.html' as forms %}
 
 {% block body %}
 <div class="container pt-3">
@@ -28,14 +29,8 @@
         <h2>Add Assignment</h2>
         <form method="POST" action="">
             {{ assignment_form.csrf_token() }}
-            <div class="form-group">
-                {{ assignment_form.assignment_num.label }}:
-                {{ assignment_form.assignment_num(class_="form-control", placeholder="Enter assignment number (e.g. 3)") }}
-            </div>
-            <div class="form-group">
-                {{ assignment_form.title.label }}:
-                {{ assignment_form.title(class_="form-control", placeholder="Enter assignment title") }}
-            </div>
+            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
+            {{ forms.input(assignment_form.title, "Enter assignment title") }}
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>

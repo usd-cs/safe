@@ -1,0 +1,14 @@
+{% macro input(form_field, placeholder) -%}
+    <div class="form-group">
+        <strong>{{ form_field.label }}:</strong>
+        {{ form_field(class_="form-control", placeholder=placeholder) }}
+
+        {% if form_field.errors %} 
+        <small class="text-danger">
+            {% for error in form_field.errors %}
+                {{ error }}
+            {% endfor %}
+        </small>
+        {% endif %}
+    </div>
+{%- endmacro %}
