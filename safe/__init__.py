@@ -552,6 +552,9 @@ def create_app(test_config=None):
                         # Couldn't find 1+ expected columns so we have to give
                         # up and let the instructor know.
                         flash("Roster file format is invalid. Could not find columns for one or more of the following: FirstName/Middle, LastName, Email", "danger")
+
+                        roster_data.close()
+                        os.remove(file_location)
                         return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
                     for line in roster_data:
