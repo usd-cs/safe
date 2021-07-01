@@ -539,16 +539,27 @@ def create_app(test_config=None):
                 duplicate_students = []
 
                 with open(file_location, 'r') as roster_data:
-                    header = roster_data.readline()
+                    # TODO: switch over to using python's CSV module for reading
+                    # CSV files
+                    header = roster_data.readline().strip()
+                    col_names = header.split(',')
+
+                    try:
+                        first_name_col = col_names.index("FirstName/Middle")
+                        last_name_col = col_names.index("LastName")
+                        email_col = col_names.index("Email")
+                    except ValueError:
+                        # Couldn't find 1+ expected columns so we have to give
+                        # up and let the instructor know.
+                        flash("Roster file format is invalid. Could not find columns for one or more of the following: FirstName/Middle, LastName, Email", "danger")
+                        return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
                     for line in roster_data:
                         columns = line.strip().split(',')
 
-                        # FIXME: validate format of CSV file
-                        print(columns[2], columns[3], columns[-1])
-                        username = columns[-1].split("@")[0]
-                        last_name = columns[2]
-                        first_name = columns[3]
+                        username = columns[email_col].split("@")[0]
+                        last_name = columns[last_name_col]
+                        first_name = columns[first_name_col]
 
                         # look for an existing user with that username
                         student_to_add = (
