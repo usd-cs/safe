@@ -456,9 +456,7 @@ def create_app(test_config=None):
                 # only admins and seciton instructor(s) can view this page.
                 abort(403)
 
-        if not (current_user.admin or current_user.instructor):
-            with Session() as session:
-
+            if not (current_user.admin or current_user.instructor):
                 instructors = (
                     session.query(db_models.User)
                         .join(db_models.Section.users)
@@ -497,11 +495,10 @@ def create_app(test_config=None):
                                         assignments=assignment_info
                                         )
 
-        new_assignment_form = NewAssignmentForm()
-        roster_upload_form = RosterUploadForm()
+            new_assignment_form = NewAssignmentForm()
+            roster_upload_form = RosterUploadForm()
 
-        if new_assignment_form.validate_on_submit():
-            with Session() as session:
+            if new_assignment_form.validate_on_submit():
                 num_matches = (
                         session.query(db_models.Assignment)
                             .filter(db_models.Assignment.section_id == section.section_id)
@@ -524,24 +521,26 @@ def create_app(test_config=None):
 
                     return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
-        if roster_upload_form.validate_on_submit():
-            # add users to database
-            uploaded_file = roster_upload_form.roster_file.data
+            if roster_upload_form.validate_on_submit():
+                # add users to database
+                uploaded_file = roster_upload_form.roster_file.data
 
-            # save uploaded file to temporary file
-            filename = secure_filename(uploaded_file.filename)
+                # save uploaded file to temporary file
+                filename = secure_filename(uploaded_file.filename)
 
-            temp_dir = file_location = os.path.join(app.instance_path, 'tmp')
-            if not os.path.isdir(temp_dir):
-                os.mkdir(temp_dir)
+                temp_dir = file_location = os.path.join(app.instance_path, 'tmp')
+                if not os.path.isdir(temp_dir):
+                    os.mkdir(temp_dir)
 
-            file_location = os.path.join(temp_dir, filename)
-            uploaded_file.save(file_location)
+                file_location = os.path.join(temp_dir, filename)
+                uploaded_file.save(file_location)
 
-            with open(file_location, 'r') as roster_data:
-                header = roster_data.readline()
+                new_students = []
+                duplicate_students = []
 
-                with Session() as session:
+                with open(file_location, 'r') as roster_data:
+                    header = roster_data.readline()
+
                     for line in roster_data:
                         columns = line.strip().split(',')
 
@@ -551,67 +550,54 @@ def create_app(test_config=None):
                         last_name = columns[2]
                         first_name = columns[3]
 
-                        # check that student with that username doesn't exist
-                        if session.query(db_models.User).filter(db_models.User.username == username).count() > 0:
-                            # found the student already so skip it
+                        # look for an existing user with that username
+                        student_to_add = (
+                            session.query(db_models.User)
+                                .filter(db_models.User.username == username).first()
+                        )
+
+                        if student_to_add:
+                            # found the student already so no need to create a
+                            # new User object
                             print(f"User with {username} already exists. Skipping creation!")
                         else:
                             # Create new User and add to database
-                            print(f"Adding student with username {username}")
-                            new_student = db_models.User(username=username,
+                            print(f"Creating student user with username {username}")
+                            student_to_add = db_models.User(username=username,
                                                             password=generate_password_hash("FIXME"),
                                                             first_name=first_name,
                                                             last_name=last_name,
                                                             instructor=False,
                                                             admin=False)
-                            session.add(new_student)
+                            session.add(student_to_add)
                             session.flush()
 
+                        if student_to_add in section.users:
+                            # student is already enrolled in this section so
+                            # nothing more to do
+                            duplicate_students.append(student_to_add.username)
+                        else:
                             # Add user to this section
-                            section = (
-                                # FIXME: filter on course and semester too!!!
-                                session.query(db_models.Section)
-                                    .filter(db_models.Section.section_id == section_num)
-                                    .first()
-                            )
-
-                            # FIXME: confirm this section actually exists!
+                            new_students.append(student_to_add.username)
                             statement = (
                                 insert(db_models.section_enrollment)
-                                    .values(user_id=new_student.user_id, section_id=section.section_id)
+                                    .values(user_id=student_to_add.user_id, section_id=section.section_id)
                             )
                             session.execute(statement)
 
-                            session.commit()
+                        session.commit()
 
-            os.remove(file_location)
+                os.remove(file_location)
 
-            return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
+                flash(f"Added {len(new_students)} new students to section.", "info")
+                flash(f"{len(duplicate_students)} students were already enrolled section.", "warning")
 
-        with Session() as session:
-            section = (
-                # FIXME: filter on course and semester too!!!
-                session.query(db_models.Section)
-                    .filter(db_models.Section.section_num == section_num)
-                    .first()
-            )
-
-            enrolled_users = (
-                session.query(db_models.User)
-                    .join(db_models.section_enrollment)
-                    .join(db_models.Section)
-                    # TODO: also filter for correct course
-                    .filter(and_(db_models.Section.section_id == section_num,
-                                    db_models.Section.semester == semester,
-                                    db_models.Section.course == "comp110"))
-                    .all()
-            )
+                return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 
             return render_template("section_overview.html", 
                                     page_title="Section Overview: SAFE @ USD",
                                     user=current_user,
                                     section=section,
-                                    users=enrolled_users,
                                     assignment_form=new_assignment_form,
                                     roster_form=roster_upload_form
                                     )
