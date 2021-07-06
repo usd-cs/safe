@@ -6,16 +6,9 @@ from flask.cli import with_appcontext
 from sqlalchemy import create_engine, inspect
 
 
-def get_db():
-    if 'db_engine' not in g:
-        g.db_engine = create_engine(app.config['DATABASE_URI'],
-                                    echo=app.config['DATABASE_VERBOSE'])
-
-    return g.db_engine
-
-
 def init_db(app):
-    engine = create_engine(app.config['DATABASE_URI'], echo=True)
+    engine = create_engine(app.config['DATABASE_URI'],
+                            echo=app.config['DATABASE_VERBOSE'])
 
     # if database is empty (i.e. hasn't been initialized), initialize it by
     # creating the basic tables.
