@@ -4,6 +4,8 @@
 {% block body %}
     <div class="container pt-3 pb-3">
         <h2>SAFE @ USD Login</h2>
+        <p>Please remember that your SAFE @ USD password is <strong>not</strong> your
+        USDOne password.</p>
         <form method="POST" action="">
             {{ form.csrf_token() }}
             <div class="form-group">
@@ -20,9 +22,11 @@
                 </small>
                 {% endif %}
             </div>
-            {{ forms.input(form.password, "Enter password") }}
-            <div class="container pb-3"> </div>
+            {{ forms.input(form.password, "Enter SAFE @ USD password") }}
+            
             {{ form.submit(class_="btn btn-primary") }}
+            <div class="container pt-2"><a href="{{ url_for('forgot_password') }}">Forgot
+                your password?</a></div>
         </form>
     </div>
 {% endblock %}
