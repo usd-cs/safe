@@ -70,6 +70,15 @@ def init_db(app):
                         )
                         """)
 
+        engine.execute("""
+                        CREATE TABLE password_reset_request (
+                          request_id INTEGER NOT NULL PRIMARY KEY,
+                          hashed_id VARCHAR NOT NULL,
+                          time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                          user_id INTEGER REFERENCES user
+                        )
+                        """)
+
     from . import db_models
     db_models.Base.metadata.create_all(engine)
     return engine

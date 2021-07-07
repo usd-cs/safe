@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block body %}
+    <div class="container border pt-3 pb-3">
+        <h2>Invalid Token!</h2>
+        <p>This password reset token is invalid: {{ invalid_reason }}</p>
+    </div>
+{% endblock %}

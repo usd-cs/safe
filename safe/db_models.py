@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, TIMESTAMP
 from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 from flask_login import UserMixin
+import datetime
 
 from werkzeug.security import check_password_hash
 
@@ -102,3 +103,11 @@ class SourceFile(Base):
     filename = Column(String, nullable=False)
     assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
+
+class PasswordResetRequest(Base):
+    __tablename__ = "password_reset_request"
+    request_id = Column(Integer, primary_key=True)
+    hashed_id = Column(String, nullable=False)
+    time = Column(TIMESTAMP, default=datetime.datetime.now, nullable=False)
+
+    user_id = Column(Integer, ForeignKey("user.user_id"))

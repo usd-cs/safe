@@ -1,6 +1,7 @@
 import os
 import json
 from collections import namedtuple
+import secrets, hashlib
 
 from flask import Flask, render_template, redirect, url_for, abort, request, flash
 from sqlalchemy import create_engine, inspect, insert, delete, and_, select
@@ -9,7 +10,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, PasswordField, SelectMultipleField, IntegerField, BooleanField
 from flask_wtf.file import FileField, FileRequired
 from wtforms.widgets import ListWidget, CheckboxInput
-from wtforms.validators import ValidationError, DataRequired, Length, AnyOf, Regexp, NumberRange
+from wtforms.validators import ValidationError, DataRequired, InputRequired, Length, AnyOf, Regexp, NumberRange, EqualTo
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -22,6 +23,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         #DATABASE=os.path.join(app.instance_path, 'safe.sqlite'),
         DATABASE_URI='sqlite:///safe.sqlite3',
+        PASSWORD_RESET_EXPIRATION=15*60,
     )
 
     login_manager = LoginManager()
@@ -793,4 +795,117 @@ def create_app(test_config=None):
                                     results_time=json_results["results_time"],
                                     test_results=results)
 
+    class PasswordResetForm(FlaskForm):
+        password = PasswordField('Password', validators=[InputRequired(),
+                                                            Length(min=10, max=30),
+                                                            EqualTo('confirm_password')])
+        confirm_password = PasswordField('Repeat Password')
+        submit = SubmitField('Submit')
+
+    @app.route("/reset_password", methods=['get', 'post'])
+    def reset_password():
+        token = request.args.get('token')
+        if not token:
+            return render_template("bad_token.html",
+                                    invalid_reason="Missing token")
+
+        hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
+
+        with Session() as session:
+            existing_request = (
+                session.query(db_models.PasswordResetRequest)
+                    .filter(db_models.PasswordResetRequest.hashed_id == hashed_token)
+                    .first()
+            )
+
+            if not existing_request:
+                return render_template("bad_token.html",
+                                        invalid_reason="Token does not exist")
+
+            # TODO: check expiry date for password reset request
+
+            form = PasswordResetForm()
+
+            if form.validate_on_submit():
+                # remove request from table and update User with new password
+                session.delete(existing_request)
+                session.commit()
+
+                user = (
+                    session.query(db_models.User)
+                        .filter(db_models.User.user_id == existing_request.user_id)
+                        .first()
+                )
+
+                if not user:
+                    abort(500)
+
+                user.password = generate_password_hash(form.password.data)
+                session.commit()
+
+                flash("Password has been successfully reset.", "info")
+                return redirect(url_for('login'))
+
+            return render_template("reset_password.html",
+                                    page_title="Password Reset: SAFE @ USD",
+                                    form=form)
+
+    class ForgotPasswordForm(FlaskForm):
+        username = StringField('USD Username', validators=[DataRequired()])
+        submit = SubmitField('Submit')
+
+    @app.route("/forgot_password", methods=['get', 'post'])
+    def forgot_password():
+        form = ForgotPasswordForm()
+
+        if form.validate_on_submit():
+            token = secrets.token_urlsafe(32)
+            print("Password reset URL:", url_for('reset_password', token=token))
+
+            hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
+
+            with Session() as session:
+                # TODO: log reset requests
+
+                user = (
+                    session.query(db_models.User)
+                        .filter(db_models.User.username == form.username.data)
+                        .first()
+                )
+
+                if user:
+                    # TODO: see if there is an existing request and handle
+                    # appropriately
+
+                    new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
+                                                                    user_id=user.user_id)
+
+                    session.add(new_request)
+                    session.commit()
+
+
+                """
+                from time import sleep
+                import datetime
+
+                sleep(2)
+                time_diff = (datetime.datetime.now() - new_request.time).total_seconds()
+
+                if time_diff < 10:
+                    print("YAY LESS THAN 10!")
+
+                if time_diff < 1:
+                    print("BOO LESS THAN 1!")
+
+                print(f"time diff = {time_diff}")
+                """
+
+                flash("An email has been sent to your USD email address with instructions on resetting your password.", 
+                        "warning")
+                return redirect(url_for('root'))
+
+        return render_template("forgot_password.html",
+                                page_title="Forgot Password: SAFE @ USD",
+                                form=form)
+        
     return app
