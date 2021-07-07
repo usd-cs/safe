@@ -2,6 +2,7 @@ import os
 import json
 from collections import namedtuple
 import secrets, hashlib
+import datetime
 
 from flask import Flask, render_template, redirect, url_for, abort, request, flash
 from sqlalchemy import create_engine, inspect, insert, delete, and_, select
@@ -23,7 +24,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         #DATABASE=os.path.join(app.instance_path, 'safe.sqlite'),
         DATABASE_URI='sqlite:///safe.sqlite3',
-        PASSWORD_RESET_EXPIRATION=15*60,
+        MAX_PASSWORD_RESET_TIME=15,
     )
 
     login_manager = LoginManager()
@@ -822,7 +823,15 @@ def create_app(test_config=None):
                 return render_template("bad_token.html",
                                         invalid_reason="Token does not exist")
 
-            # TODO: check expiry date for password reset request
+            # check expiry date for password reset request
+            time_diff = (datetime.datetime.now() - existing_request.time).total_seconds()
+
+            if time_diff > 60 * app.config['MAX_PASSWORD_RESET_TIME']:
+                session.delete(existing_request)
+                session.commit()
+
+                return render_template("bad_token.html",
+                                        invalid_reason="Token has expired!")
 
             form = PasswordResetForm()
 
@@ -860,6 +869,9 @@ def create_app(test_config=None):
 
         if form.validate_on_submit():
             token = secrets.token_urlsafe(32)
+
+            # TODO: send email with instructions
+
             print("Password reset URL:", url_for('reset_password', token=token))
 
             hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
@@ -884,23 +896,10 @@ def create_app(test_config=None):
                     session.commit()
 
 
-                """
-                from time import sleep
-                import datetime
-
-                sleep(2)
-                time_diff = (datetime.datetime.now() - new_request.time).total_seconds()
-
-                if time_diff < 10:
-                    print("YAY LESS THAN 10!")
-
-                if time_diff < 1:
-                    print("BOO LESS THAN 1!")
-
-                print(f"time diff = {time_diff}")
-                """
-
-                flash("An email has been sent to your USD email address with instructions on resetting your password.", 
+                flash(("An email has been sent to your USD email address with " 
+                        "instructions on resetting your password. You have "
+                        f"{app.config['MAX_PASSWORD_RESET_TIME']} minutes to "
+                        "complete the process."), 
                         "warning")
                 return redirect(url_for('root'))
 
