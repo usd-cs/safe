@@ -4,6 +4,11 @@ from collections import namedtuple
 import secrets, hashlib
 import datetime
 
+# used for sending password recovery emails
+import smtplib, ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 from flask import Flask, render_template, redirect, url_for, abort, request, flash
 from sqlalchemy import create_engine, inspect, insert, delete, and_, select
 from sqlalchemy.orm import sessionmaker, with_parent, joinedload
@@ -20,11 +25,11 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
     app.config.from_object('config')
+    app.config.from_pyfile('config.py')
 
     app.config.from_mapping(
         #DATABASE=os.path.join(app.instance_path, 'safe.sqlite'),
         DATABASE_URI='sqlite:///safe.sqlite3',
-        MAX_PASSWORD_RESET_TIME=15,
     )
 
     login_manager = LoginManager()
@@ -863,6 +868,59 @@ def create_app(test_config=None):
         username = StringField('USD Username', validators=[DataRequired()])
         submit = SubmitField('Submit')
 
+    def send_password_recovery_email(user, token):
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "SAFE Password Reset Request"
+
+        # TODO: use email.utils.formataddr for from/to/reply-to
+        message["From"] = app.config['EMAIL_ACCOUNT']
+
+        # TODO: make domain configurable
+        message["To"] = user.username + "@sandiego.edu"
+        message["Reply-To"] = app.config['EMAIL_ACCOUNT_NOREPLY']
+
+        reset_link = app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token)
+
+        message_text = f"""\
+        We have received a request to reset your SAFE @ USD password.
+
+        Please visit the following webpage within 15 minutes to reset your password.
+
+        {reset_link}
+
+        If you did not initiate this request, please contact your instructor immediately."""
+
+        message_html = f"""\
+        <html>
+        <body>
+        <p>We have received a request to reset your SAFE @ USD password.</p>
+
+        <p>
+        Please visit the following webpage within <strong>15 minutes</strong> to reset your password.
+        </p>
+
+        <p><a href="{reset_link}">{reset_link}</a></p>
+
+        <p>If you did not initiate this request, please contact your instructor
+        immediately.</p>
+
+        </body>
+        </html>"""
+
+        part1 = MIMEText(message_text, "plain")
+        part2 = MIMEText(message_html, "html")
+        message.attach(part1)
+        message.attach(part2)
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP(app.config['SMTP_SERVER'], app.config['SMTP_PORT']) as server:
+            server.starttls(context=context)
+            server.login(app.config['EMAIL_ACCOUNT'], app.config['SMTP_PASSWORD'])
+            server.sendmail(app.config['EMAIL_ACCOUNT'],
+                                        user.username + "@sandiego.edu",
+                                        message.as_string())
+
+
     @app.route("/forgot_password", methods=['get', 'post'])
     def forgot_password():
         form = ForgotPasswordForm()
@@ -870,9 +928,6 @@ def create_app(test_config=None):
         if form.validate_on_submit():
             token = secrets.token_urlsafe(32)
 
-            # TODO: send email with instructions
-
-            print("Password reset URL:", url_for('reset_password', token=token))
 
             hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
 
@@ -888,6 +943,8 @@ def create_app(test_config=None):
                 if user:
                     # TODO: see if there is an existing request and handle
                     # appropriately
+                    print("Password reset URL:", url_for('reset_password', token=token))
+                    send_password_recovery_email(user, token)
 
                     new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
                                                                     user_id=user.user_id)
