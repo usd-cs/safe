@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% import 'forms.html' as forms %}
 
 {% block body %}
-    <div class="container border pt-3 pb-3">
-        <h2>SAFE Login</h2>
+    <div class="container pt-3 pb-3">
+        <h2>SAFE @ USD Login</h2>
         <form method="POST" action="">
             {{ form.csrf_token() }}
             <div class="form-group">
-                {{ form.username.label }}:
+                <strong>{{ form.username.label }}:</strong>
                 <div class="input-group mb-3">
                     {{ form.username(class_="form-control", placeholder="Enter USD username") }}
                     <span class="input-group-text" id="basic-addon2">@sandiego.edu</span>
@@ -19,17 +20,8 @@
                 </small>
                 {% endif %}
             </div>
-            <div class="form-group">
-                {{ form.password.label }}:
-                {{ form.password(class_="form-control", placeholder="Enter password") }}
-                {% if form.password.errors %} 
-                <small class="text-danger">
-                    {% for error in form.password.errors %}
-                        {{ error }}
-                    {% endfor %}
-                </small>
-                {% endif %}
-            </div>
+            {{ forms.input(form.password, "Enter password") }}
+            <div class="container pb-3"> </div>
             {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
