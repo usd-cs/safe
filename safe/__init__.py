@@ -645,6 +645,41 @@ def create_app(test_config=None):
                                     roster_form=roster_upload_form
                                     )
 
+    @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
+    @login_required
+    def delete_group(semester, section_num, psa_num, group_num):
+        with Session() as session:
+            query_result = (
+                session.query(db_models.Section, db_models.Team)
+                    .join(db_models.Section.assignments)
+                    .join(db_models.Assignment.teams)
+                    .filter(db_models.Section.semester == semester)
+                    .filter(db_models.Section.section_num == section_num)
+                    .filter(db_models.Assignment.num == psa_num)
+                    .filter(db_models.Team.team_num == group_num)
+                    .first()
+            )
+
+            if query_result:
+                section, team = query_result
+            else:
+                abort(404)
+
+            # only instructors for this section may delete a group
+            if not (current_user.instructor and current_user in section.users):
+                abort(403)
+
+            # delete this group from the database
+            session.delete(team)
+            session.commit()
+
+            flash(f"Removed group {group_num} from PSA {psa_num}", "info")
+            return redirect(url_for('psa_overview',
+                                    semester=semester,
+                                    section_num=section_num,
+                                    psa_num=psa_num))
+
+
     class NewGroupForm(FlaskForm):
         group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
         members = MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
