@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import 'forms.html' as forms %}
+
+{% block body %}
+    <div class="container pt-3">
+        <h2>Current Users</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Last</th>
+                    <th scope="col">First</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Action(s)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <th scope="row">{{ user.last_name }}</th>
+                    <td>{{ user.first_name }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        {% if user.instructor %}
+                            Instructor
+                        {% else %}
+                            Student
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin_delete_user', id=user.user_id) }}">
+                            Delete User</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

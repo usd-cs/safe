@@ -145,6 +145,20 @@ def create_app(test_config=None):
                 page_title="Admin Home: SAFE @ USD",
                 user=current_user)
 
+    @app.route('/admin/users')
+    @login_required
+    def admin_users():
+        if not current_user.admin:
+            abort(403)
+
+        with Session() as session:
+            all_users = session.query(db_models.User).order_by(db_models.User.last_name).all()
+
+            return render_template("admin_users.html", 
+                                    page_title="Admin Users: SAFE @ USD", 
+                                    user=current_user,
+                                    users=all_users)
+            
     @app.route('/admin/instructors', methods=['get', 'post'])
     @login_required
     def admin_instructors():
@@ -379,6 +393,32 @@ def create_app(test_config=None):
                                 form=form,
                                 sections=section_info)
 
+
+    @app.route("/admin/users/delete")
+    @login_required
+    def admin_delete_user():
+        if not current_user.admin:
+            abort(403)
+            
+        user_id = request.args.get('id')
+
+        # if user id wasn't specified, just redirect to admin page for users
+        if not user_id:
+            flash("Could not delete user. ID missing.", "danger")
+        else:
+            with Session() as session:
+                user = session.query(db_models.User).filter(db_models.User.user_id == int(user_id)).first()
+
+                if not user:
+                    flash("Could not delete user. Invalid ID.", "danger")
+                else:
+                    flash(f"Successfully deleted user {user.username}", "success")
+                    session.delete(user)
+                    session.commit()
+
+        return redirect(url_for('admin_users'))
+
+
     @app.route('/profile/<username>')
     @login_required
     def user_profile(username):
@@ -425,11 +465,13 @@ def create_app(test_config=None):
     @app.errorhandler(404)
     def page_not_found(error):
         return render_template("not_found.html", 
+                                page_title="404: SAFE @ USD",
                                 user=current_user)
 
     @app.errorhandler(403)
     def permission_denied(error):
         return render_template("forbidden.html",
+                                page_title="403: SAFE @ USD",
                                 user=current_user)
 
     class NewAssignmentForm(FlaskForm):
