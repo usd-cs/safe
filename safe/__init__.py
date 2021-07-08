@@ -3,6 +3,7 @@ import json
 from collections import namedtuple
 import secrets, hashlib
 import datetime
+import string
 
 # used for sending password recovery emails
 import smtplib, ssl
@@ -586,8 +587,12 @@ def create_app(test_config=None):
                         else:
                             # Create new User and add to database
                             print(f"Creating student user with username {username}")
+
+                            alphabet = string.ascii_letters + string.digits
+                            temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
+
                             student_to_add = db_models.User(username=username,
-                                                            password=generate_password_hash("FIXME"),
+                                                            password=generate_password_hash(temporary_password),
                                                             first_name=first_name,
                                                             last_name=last_name,
                                                             instructor=False,
