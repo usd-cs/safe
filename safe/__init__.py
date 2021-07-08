@@ -435,6 +435,9 @@ def create_app(test_config=None):
     class NewAssignmentForm(FlaskForm):
         assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
         title = StringField('Assignment Title', validators=[DataRequired()])
+        # TODO: add verification of correct format for assignment files (i.e.
+        # space separated files)
+        files = StringField('Assignment Files', validators=[DataRequired()])
         submit = SubmitField("Submit")
 
     class RosterUploadForm(FlaskForm):
@@ -520,14 +523,26 @@ def create_app(test_config=None):
                     flash(f"Assignment {new_assignment_form.assignment_num.data} already exists!", "danger")
 
                 else:
+                    # create new assignment for DB
                     new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                             title=new_assignment_form.title.data,
                                                             section_id=section.section_id)
 
                     session.add(new_assignment)
+                    session.flush()
+
+                    # create separete SourceFile entries for each source file
+                    assignment_files = new_assignment_form.files.data.split()
+                    
+                    # TODO: check for duplicate filenames
+                    for af in assignment_files:
+                        new_file = db_models.SourceFile(filename=af,
+                                                        assignment_id=new_assignment.assignment_id)
+                        session.add(new_file)
+
                     session.commit()
 
-                    flash(f"Assignment {new_assignment_form.assignment_num.data} added!", "info")
+                    flash(f"Assignment {new_assignment_form.assignment_num.data} added with {len(assignment_files)} files!", "info")
 
                     return redirect(url_for(f'section_overview', semester=semester, section_num=section_num))
 

@@ -31,6 +31,7 @@
             {{ assignment_form.csrf_token() }}
             {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
+            {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
