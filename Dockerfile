@@ -1,6 +1,8 @@
-FROM python:3.6-alpine
+FROM python:alpine3.14
 
-RUN adduser -D app
+RUN apk add build-base
+
+RUN adduser -D safe
 
 RUN mkdir /safe
 RUN mkdir /safe/instance
@@ -15,6 +17,7 @@ RUN venv/bin/pip install gunicorn
 COPY app app
 COPY safe.py config.py boot.sh ./
 COPY instance_config.py instance/config.py
+COPY mock_results.json instance/
 RUN chmod +x boot.sh
 
 ENV FLASK_APP safe.py
