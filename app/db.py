@@ -4,6 +4,9 @@ import click
 from flask import current_app, g
 from flask.cli import with_appcontext
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker
+import secrets
+from werkzeug.security import generate_password_hash
 
 
 def init_db(app):
@@ -81,6 +84,26 @@ def init_db(app):
 
     from . import db_models
     db_models.Base.metadata.create_all(engine)
+
+    # if no users yet (i.e. first run), create our first admin user
+    Session = sessionmaker(engine)
+    with Session() as session:
+        if session.query(db_models.User).count() == 0:
+            print(f"Creating first user: {app.config['FIRST_ADMIN_USER']}")
+
+            import string
+            alphabet = string.ascii_letters + string.digits
+            temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
+
+            admin_user = db_models.User(username=app.config['FIRST_ADMIN_USER'][0],
+                                        password=generate_password_hash(temporary_password),
+                                        first_name=app.config['FIRST_ADMIN_USER'][1],
+                                        last_name=app.config['FIRST_ADMIN_USER'][2],
+                                        admin=True,
+                                        instructor=True)
+            session.add(admin_user)
+            session.commit()
+
     return engine
 
 

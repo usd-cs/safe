@@ -962,15 +962,20 @@ def create_app(test_config=None):
         username = StringField('USD Username', validators=[DataRequired()])
         submit = SubmitField('Submit')
 
-    def send_password_recovery_email(user, token):
+    def send_password_recovery_email(user, token, email_address=None):
         message = MIMEMultipart("alternative")
         message["Subject"] = "SAFE Password Reset Request"
 
         # TODO: use email.utils.formataddr for from/to/reply-to
         message["From"] = app.config['EMAIL_ACCOUNT']
 
-        # TODO: make domain configurable
-        message["To"] = user.username + "@sandiego.edu"
+        if email_address:
+            to_address = email_address
+        else:
+            # TODO: make domain configurable
+            to_address = user.username + "@sandiego.edu"
+
+        message["To"] = to_address
         message["Reply-To"] = app.config['EMAIL_ACCOUNT_NOREPLY']
 
         reset_link = app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token)
@@ -1015,41 +1020,42 @@ def create_app(test_config=None):
                                         message.as_string())
 
 
+    def create_password_request(username, session, email_recipient=None):
+        token = secrets.token_urlsafe(32)
+        hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
+
+        # TODO: log reset requests
+        user = (
+            session.query(db_models.User)
+                .filter(db_models.User.username == username)
+                .first()
+        )
+
+        if user:
+            # TODO: see if there is an existing request and handle
+            # appropriately
+
+            if app.config['EMAIL_ENABLED']:
+                send_password_recovery_email(user, token,
+                                                email_address=email_recipient)
+            else:
+                print("Password reset URL:", 
+                        app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
+
+            new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
+                                                            user_id=user.user_id)
+
+            session.add(new_request)
+            session.commit()
+
+
     @app.route("/forgot_password", methods=['get', 'post'])
     def forgot_password():
         form = ForgotPasswordForm()
 
         if form.validate_on_submit():
-            token = secrets.token_urlsafe(32)
-
-
-            hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
-
             with Session() as session:
-                # TODO: log reset requests
-
-                user = (
-                    session.query(db_models.User)
-                        .filter(db_models.User.username == form.username.data)
-                        .first()
-                )
-
-                if user:
-                    # TODO: see if there is an existing request and handle
-                    # appropriately
-
-                    if app.config['EMAIL_ENABLED']:
-                        send_password_recovery_email(user, token)
-                    else:
-                        print("Password reset URL:", 
-                                app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
-
-                    new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
-                                                                    user_id=user.user_id)
-
-                    session.add(new_request)
-                    session.commit()
-
+                create_password_request(form.username.data, session)
 
                 flash(("An email has been sent to your USD email address with " 
                         "instructions on resetting your password. You have "
