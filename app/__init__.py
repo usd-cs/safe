@@ -1037,8 +1037,12 @@ def create_app(test_config=None):
                 if user:
                     # TODO: see if there is an existing request and handle
                     # appropriately
-                    print("Password reset URL:", url_for('reset_password', token=token))
-                    send_password_recovery_email(user, token)
+
+                    if app.config['EMAIL_ENABLED']:
+                        send_password_recovery_email(user, token)
+                    else:
+                        print("Password reset URL:", 
+                                app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
 
                     new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
                                                                     user_id=user.user_id)
