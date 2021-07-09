@@ -867,8 +867,10 @@ def create_app(test_config=None):
 
             results = {}
             # FIXME: results file should depend on configured results directory
-            # and course/semester/section/psa/group.
-            with open('safe/mock_results.json', 'r') as results_file:
+            # and course/semester/section/psa/group (maybe even just put these
+            # in the database).
+            results_json_location = os.path.join(app.instance_path, 'mock_results.json')
+            with open(results_json_location, 'r') as results_file:
 
                 json_results = json.load(results_file)
                 for result in json_results["results"]:
