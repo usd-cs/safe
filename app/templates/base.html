@@ -43,21 +43,21 @@
                         Admin
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarAdminDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('admin_instructors') }}">Instructors</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_sections') }}">Sections</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">Users</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.admin_instructors') }}">Instructors</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.admin_sections') }}">Sections</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.admin_users') }}">Users</a></li>
                     </ul>
                 </div>
                 {% endif %}
 
                 {% if user and user.is_authenticated %}
                 <div class="container d-flex flex-row-reverse">
-                    <a class="btn btn-danger nav-link text-white" href="{{ url_for('logout') }}" role="button">Log Out</a>
+                    <a class="btn btn-danger nav-link text-white" href="{{ url_for('auth.logout') }}" role="button">Log Out</a>
                     <a class="nav-link" href="{{ url_for('user_profile', username=user.username) }}">Profile</a>
                 </div>
                 {% else %}
                 <div class="container d-flex flex-row-reverse">
-                    <a class="btn btn-primary nav-link text-white" href="{{ url_for('login') }}" role="button">Sign In</a>
+                    <a class="btn btn-primary nav-link text-white" href="{{ url_for('auth.login') }}" role="button">Sign In</a>
                 </div>
                 {% endif %}
             </div>

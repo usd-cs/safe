@@ -20,7 +20,10 @@ from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import ValidationError, DataRequired, InputRequired, Length, AnyOf, Regexp, NumberRange, EqualTo
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from flask_login import LoginManager, current_user, login_required
+
+from . import admin
+from . import auth
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -30,7 +33,7 @@ def create_app(test_config=None):
 
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'login'
+    login_manager.login_view = 'auth.login'
 
     # try to make the instance folder
     try:
@@ -41,28 +44,17 @@ def create_app(test_config=None):
     from . import db
     from . import db_models
     db_engine = db.init_db(app)
-    Session = sessionmaker(db_engine)
+    app.Session = sessionmaker(db_engine)
 
-    def check_instructor_username(form, field):
-        with Session() as session:
-            if session.query(db_models.User).filter(db_models.User.username == field.data).count() != 0:
-                raise ValidationError("An instructor with that username already exists")
-
-
-    class NewInstructorForm(FlaskForm):
-        first_name = StringField('First Name', validators=[DataRequired()])
-        last_name = StringField('Last Name', validators=[DataRequired()])
-        username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
-        password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
-        admin = BooleanField('Admin')
-        submit = SubmitField('Submit')
+    app.register_blueprint(admin.admin, url_prefix="/admin")
+    app.register_blueprint(auth.auth, url_prefix="/auth")
 
 
     @login_manager.user_loader
     def load_user(user_id):
         print("loading user:", user_id)
 
-        with Session() as session:
+        with app.Session() as session:
             matching_users = (
                 session.query(db_models.User)
                     .options(joinedload(db_models.User.sections))
@@ -75,344 +67,6 @@ def create_app(test_config=None):
             print(f"Couldn't find user with id {user_id}")
             return None
 
-    class LoginForm(FlaskForm):
-        username = StringField(label=('Username'), validators=[DataRequired()])
-        password = PasswordField(label=('Password'), validators=[DataRequired()])
-        submit = SubmitField(label=('Submit'))
-
-    @app.route('/login/', methods = ['POST', 'GET'])
-    def login():
-        if current_user.is_authenticated:
-            next_url = request.args.get('next')
-            if next_url is None:
-                flash(f"You are already logged in as {current_user.username}", "warning")
-                return redirect(url_for('root'))
-            else:
-                print(next_url)
-                return redirect(next_url)
-
-        form = LoginForm()
-        if form.validate_on_submit():
-            with Session() as session:
-                user_matches = (
-                    session.query(db_models.User)
-                        .filter(db_models.User.username == form.username.data)
-                )
-
-            if user_matches.count() == 1:
-                matching_user = user_matches.first()
-            else:
-                matching_user = None
-
-            if matching_user is None or not matching_user.check_password(form.password.data):
-                # TODO: log invalid attempts
-                flash("Invalid username or password!", "danger")
-            else:
-                login_user(matching_user)
-                next_url = request.args.get('next')
-                if next_url is None:
-                    flash("You've successfully signed in!", "success")
-                    return redirect(url_for('root'))
-                else:
-                    return redirect(next_url)
-
-        return render_template('login.html', form=form)
-
-    @app.route('/logout/')
-    def logout():
-        if current_user.is_authenticated:
-            logout_user()
-            flash("You've successfully logged out!", "success")
-        else:
-            flash("You must be signed in before you can log out!", "warning")
-            pass
-
-        return redirect(url_for('root'))
-
-
-    @app.route('/admin/')
-    @login_required
-    def admin_home():
-        if not current_user.admin:
-            abort(403)
-            
-        return render_template("admin.html", 
-                page_title="Admin Home: SAFE @ USD",
-                user=current_user)
-
-    @app.route('/admin/users')
-    @login_required
-    def admin_users():
-        if not current_user.admin:
-            abort(403)
-
-        with Session() as session:
-            all_users = session.query(db_models.User).order_by(db_models.User.last_name).all()
-
-            return render_template("admin_users.html", 
-                                    page_title="Admin Users: SAFE @ USD", 
-                                    user=current_user,
-                                    users=all_users)
-            
-    @app.route('/admin/instructors', methods=['get', 'post'])
-    @login_required
-    def admin_instructors():
-        if not current_user.admin:
-            abort(403)
-            
-        form = NewInstructorForm()
-
-        if form.validate_on_submit():
-            # add user to database
-            with Session() as session:
-                new_instructor = db_models.User(username=form.username.data,
-                                                    password=generate_password_hash(form.password.data),
-                                                    first_name=form.first_name.data,
-                                                    last_name=form.last_name.data,
-                                                    admin=form.admin.data,
-                                                    instructor=True)
-                session.add(new_instructor)
-                session.commit()
-
-                flash(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}", "success")
-
-            return redirect(url_for('admin_instructors'))
-
-        # form wasn't valid so re-render the page
-        with Session() as session:
-            instructors = (
-                session.query(db_models.User)
-                    .filter(db_models.User.instructor == True)
-                    .order_by(db_models.User.last_name)
-            )
-
-            return render_template("admin_instructors.html", 
-                                    page_title="Admin Instructors: SAFE @ USD", 
-                                    user=current_user,
-                                    form=form,
-                                    instructors=instructors) 
-
-
-    class MultiCheckboxField(SelectMultipleField):
-        widget = ListWidget(prefix_label=False)
-        option_widget = CheckboxInput()
-
-
-    class NewSectionForm(FlaskForm):
-        # TODO: use regex for course, semester, and section_num
-        course = StringField('Course', validators=[AnyOf(['comp110'])])
-        semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
-        section_num = IntegerField('Section Number', validators=[NumberRange(min=1)])
-        instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
-        submit = SubmitField("Submit")
-
-    class ModifySectionForm(FlaskForm):
-        instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
-        submit = SubmitField("Submit")
-
-
-    @app.route('/admin/sections/modify', methods=['get', 'post'])
-    @login_required
-    def modify_section():
-        if not current_user.admin:
-            abort(403)
-
-        section_id = request.args.get('section_id')
-
-        if not section_id:
-            abort(404)
-        else:
-            # TODO: error checking that the id is actually a number
-            section_id = int(section_id)
-
-        with Session() as session:
-            # verify there is a section with the given ID
-            section = (
-                session.query(db_models.Section)
-                    .filter(db_models.Section.section_id == section_id)
-                    .first()
-                )
-
-            if not section:
-                abort(404)
-
-            all_instructors = (
-                session.query(db_models.User)
-                    .filter(db_models.User.instructor == True)
-            )
-
-            section_instructors = [user for user in section.users if user.instructor == True]
-
-        form = ModifySectionForm()
-
-        id_list = [i.user_id for i in all_instructors]
-        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
-
-        form.instructors.choices = zip(id_list, name_list)
-        previous_instructors_ids = [i.user_id for i in section_instructors]
-
-        if form.validate_on_submit():
-            print("\n\n\nMOOOO selected:", form.instructors.data)
-            with Session() as session:
-                # add newly selected instructors to section
-                for instructor_id in form.instructors.data:
-                    if instructor_id not in previous_instructors_ids:
-                        statement = (
-                            insert(db_models.section_enrollment)
-                                .values(user_id=instructor_id, section_id=section_id)
-                        )
-                        session.execute(statement)
-
-                # remove old instructors who weren't selected this time
-                for instructor_id in previous_instructors_ids:
-                    if instructor_id not in form.instructors.data:
-                        statement = (
-                            delete(db_models.section_enrollment)
-                                .where(db_models.section_enrollment.c.user_id == instructor_id,
-                                    db_models.section_enrollment.c.section_id == section_id)
-                        )
-                        session.execute(statement)
-
-                session.commit()
-
-                return redirect(url_for('modify_section', section_id=section_id))
-
-        # pre-fill old instructors into selections
-        form.instructors.data = previous_instructors_ids[:]
-
-        return render_template("modify_section.html",
-                                page_title="Modify Section: SAFE @ USD",
-                                user=current_user,
-                                section=section,
-                                form=form)
-
-    @app.route('/admin/sections', methods=['get', 'post'])
-    @login_required
-    def admin_sections():
-        if not current_user.admin:
-            abort(403)
-            
-        form = NewSectionForm()
-
-        with Session() as session:
-            all_instructors = (
-                session.query(db_models.User)
-                    .filter(db_models.User.instructor == True)
-            )
-
-            all_sections = (
-                session.query(db_models.Section)
-                    .order_by(db_models.Section.course, db_models.Section.semester, db_models.Section.section_num)
-            )
-
-            # create a list of (section, instructors) tuples
-            section_info = []
-
-            for section in all_sections:
-                section_instructors = (
-                    session.query(db_models.User)
-                        .join(db_models.section_enrollment)
-                        .join(db_models.Section)
-                        .filter(and_(db_models.Section.section_id == section.section_id, 
-                                        db_models.User.instructor == True))
-                        .order_by(db_models.User.last_name)
-                        .all()
-                )
-                num_students = (
-                    session.query(db_models.User)
-                        .join(db_models.section_enrollment)
-                        .join(db_models.Section)
-                        .filter(and_(db_models.Section.section_id == section.section_id, 
-                                        db_models.User.instructor == False))
-                        .count()
-                )
-                print(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
-                section_info.append((section, section_instructors, num_students))
-
-        id_list = [i.user_id for i in all_instructors]
-        name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
-
-        form.instructors.choices = zip(id_list, name_list)
-
-        if form.validate_on_submit():
-            with Session() as session:
-                num_matching_sections = (
-                    session.query(db_models.Section)
-                        .filter(db_models.Section.course == form.course.data)
-                        .filter(db_models.Section.semester == form.semester.data)
-                        .filter(db_models.Section.section_num == int(form.section_num.data))
-                        .count()
-                )
-
-                # make sure a section with given info doesn't already exist
-                if num_matching_sections != 0:
-                    flash("A section with that information already exists!", "danger")
-                    form.instructors.choices = zip(id_list, name_list)
-
-                    return render_template("admin_sections.html",
-                                            page_title="Admin Sections: SAFE @ USD",
-                                            user=current_user,
-                                            form=form,
-                                            sections=section_info)
-
-                # create the new section and add it to the database
-                new_section = db_models.Section(course=form.course.data,
-                                                semester=form.semester.data,
-                                                section_num=int(form.section_num.data))
-
-
-                session.add(new_section)
-                session.flush() # causes DB to give the new_section a section_id
-
-                # add instructors to section
-                for instructor_id in form.instructors.data:
-                    statement = (
-                        insert(db_models.section_enrollment)
-                            .values(user_id=instructor_id, section_id=new_section.section_id)
-                    )
-                    session.execute(statement)
-
-                session.commit()
-
-                flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
-
-            return redirect(url_for('admin_sections'))
-
-        print("form errors:", form.errors)
-
-        form.instructors.choices = zip(id_list, name_list)
-
-        return render_template("admin_sections.html",
-                                page_title="Admin Sections: SAFE @ USD",
-                                user=current_user,
-                                form=form,
-                                sections=section_info)
-
-
-    @app.route("/admin/users/delete")
-    @login_required
-    def admin_delete_user():
-        if not current_user.admin:
-            abort(403)
-            
-        user_id = request.args.get('id')
-
-        # if user id wasn't specified, just redirect to admin page for users
-        if not user_id:
-            flash("Could not delete user. ID missing.", "danger")
-        else:
-            with Session() as session:
-                user = session.query(db_models.User).filter(db_models.User.user_id == int(user_id)).first()
-
-                if not user:
-                    flash("Could not delete user. Invalid ID.", "danger")
-                else:
-                    flash(f"Successfully deleted user {user.username}", "success")
-                    session.delete(user)
-                    session.commit()
-
-        return redirect(url_for('admin_users'))
-
 
     @app.route('/profile/<username>')
     @login_required
@@ -421,7 +75,7 @@ def create_app(test_config=None):
                 current_user.username == username):
             abort(403)
 
-        with Session() as session:
+        with app.Session() as session:
             selected_user = (
                 session.query(db_models.User)
                     .filter(db_models.User.username == username)
@@ -489,7 +143,7 @@ def create_app(test_config=None):
 
         # TODO: split this function into two separate functions, which will be
         # called based on whether the user is a student or an instructor/admin
-        with Session() as session:
+        with app.Session() as session:
             section = (
                 session.query(db_models.Section)
                     .filter(db_models.Section.course == "comp110")
@@ -685,7 +339,7 @@ def create_app(test_config=None):
     @app.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
     @login_required
     def delete_group(semester, section_num, psa_num, group_num):
-        with Session() as session:
+        with app.Session() as session:
             query_result = (
                 session.query(db_models.Section, db_models.Team)
                     .join(db_models.Section.assignments)
@@ -719,7 +373,7 @@ def create_app(test_config=None):
 
     class NewGroupForm(FlaskForm):
         group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
-        members = MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
+        members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
         submit = SubmitField("Submit")
 
     # TODO: generalize for non comp110-courses
@@ -728,7 +382,7 @@ def create_app(test_config=None):
     def psa_overview(semester, section_num, psa_num):
         new_group_form = NewGroupForm()
 
-        with Session() as session:
+        with app.Session() as session:
             section = (
                 session.query(db_models.Section)
                     .filter(db_models.Section.course == "comp110")
@@ -824,7 +478,7 @@ def create_app(test_config=None):
     def psa_results(semester, section_num, psa_num, group_num):
         # TODO: validate semester, section num, psa_num, and group_num
 
-        with Session() as session:
+        with app.Session() as session:
             section = (
                 session.query(db_models.Section)
                     .filter(db_models.Section.course == "comp110")
@@ -911,7 +565,7 @@ def create_app(test_config=None):
 
         hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
 
-        with Session() as session:
+        with app.Session() as session:
             existing_request = (
                 session.query(db_models.PasswordResetRequest)
                     .filter(db_models.PasswordResetRequest.hashed_id == hashed_token)
@@ -952,7 +606,7 @@ def create_app(test_config=None):
                 session.commit()
 
                 flash("Password has been successfully reset.", "info")
-                return redirect(url_for('login'))
+                return redirect(url_for('auth.login'))
 
             return render_template("reset_password.html",
                                     page_title="Password Reset: SAFE @ USD",
@@ -1054,7 +708,7 @@ def create_app(test_config=None):
         form = ForgotPasswordForm()
 
         if form.validate_on_submit():
-            with Session() as session:
+            with app.Session() as session:
                 create_password_request(form.username.data, session)
 
                 flash(("An email has been sent to your USD email address with " 

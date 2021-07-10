@@ -31,7 +31,7 @@
                     <td>-</td>
                     {% endif %}
                     <td>{{ num_students }}</td>
-                    <td><a href="{{ url_for('modify_section', section_id=section.section_id) }}">Modify</a></td>
+                    <td><a href="{{ url_for('admin.modify_section', section_id=section.section_id) }}">Modify</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
