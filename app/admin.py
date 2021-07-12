@@ -129,8 +129,11 @@ def modify_section():
     if not section_id:
         abort(404)
     else:
-        # TODO: error checking that the id is actually a number
-        section_id = int(section_id)
+        try:
+            section_id = int(section_id)
+        except ValueError:
+            flash(f"Invalid value for section_id: {section_id}", "danger")
+            return redirect(url_for('.admin_sections'))
 
     with current_app.Session() as session:
         # verify there is a section with the given ID
