@@ -8,13 +8,13 @@
         <li class="list-group-item"><strong>Email:</strong> {{selected_user.username}}@sandiego.edu</li>
     </ul>
 </div>
-{% if courses|length > 0 %}
+{% if selected_user.sections|length > 0 %}
 <div class="container pt-3">
 	<h1>Courses</h1>
     <ul class="list-group">
-        {% for course in courses %}
-        <li class="list-group-item">{{course.course|upper}} ({{course.semester|upper}},
-            Section {{ "%02d" % course.section_num}})</li>
+        {% for section in selected_user.sections %}
+        <li class="list-group-item">{{section.course|upper}} ({{section.semester|upper}},
+            Section {{ "%02d" % section.section_num}})</li>
         {% endfor %}
     </ul>
 </div>

@@ -37,25 +37,11 @@ def user_profile(username):
                 .first()
         )
 
-
         if selected_user:
-            # if user exists, grab the list of classes they are enrolled in and
-            # render the profile page view
-            enrolled_courses = (
-                session.query(db_models.Section)
-                    .join(db_models.section_enrollment)
-                    .join(db_models.User)
-                    .filter(db_models.User.username == selected_user.username)
-                    .all()
-            )
-
-            # TODO: don't need DB query here... use the user's sections
-            # field
             return render_template("user_profile.html",
                                     page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
                                     user=current_user,
-                                    selected_user=selected_user,
-                                    courses=enrolled_courses)
+                                    selected_user=selected_user)
         else:
             # the user doesn't exist so 404 'em
             abort(404)
