@@ -24,6 +24,8 @@ from flask_login import LoginManager, current_user, login_required
 
 from . import admin
 from . import auth
+from . import db
+from . import db_models
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -41,8 +43,6 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    from . import db
-    from . import db_models
     db_engine = db.init_db(app)
     app.Session = sessionmaker(db_engine)
 
