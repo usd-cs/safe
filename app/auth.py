@@ -10,7 +10,7 @@ from wtforms import (
 from wtforms.validators import DataRequired, InputRequired, Length, EqualTo
 
 # used for sending password recovery emails
-import smtplib, ssl
+import secrets, hashlib, smtplib, ssl, datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -157,7 +157,7 @@ def send_password_recovery_email(user, token, email_address=None):
     message["To"] = to_address
     message["Reply-To"] = current_app.config['EMAIL_ACCOUNT_NOREPLY']
 
-    reset_link = current_app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token)
+    reset_link = current_app.config['SERVER_BASE_URL'] + url_for('.reset_password', token=token)
 
     message_text = f"""\
     We have received a request to reset your SAFE @ USD password.
@@ -211,21 +211,47 @@ def create_password_request(username, session, email_recipient=None):
     )
 
     if user:
-        # TODO: see if there is an existing request and handle
-        # appropriately
+        # check if there is an existing request and handle appropriately
+        existing_request = (
+            session.query(db_models.PasswordResetRequest)
+                .filter(db_models.PasswordResetRequest.user_id == user.user_id)
+                .first()
+        )
+
+        if existing_request:
+            time_diff = (datetime.datetime.now() - existing_request.time).total_seconds()
+
+            if time_diff > 60 * current_app.config['MAX_PASSWORD_RESET_TIME']:
+                # If request is old, delete it.
+                session.delete(existing_request)
+                session.commit()
+            else:
+                # If old request is still valid, flash message reminding user
+                # to check their email for the previous password reset request
+                flash(("You recently requested a password reset. "
+                        "Please check your USD email for the link, including your Spam folder."),
+                        "warning")
+                return
+
 
         if current_app.config['EMAIL_ENABLED']:
             send_password_recovery_email(user, token,
                                             email_address=email_recipient)
         else:
             print("Password reset URL:", 
-                    current_app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
+                    current_app.config['SERVER_BASE_URL'] + url_for('.reset_password', token=token))
 
         new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
                                                         user_id=user.user_id)
 
         session.add(new_request)
         session.commit()
+
+        flash(("An email has been sent to your USD email address with " 
+                "instructions on resetting your password. You have "
+                f"{current_app.config['MAX_PASSWORD_RESET_TIME']} minutes to "
+                "complete the process."), 
+                    "warning")
 
 
 @auth.route("/forgot_password", methods=['get', 'post'])
@@ -236,12 +262,7 @@ def forgot_password():
         with current_app.Session() as session:
             create_password_request(form.username.data, session)
 
-            flash(("An email has been sent to your USD email address with " 
-                    "instructions on resetting your password. You have "
-                    f"{current_app.config['MAX_PASSWORD_RESET_TIME']} minutes to "
-                    "complete the process."), 
-                    "warning")
-            return redirect(url_for('root'))
+            return redirect(url_for('user_views.root'))
 
     return render_template("forgot_password.html",
                             page_title="Forgot Password: SAFE @ USD",
