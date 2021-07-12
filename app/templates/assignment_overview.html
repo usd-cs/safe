@@ -43,13 +43,13 @@
                 </dl>
                 <ul class="list-unstyled">
                     <li>
-                        <a href="{{ url_for('psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">View Feedback</a>
+                        <a href="{{ url_for('user_views.psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">View Feedback</a>
                     </li>
                     <li>
                         <a href="#">Regenerate Feedback</a>
                     </li>
                     <li>
-                        <a href="{{ url_for('delete_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">Delete Group</a>
+                        <a href="{{ url_for('user_views.delete_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">Delete Group</a>
                     </li>
                 </ul>
             </li>

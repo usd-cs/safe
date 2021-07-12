@@ -9,6 +9,11 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, InputRequired, Length, EqualTo
 
+# used for sending password recovery emails
+import smtplib, ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 from . import db_models
 
 auth = Blueprint('auth', __name__)
@@ -51,7 +56,7 @@ def login():
             next_url = request.args.get('next')
             if next_url is None:
                 flash("You've successfully signed in!", "success")
-                return redirect(url_for('root'))
+                return redirect(url_for('user_views.root'))
             else:
                 return redirect(next_url)
 
@@ -66,7 +71,7 @@ def logout():
         flash("You must be signed in before you can log out!", "warning")
         pass
 
-    return redirect(url_for('root'))
+    return redirect(url_for('user_views.root'))
 
 
 class PasswordResetForm(FlaskForm):
@@ -85,7 +90,7 @@ def reset_password():
 
     hashed_token = hashlib.sha1(token.encode('utf-8')).hexdigest()
 
-    with app.Session() as session:
+    with current_app.Session() as session:
         existing_request = (
             session.query(db_models.PasswordResetRequest)
                 .filter(db_models.PasswordResetRequest.hashed_id == hashed_token)
@@ -99,7 +104,7 @@ def reset_password():
         # check expiry date for password reset request
         time_diff = (datetime.datetime.now() - existing_request.time).total_seconds()
 
-        if time_diff > 60 * app.config['MAX_PASSWORD_RESET_TIME']:
+        if time_diff > 60 * current_app.config['MAX_PASSWORD_RESET_TIME']:
             session.delete(existing_request)
             session.commit()
 
@@ -141,7 +146,7 @@ def send_password_recovery_email(user, token, email_address=None):
     message["Subject"] = "SAFE Password Reset Request"
 
     # TODO: use email.utils.formataddr for from/to/reply-to
-    message["From"] = app.config['EMAIL_ACCOUNT']
+    message["From"] = current_app.config['EMAIL_ACCOUNT']
 
     if email_address:
         to_address = email_address
@@ -150,9 +155,9 @@ def send_password_recovery_email(user, token, email_address=None):
         to_address = user.username + "@sandiego.edu"
 
     message["To"] = to_address
-    message["Reply-To"] = app.config['EMAIL_ACCOUNT_NOREPLY']
+    message["Reply-To"] = current_app.config['EMAIL_ACCOUNT_NOREPLY']
 
-    reset_link = app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token)
+    reset_link = current_app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token)
 
     message_text = f"""\
     We have received a request to reset your SAFE @ USD password.
@@ -186,10 +191,10 @@ def send_password_recovery_email(user, token, email_address=None):
     message.attach(part2)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(app.config['SMTP_SERVER'], app.config['SMTP_PORT']) as server:
+    with smtplib.SMTP(current_app.config['SMTP_SERVER'], current_app.config['SMTP_PORT']) as server:
         server.starttls(context=context)
-        server.login(app.config['EMAIL_ACCOUNT'], app.config['SMTP_PASSWORD'])
-        server.sendmail(app.config['EMAIL_ACCOUNT'],
+        server.login(current_app.config['EMAIL_ACCOUNT'], current_app.config['SMTP_PASSWORD'])
+        server.sendmail(current_app.config['EMAIL_ACCOUNT'],
                                     user.username + "@sandiego.edu",
                                     message.as_string())
 
@@ -209,12 +214,12 @@ def create_password_request(username, session, email_recipient=None):
         # TODO: see if there is an existing request and handle
         # appropriately
 
-        if app.config['EMAIL_ENABLED']:
+        if current_app.config['EMAIL_ENABLED']:
             send_password_recovery_email(user, token,
                                             email_address=email_recipient)
         else:
             print("Password reset URL:", 
-                    app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
+                    current_app.config['SERVER_BASE_URL'] + url_for('reset_password', token=token))
 
         new_request = db_models.PasswordResetRequest(hashed_id=hashed_token,
                                                         user_id=user.user_id)
@@ -228,12 +233,12 @@ def forgot_password():
     form = ForgotPasswordForm()
 
     if form.validate_on_submit():
-        with app.Session() as session:
+        with current_app.Session() as session:
             create_password_request(form.username.data, session)
 
             flash(("An email has been sent to your USD email address with " 
                     "instructions on resetting your password. You have "
-                    f"{app.config['MAX_PASSWORD_RESET_TIME']} minutes to "
+                    f"{current_app.config['MAX_PASSWORD_RESET_TIME']} minutes to "
                     "complete the process."), 
                     "warning")
             return redirect(url_for('root'))
