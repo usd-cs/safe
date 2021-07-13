@@ -4,6 +4,9 @@ from flask import Flask
 from sqlalchemy.orm import sessionmaker, joinedload
 from flask_login import LoginManager
 
+import rq
+from redis import Redis
+
 from . import user_views
 from . import admin
 from . import auth
@@ -28,6 +31,9 @@ def create_app(test_config=None):
 
     db_engine = db.init_db(app)
     app.Session = sessionmaker(db_engine)
+    
+    app.redis = Redis.from_url(app.config['REDIS_URL'])
+    app.test_queue = rq.Queue('safe-tests', connection=app.redis)
 
     app.register_blueprint(admin.admin, url_prefix="/admin")
     app.register_blueprint(auth.auth, url_prefix="/auth")
@@ -50,5 +56,39 @@ def create_app(test_config=None):
         else:
             print(f"Couldn't find user with id {user_id}")
             return None
+
+    @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>")
+    @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>")
+    def handle_notification(course, semester, section, psa, group=None):
+        repo_dir = os.path.join(app.instance_path, 'repositories')
+
+        repo_name = f"{course}-{semester}-s{section:02}-psa{psa}"
+        if group:
+            repo_name += f"-group{group}"
+
+        test_code_dir = '/Users/sat/Teaching/comp110-ci-server/tester_code/psa1'
+        test_command = ['python3', 'my_autograde.py']
+        source_files = ['name_drawer.py']
+
+        job = app.test_queue.enqueue('app.workers.run_test', repo_dir,
+                                        repo_name, test_code_dir, test_command,
+                                        15, source_files)
+        print(f"New Job ID: {job.get_id()}")
+
+        while not job.is_finished:
+            print("Job not done yet!")
+            import time
+            time.sleep(2)
+
+        print("Job is done!")
+        return "YAYAY!"
+
+        """
+        shared_queue.put((section, psa, group))
+        place_in_queue = shared_queue.qsize()
+
+        return f"Request received. You are at position {place_in_queue} in the work queue.\n"
+        """
+
 
     return app
