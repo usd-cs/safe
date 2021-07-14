@@ -17,7 +17,6 @@ RUN venv/bin/pip install gunicorn
 COPY app app
 COPY safe.py config.py boot.sh ./
 COPY instance_config.py instance/config.py
-COPY mock_results.json instance/
 RUN chmod +x boot.sh
 
 ENV FLASK_APP safe.py

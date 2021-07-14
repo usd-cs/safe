@@ -23,31 +23,35 @@ bg-warning
 
 <div class="container pt-3">
 	<h1>Assignment Feedback</h1>
-    <ul class="list-group pb-3">
-        <li class="list-group-item"><strong>Submission Time:</strong>
-            {{submit_time}}</li>
-        <li class="list-group-item"><strong>Commit Comment:</strong>
-            {{commit_comment}}</li>
-        <li class="list-group-item"><strong>Feedback Time:</strong>
-            {{results_time}}</li>
-    </ul>
-    {% for section, results in test_results.items() %}
-    <div class="container pb-3">
-        <h3>{{ section }}</h3>
-        <ul class="list-group list-group-numbered">
-            {% for result in results %}
-            <li class="list-group-item d-flex justify-content-between align-items-start">
-                <div class="ms-2 me-auto">
-                    <div class="font-weight-bold">{{ result.summary }}</div>
-                    {{ result.detail }}
-                </div>
-                <!-- TODO: replace following badge this with an icon -->
-                <span class="badge {{ badge_color(result.status) }} rounded-pill text-light">{{ result.status }}</span>
-            </li>
-            {% endfor %}
+    {% if test_results %}
+        <ul class="list-group pb-3">
+            <li class="list-group-item"><strong>Submission Time:</strong>
+                {{submit_time}}</li>
+            <li class="list-group-item"><strong>Commit Comment:</strong>
+                {{commit_comment}}</li>
+            <li class="list-group-item"><strong>Feedback Time:</strong>
+                {{results_time}}</li>
         </ul>
-    </div>
-    {% endfor %}
+        {% for section, results in test_results.items() %}
+        <div class="container pb-3">
+            <h3>{{ section }}</h3>
+            <ul class="list-group list-group-numbered">
+                {% for result in results %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="font-weight-bold">{{ result.summary }}</div>
+                        {{ result.detail }}
+                    </div>
+                    <!-- TODO: replace following badge this with an icon -->
+                    <span class="badge {{ badge_color(result.status) }} rounded-pill text-light">{{ result.status }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="pl-3">No feedback found for this group.</p>
+    {% endif %}
 </div>
 
 {% endblock %}

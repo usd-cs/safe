@@ -27,8 +27,6 @@ mock_json_data = """
 ]
 """
 
-#def testing_successful(job, conn, runner_output, *args, **kwargs):
-
 def testing_successful(job, conn, runner_output, *args, **kwargs):
     """
     Callback function when testing job completes successfully.
@@ -120,11 +118,15 @@ def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_leng
         if error_text is not None:
             stderr_file.write(error_text)
 
+    # TODO: get real submission time, author, and comment using git log
+    submission_time = "Tue Jul 13 08:25:09 2021 -0700"
+    commit_author = "Sat Garcia (sat@sandiego.edu)"
+    commit_comment = "Fixed last bug. We're done!"
 
     runner_output = {}
-    runner_output['author'] = "Sat Garcia (sat@sandiego.edu)"
-    runner_output['submission_time'] = "Tue Jul 13 08:25:09 2021 -0700"
-    runner_output['commit_comment'] = "We're finally done"
+    runner_output['author'] = commit_author
+    runner_output['submission_time'] = submission_time
+    runner_output['commit_comment'] = commit_comment
     runner_output['results_time'] = str(datetime.datetime.now())
     runner_output['results'] = json.loads(mock_json_data)
 

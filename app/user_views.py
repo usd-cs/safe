@@ -460,33 +460,44 @@ def psa_results(semester, section_num, psa_num, group_num):
         # Read results from JSON file, filling them in a dictionary that is
         # organized by section.
 
-        results = {}
-        # FIXME: results file should depend on configured results directory
-        # and course/semester/section/psa/group (maybe even just put these
-        # in the database).
-        results_json_location = os.path.join(current_app.instance_path, 'mock_results.json')
-        with open(results_json_location, 'r') as results_file:
+        latest_test_results = (
+            session.query(db_models.TestResults)
+                .filter(db_models.TestResults.team_id == group.team_id)
+                .filter(db_models.TestResults.finished)
+                .order_by(db_models.TestResults.commit_time.desc())
+                .first()
+        )
 
-            json_results = json.load(results_file)
-            for result in json_results["results"]:
-                section_results = results.get(result["section"])
-                new_test_result = TestResult(result["status"], result["summary"], result["detail"])
+        if not latest_test_results:
+            # no test results available
+            return render_template("assignment_results.html",
+                                    user=current_user,
+                                    assignment=assignment,
+                                    group_num=group_num)
 
-                if section_results:
-                    section_results.append(new_test_result)
-                else:
-                    section_results = [new_test_result]
+        unprocess_results = json.loads(latest_test_results.results)
 
-                results[result["section"]] = section_results
+        processed_results = {}
+        for result in unprocess_results:
+            section_results = processed_results.get(result["section"])
+            new_test_result = TestResult(result["status"], result["summary"], result["detail"])
 
-                print(result)
+            if section_results:
+                section_results.append(new_test_result)
+            else:
+                section_results = [new_test_result]
+
+            processed_results[result["section"]] = section_results
+
+        commit_time = f"{latest_test_results.commit_time: %b %d, %Y @ %I:%M:%S %p}"
+        results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
 
         return render_template("assignment_results.html",
                                 user=current_user,
                                 assignment=assignment,
                                 group_num=group_num,
-                                submit_time=json_results["submission_time"],
-                                commit_comment=json_results["commit_comment"],
-                                results_time=json_results["results_time"],
-                                test_results=results)
+                                submit_time=commit_time,
+                                commit_comment=latest_test_results.commit_comment,
+                                results_time=results_time,
+                                test_results=processed_results)
 

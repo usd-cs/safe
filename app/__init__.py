@@ -63,14 +63,12 @@ def create_app(test_config=None):
     def update_results(job_id):
         from rq.job import Job
         from flask import request
+        import json
         from dateutil import parser
 
         results_data = request.get_json()
         if not results_data:
             return "Test results expected in JSON format"
-
-        #print("Results:")
-        #print(results_data)
 
         with app.Session() as session:
             test_results = (
@@ -87,7 +85,7 @@ def create_app(test_config=None):
             # TODO: if job.is_finished isn't true, log and return
 
             test_results.finished = True
-            test_results.results = str(results_data['results'])
+            test_results.results = json.dumps(results_data['results'])
             test_results.commit_time = parser.parse(results_data['submission_time'])
             test_results.commit_comment = results_data['commit_comment']
             test_results.commit_author = results_data['author']
