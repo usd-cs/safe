@@ -1,5 +1,58 @@
+import sys
 import os
 import subprocess
+import datetime
+import json
+import requests
+from dateutil import parser
+from collections import namedtuple
+
+TesterOutput = namedtuple('TesterOutput', ['commit_time', 'commit_comment', 'commit_author', 'data'])
+
+mock_json_data = """
+[
+    {
+        "section": "Part 1: Yada yada yada",
+        "status": "PASS",
+        "summary": "Requirement 1",
+        "detail": "All tests passed for this requirement."
+    },
+    {
+        "section": "Part 1: Yada yada yada",
+        "status": "FAIL",
+        "summary": "Requirement 2",
+        "detail": "One or more tests did not pass for this requirement."
+    },
+    {
+        "section": "Part 2: Boop",
+        "status": "PASS",
+        "summary": "Requirement 1",
+        "detail": "All tests passed for this requirement."
+    }
+]
+"""
+
+#def testing_successful(job, conn, runner_output, *args, **kwargs):
+
+def testing_successful(job, conn, runner_output, *args, **kwargs):
+    """
+    Callback function when testing job completes successfully.
+    """
+    job_id = job.get_id()
+
+    print(f"SUCCESS: {job_id}")
+    print(f"result: {runner_output}")
+
+    requests.post(f"http://localhost:5000/done/{job_id}", json=runner_output)
+
+
+def testing_failed(job, conn, exception_type, exception_instance, traceback):
+    """
+    Callback function when testing job fails.
+    """
+    print(f"FAILED: {job.get_id()}")
+    print(f"\t{exception_type}")
+
 
 def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_length, source_files):
     print(f"Handling request for {repo_name}")
@@ -71,5 +124,18 @@ def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_leng
             stdout_file.write(output_text)
         if error_text is not None:
             stderr_file.write(error_text)
+
+
+    runner_output = {}
+    runner_output['author'] = "Sat Garcia (sat@sandiego.edu)"
+    runner_output['submission_time'] = "Tue Jul 13 08:25:09 2021 -0700"
+    runner_output['commit_comment'] = "We're finally done"
+    runner_output['results_time'] = str(datetime.datetime.now())
+    runner_output['results'] = json.loads(mock_json_data)
+
+    print("DONEZO!")
+
+    return runner_output
+    #return TesterOutput(commit_time, commit_comment, commit_author, mock_json_data)
 
 

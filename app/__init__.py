@@ -12,6 +12,8 @@ from . import admin
 from . import auth
 from . import db
 from . import db_models
+from . import workers
+
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -57,38 +59,92 @@ def create_app(test_config=None):
             print(f"Couldn't find user with id {user_id}")
             return None
 
+    @app.route("/done/<job_id>", methods=["post"])
+    def update_results(job_id):
+        from rq.job import Job
+        from flask import request
+        from dateutil import parser
+
+        results_data = request.get_json()
+        if not results_data:
+            return "Test results expected in JSON format"
+
+        #print("Results:")
+        #print(results_data)
+
+        with app.Session() as session:
+            test_results = (
+                session.query(db_models.TestResults)
+                    .filter(db_models.TestResults.job_id == job_id)
+                    .first()
+            )
+
+            if not test_results:
+                abort(404)
+
+            job = Job.fetch(job_id, connection=app.redis)
+
+            # TODO: if job.is_finished isn't true, log and return
+
+            test_results.finished = True
+            test_results.results = str(results_data['results'])
+            test_results.commit_time = parser.parse(results_data['submission_time'])
+            test_results.commit_comment = results_data['commit_comment']
+            test_results.commit_author = results_data['author']
+            test_results.completed_at = parser.parse(results_data['results_time'])
+            session.commit()
+
+        return "Results updated"
+
     @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>")
     @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>")
     def handle_notification(course, semester, section, psa, group=None):
-        repo_dir = os.path.join(app.instance_path, 'repositories')
 
-        repo_name = f"{course}-{semester}-s{section:02}-psa{psa}"
-        if group:
-            repo_name += f"-group{group}"
+        with app.Session() as session:
+            target_group = (
+                session.query(db_models.Team)
+                    .join(db_models.Section.assignments)
+                    .join(db_models.Assignment.teams)
+                    .filter(db_models.Section.course == course)
+                    .filter(db_models.Section.semester == semester)
+                    .filter(db_models.Section.section_num == section)
+                    .filter(db_models.Assignment.num == psa)
+                    .filter(db_models.Team.team_num == group) # FIXME: only when not None
+                    .first()
+            )
 
-        test_code_dir = '/Users/sat/Teaching/comp110-ci-server/tester_code/psa1'
-        test_command = ['python3', 'my_autograde.py']
-        source_files = ['name_drawer.py']
+            if not target_group:
+                return "Invalid parameters for notify"
 
-        job = app.test_queue.enqueue('app.workers.run_test', repo_dir,
-                                        repo_name, test_code_dir, test_command,
-                                        15, source_files)
-        print(f"New Job ID: {job.get_id()}")
+            # TODO: if there are results in progress (i.e. in queue or
+            # processing), cancel them and put this in the queue instead
 
-        while not job.is_finished:
-            print("Job not done yet!")
-            import time
-            time.sleep(2)
+            repo_dir = os.path.join(app.instance_path, 'repositories')
 
-        print("Job is done!")
-        return "YAYAY!"
+            repo_name = f"{course}-{semester}-s{section:02}-psa{psa}"
+            if group:
+                repo_name += f"-group{group}"
 
-        """
-        shared_queue.put((section, psa, group))
-        place_in_queue = shared_queue.qsize()
+            test_code_dir = '/Users/sat/Teaching/comp110-ci-server/tester_code/psa1'
+            test_command = ['python3', 'my_autograde.py']
+            source_files = ['name_drawer.py']
 
-        return f"Request received. You are at position {place_in_queue} in the work queue.\n"
-        """
+            job = app.test_queue.enqueue('app.workers.run_test', repo_dir,
+                                            repo_name, test_code_dir, test_command,
+                                            15, source_files,
+                                            on_success=workers.testing_successful,
+                                            on_failure=workers.testing_failed)
+            print(f"New Job ID: {job.get_id()}")
+
+            new_test_results = db_models.TestResults(job_id=job.get_id(),
+                                                        team_id=target_group.team_id)
+
+            session.add(new_test_results)
+            session.commit()
+
+
+        # TODO: add information about place in queue.
+        return "Notifcation successfully received."
 
 
     return app

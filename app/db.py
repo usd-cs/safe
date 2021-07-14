@@ -54,6 +54,18 @@ def init_db(app):
                         )
                         """)
         engine.execute("""
+                        CREATE TABLE test_results (
+                          job_id VARCHAR NOT NULL PRIMARY KEY,
+                          finished BOOLEAN NOT NULL,
+                          results VARCHAR,
+                          commit_time DATETIME,
+                          commit_author VARCHAR,
+                          commit_comment VARCHAR,
+                          completed_at DATETIME,
+                          team_id INTEGER REFERENCES team
+                        )
+                        """)
+        engine.execute("""
                         CREATE TABLE source_file (
                           source_file_id INTEGER NOT NULL PRIMARY KEY,
                           filename VARCHAR NOT NULL,

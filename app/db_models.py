@@ -88,6 +88,9 @@ class Team(Base):
     team_num = Column(Integer, nullable=False)
     assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
+    # one team may have many test results
+    results = relationship("TestResults", backref=backref("team"))
+
     # many-to-many relationship between teams and users
     members = relationship(
         "User", secondary=team_enrollment, back_populates="teams"
@@ -95,6 +98,19 @@ class Team(Base):
 
     def __repr__(self):
         return f"Team(team_id={self.team_id}, team_num={self.team_num}, assignment_id={self.assignment_id})"
+
+
+class TestResults(Base):
+    __tablename__ = "test_results"
+    job_id = Column(String, primary_key=True)
+    finished = Column(Boolean, nullable=False, default=False)
+    results = Column(String)
+    commit_time = Column(TIMESTAMP)
+    commit_comment = Column(String)
+    commit_author = Column(String)
+    completed_at = Column(TIMESTAMP)
+
+    team_id = Column(Integer, ForeignKey("team.team_id"))
 
 
 class SourceFile(Base):
