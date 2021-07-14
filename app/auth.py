@@ -8,6 +8,7 @@ from wtforms import (
     StringField, SubmitField, PasswordField
 )
 from wtforms.validators import DataRequired, InputRequired, Length, EqualTo
+from werkzeug.security import generate_password_hash
 
 # used for sending password recovery emails
 import secrets, hashlib, smtplib, ssl, datetime
