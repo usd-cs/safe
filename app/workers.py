@@ -1,13 +1,8 @@
-import sys
 import os
 import subprocess
 import datetime
 import json
 import requests
-from dateutil import parser
-from collections import namedtuple
-
-TesterOutput = namedtuple('TesterOutput', ['commit_time', 'commit_comment', 'commit_author', 'data'])
 
 mock_json_data = """
 [
@@ -41,7 +36,7 @@ def testing_successful(job, conn, runner_output, *args, **kwargs):
     job_id = job.get_id()
 
     print(f"SUCCESS: {job_id}")
-    print(f"result: {runner_output}")
+    #print(f"result: {runner_output}")
 
     requests.post(f"http://localhost:5000/done/{job_id}", json=runner_output)
 
@@ -133,9 +128,5 @@ def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_leng
     runner_output['results_time'] = str(datetime.datetime.now())
     runner_output['results'] = json.loads(mock_json_data)
 
-    print("DONEZO!")
-
     return runner_output
-    #return TesterOutput(commit_time, commit_comment, commit_author, mock_json_data)
-
 
