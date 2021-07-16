@@ -47,7 +47,7 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
     print(f"\t{exception_type}")
 
 
-def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_length, source_files):
+def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, timeout_length, source_files):
     print(f"Handling request for {repo_name}")
 
     repo_location = os.path.join(repo_base_dir, repo_name)
@@ -57,7 +57,7 @@ def run_test(repo_base_dir, repo_name, test_code_dir, test_command, timeout_leng
     if not os.path.exists(repo_location):
         print("\tExisting repository not found. Cloning...")
         os.chdir(f"{repo_base_dir}")
-        result = subprocess.call(["git", "clone", "git@code:" + repo_name])
+        result = subprocess.call(["git", "clone", f"git@{git_server}:{repo_name}"])
 
         if result != 0:
             print(f"Could not clone: {repo_name}")

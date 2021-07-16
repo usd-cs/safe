@@ -127,7 +127,8 @@ def create_app(test_config=None):
             test_command = ['python3', 'my_autograde.py']
             source_files = ['name_drawer.py']
 
-            job = app.test_queue.enqueue('app.workers.run_test', repo_dir,
+            job = app.test_queue.enqueue('app.workers.run_test',
+                                            'code.sandiego.edu', repo_dir,
                                             repo_name, test_code_dir, test_command,
                                             15, source_files,
                                             on_success=workers.testing_successful,
