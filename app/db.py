@@ -43,6 +43,7 @@ def init_db(app):
                           assignment_id INTEGER NOT NULL PRIMARY KEY,
                           num INTEGER NOT NULL,
                           title VARCHAR NOT NULL,
+                          tester_run_command VARCHAR NOT NULL,
                           section_id INTEGER REFERENCES section
                         )
                         """)

@@ -128,9 +128,7 @@ def create_app(test_config=None):
             # FIXME: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment
 
-            # FIXME: fill in test command list from DB (add it as a Column)
-            test_command = ['python3', 'my_autograde.py']
-
+            test_command = target_group.assignment.tester_run_command.split()
             source_files = [sf.filename for sf in target_group.assignment.files]
 
             job = app.test_queue.enqueue('app.workers.run_test',

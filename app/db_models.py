@@ -76,6 +76,7 @@ class Assignment(Base):
     assignment_id = Column(Integer, primary_key=True)
     num = Column(Integer, nullable=False)
     title = Column(String, nullable=False)
+    tester_run_command = Column(String, nullable=False)
     # TODO: add deadline column?
 
     section_id = Column(Integer, ForeignKey("section.section_id"))

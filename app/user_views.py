@@ -69,6 +69,7 @@ class NewAssignmentForm(FlaskForm):
     title = StringField('Assignment Title', validators=[DataRequired()])
     # TODO: add verification of correct format for assignment files (i.e.
     # space separated files)
+    tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
     files = StringField('Assignment Files', validators=[DataRequired()])
     tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     submit = SubmitField("Submit")
@@ -159,6 +160,7 @@ def section_overview(semester, section_num):
                 # create new assignment for DB
                 new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                         title=new_assignment_form.title.data,
+                                                        tester_run_command=new_assignment_form.tester_run_command.data,
                                                         section_id=section.section_id)
 
                 session.add(new_assignment)

@@ -32,6 +32,7 @@
             {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
+            {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
             <div class="form-group">
                 <strong>{{ assignment_form.tester_files.label() }}:</strong>
                 {{ assignment_form.tester_files(class="form-control-file") }}
