@@ -1,4 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, TIMESTAMP
+from sqlalchemy import (
+        Column, Integer, String, Boolean, ForeignKey, Table, TIMESTAMP,
+        LargeBinary
+        )
 from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
@@ -79,6 +82,7 @@ class Assignment(Base):
 
     # one assignment has many files and teams
     files = relationship("SourceFile", backref=backref("assignment"))
+    tester_files = relationship("TesterFile", backref=backref("assignment"))
     teams = relationship("Team", backref=backref("assignment"))
 
 
@@ -117,6 +121,15 @@ class SourceFile(Base):
     __tablename__ = "source_file"
     source_file_id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=False)
+    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
+
+
+# TODO: add content_type column
+class TesterFile(Base):
+    __tablename__ = "tester_file"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String, nullable=False)
+    data = Column(LargeBinary, nullable=False)
     assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
 

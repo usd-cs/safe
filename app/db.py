@@ -73,6 +73,14 @@ def init_db(app):
                         )
                         """)
         engine.execute("""
+                        CREATE TABLE tester_file (
+                          id INTEGER NOT NULL PRIMARY KEY,
+                          filename VARCHAR NOT NULL,
+                          data BLOB NOT NULL,
+                          assignment_id INTEGER REFERENCES psa
+                        )
+                        """)
+        engine.execute("""
                         CREATE TABLE team_enrollment (
                           user_id INTEGER REFERENCES student,
                           team_id INTEGER REFERENCES team

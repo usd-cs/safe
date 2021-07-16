@@ -13,7 +13,7 @@ from flask import (
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import StringField, SubmitField, IntegerField
+from wtforms import StringField, SubmitField, IntegerField, MultipleFileField
 from wtforms.validators import DataRequired, Regexp, NumberRange 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
@@ -70,6 +70,7 @@ class NewAssignmentForm(FlaskForm):
     # TODO: add verification of correct format for assignment files (i.e.
     # space separated files)
     files = StringField('Assignment Files', validators=[DataRequired()])
+    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     submit = SubmitField("Submit")
 
 class RosterUploadForm(FlaskForm):
@@ -172,9 +173,34 @@ def section_overview(semester, section_num):
                                                     assignment_id=new_assignment.assignment_id)
                     session.add(new_file)
 
+                session.flush()
+
+                # Create separate TesterFile entries for each uploaded tester
+                # file and save files to a directory for workers to access.
+                tester_files = request.files.getlist(new_assignment_form.tester_files.name)
+
+                # FIXME: this should go to a more unique path, whose base dir is
+                # part of the app configuration
+                tester_code_dir = os.path.join(current_app.instance_path,
+                                                'tester_code', f"psa{new_assignment.num}")
+                os.makedirs(tester_code_dir, exist_ok=True)
+
+                for tf in tester_files:
+                    # TODO: store tf.content_type attribute in DB
+                    new_tester_file = db_models.TesterFile(filename=tf.filename,
+                                                            data=tf.read(),
+                                                            assignment_id=new_assignment.assignment_id)
+                    session.add(new_tester_file)
+
+                    # save to the tester code directory
+                    filename = secure_filename(tf.filename)
+                    file_location = os.path.join(tester_code_dir, filename)
+                    with open(file_location, 'wb') as new_file:
+                        new_file.write(new_tester_file.data)
+
                 session.commit()
 
-                flash(f"Assignment {new_assignment_form.assignment_num.data} added with {len(assignment_files)} files!", "info")
+                flash(f"Assignment {new_assignment_form.assignment_num.data} added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
 
                 return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
 

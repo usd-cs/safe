@@ -123,9 +123,15 @@ def create_app(test_config=None):
             if group:
                 repo_name += f"-group{group}"
 
-            test_code_dir = '/Users/sat/Teaching/comp110-ci-server/tester_code/psa1'
+            test_code_dir = os.path.join(app.instance_path, 'tester_code', f'psa{psa}')
+
+            # FIXME: if test_code_dir doesn't exist, create it based on
+            # TesterFiles associated with the assignment
+
+            # FIXME: fill in test command list from DB (add it as a Column)
             test_command = ['python3', 'my_autograde.py']
-            source_files = ['name_drawer.py']
+
+            source_files = [sf.filename for sf in target_group.assignment.files]
 
             job = app.test_queue.enqueue('app.workers.run_test',
                                             'code.sandiego.edu', repo_dir,

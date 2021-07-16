@@ -27,11 +27,20 @@
     </ul>
     <div class="container border pt-3 pb-3">
         <h2>Add Assignment</h2>
-        <form method="POST" action="">
+        <form method="POST" action="" enctype="multipart/form-data">
             {{ assignment_form.csrf_token() }}
             {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
+            <div class="form-group">
+                <strong>{{ assignment_form.tester_files.label() }}:</strong>
+                {{ assignment_form.tester_files(class="form-control-file") }}
+                {% if assignment_form.tester_files.errors %}
+                    {% for error in assignment_form.tester_files.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                {% endif %}
+            </div>
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
