@@ -14,6 +14,7 @@ from flask_login import (
     LoginManager, current_user, login_required
 )
 from sqlalchemy import insert, delete, and_
+from werkzeug.security import generate_password_hash
 from . import db_models
 
 admin = Blueprint('admin', __name__)
