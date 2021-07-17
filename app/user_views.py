@@ -183,8 +183,8 @@ def section_overview(semester, section_num):
 
                 # FIXME: this should go to a more unique path, whose base dir is
                 # part of the app configuration
-                tester_code_dir = os.path.join(current_app.instance_path,
-                                                'tester_code', f"psa{new_assignment.num}")
+                tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                                f"psa{new_assignment.num}")
                 os.makedirs(tester_code_dir, exist_ok=True)
 
                 for tf in tester_files:

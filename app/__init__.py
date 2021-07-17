@@ -123,7 +123,8 @@ def create_app(test_config=None):
             if group:
                 repo_name += f"-group{group}"
 
-            test_code_dir = os.path.join(app.instance_path, 'tester_code', f'psa{psa}')
+            test_code_dir = os.path.join(app.config['TESTER_CODE_BASE_DIR'],
+                                            f"psa{psa}")
 
             # FIXME: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment
