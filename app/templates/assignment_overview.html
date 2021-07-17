@@ -9,7 +9,27 @@
             <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.title}}
         </li>
         <li class="list-group-item">
-            <strong>Course:</strong> {{section.course}}, Section {{section.section_num}} ({{section.semester}})
+            <strong>Course:</strong> {{section.course | upper}}, Section
+            {{section.section_num}} ({{section.semester | upper}})
+        </li>
+        <li class="list-group-item">
+            <strong>Student Submitted Files:</strong> 
+            <ul>
+                {% for sf in assignment.files %}
+                <li>{{sf.filename}}</li>
+                {% endfor %}
+            </ul>
+        </li>
+        <li class="list-group-item">
+            <strong>Tester Files:</strong> 
+            <ul>
+                {% for tf in assignment.tester_files %}
+                <li>{{tf.filename}}</li>
+                {% endfor %}
+            </ul>
+        </li>
+        <li class="list-group-item">
+            <strong>Tester Command:</strong> {{ assignment.tester_run_command }}
         </li>
     </ul>
 </div>
