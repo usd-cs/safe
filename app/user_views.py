@@ -75,10 +75,95 @@ class NewAssignmentForm(FlaskForm):
     tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     submit = SubmitField("Submit")
 
+
 class RosterUploadForm(FlaskForm):
     roster_file = FileField('Class Roster', validators=[FileRequired()])
             #validators=[Regexp('^.*\.(csv|CSV)$', message="Must be CSV file format")])
     submit = SubmitField('Upload Roster')
+
+
+def add_students_from_roster(section, file_location, session):
+    """
+    Adds students in a given roster file (CSV format) to the specified section.
+
+    This will add new Users to the database if the student hasn't been created
+    before.
+    """
+    try:
+        with open(file_location, newline='', encoding='utf-8-sig') as roster_data:
+            roster_reader = csv.reader(roster_data)
+            header = next(roster_reader)
+
+            try:
+                # Figure out which column contains the relevant user data
+                first_name_col = header.index("First Name")
+                last_name_col = header.index("Last Name")
+                username_col = header.index("Username")
+            except ValueError:
+                # Couldn't find at least one of the required columns
+                flash("Roster file format is invalid. Could not find columns for one or more of the following: First Name, Last Name, Username", 
+                        "danger")
+            else:
+                # Found all the columns we need to read through roster and add
+                # them to the section.
+
+                new_students = []
+                duplicate_students = []
+
+                for line in roster_reader:
+                    username = line[username_col]
+                    last_name = line[last_name_col]
+                    first_name = line[first_name_col]
+
+                    # look for an existing user with that username
+                    student_to_add = (
+                        session.query(db_models.User)
+                            .filter(db_models.User.username == username).first()
+                    )
+
+                    if student_to_add:
+                        # found the student already so no need to create a
+                        # new User object
+                        print(f"User with {username} already exists. Skipping creation!")
+                    else:
+                        # Create new User and add to database
+                        print(f"Creating student user with username {username}")
+
+                        alphabet = string.ascii_letters + string.digits
+                        temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
+
+                        student_to_add = db_models.User(username=username,
+                                                        password=generate_password_hash(temporary_password),
+                                                        first_name=first_name,
+                                                        last_name=last_name,
+                                                        instructor=False,
+                                                        admin=False)
+                        session.add(student_to_add)
+                        session.flush()
+
+                    if student_to_add in section.users:
+                        # student is already enrolled in this section so
+                        # nothing more to do
+                        duplicate_students.append(student_to_add.username)
+                    else:
+                        # Add user to this section
+                        new_students.append(student_to_add.username)
+                        statement = (
+                            insert(db_models.section_enrollment)
+                                .values(user_id=student_to_add.user_id, section_id=section.section_id)
+                        )
+                        session.execute(statement)
+
+                    session.commit()
+
+                if len(new_students) > 0:
+                    flash(f"Added {len(new_students)} new students to section.", "info")
+                if len(duplicate_students) > 0:
+                    flash(f"Skipped {len(duplicate_students)} who were already enrolled.", "warning")
+    
+    except UnicodeError as e:
+        flash(f"Roster file has incorrect encoding. Did you download it from Blackboard?", "danger")
+        print("Error Opening file:", e)
 
 # TODO: generalize for non-COMP110 courses
 @user_views.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
@@ -220,78 +305,7 @@ def section_overview(semester, section_num):
             file_location = os.path.join(temp_dir, filename)
             uploaded_file.save(file_location)
 
-            new_students = []
-            duplicate_students = []
-
-            try:
-                with open(file_location, newline='', encoding='utf-8-sig') as roster_data:
-                    roster_reader = csv.reader(roster_data)
-                    header = next(roster_reader)
-
-                    try:
-                        first_name_col = header.index("First Name")
-                        last_name_col = header.index("Last Name")
-                        username_col = header.index("Username")
-                    except ValueError:
-                        # Couldn't find 1+ expected columns so we have to give
-                        # up and let the instructor know.
-                        flash("Roster file format is invalid. Could not find columns for one or more of the following: First Name, Last Name, Username", 
-                                "danger")
-                    else:
-                        for line in roster_reader:
-                            username = line[username_col]
-                            last_name = line[last_name_col]
-                            first_name = line[first_name_col]
-
-                            # look for an existing user with that username
-                            student_to_add = (
-                                session.query(db_models.User)
-                                    .filter(db_models.User.username == username).first()
-                            )
-
-                            if student_to_add:
-                                # found the student already so no need to create a
-                                # new User object
-                                print(f"User with {username} already exists. Skipping creation!")
-                            else:
-                                # Create new User and add to database
-                                print(f"Creating student user with username {username}")
-
-                                alphabet = string.ascii_letters + string.digits
-                                temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
-
-                                student_to_add = db_models.User(username=username,
-                                                                password=generate_password_hash(temporary_password),
-                                                                first_name=first_name,
-                                                                last_name=last_name,
-                                                                instructor=False,
-                                                                admin=False)
-                                session.add(student_to_add)
-                                session.flush()
-
-                            if student_to_add in section.users:
-                                # student is already enrolled in this section so
-                                # nothing more to do
-                                duplicate_students.append(student_to_add.username)
-                            else:
-                                # Add user to this section
-                                new_students.append(student_to_add.username)
-                                statement = (
-                                    insert(db_models.section_enrollment)
-                                        .values(user_id=student_to_add.user_id, section_id=section.section_id)
-                                )
-                                session.execute(statement)
-
-                            session.commit()
-
-                        if len(new_students) > 0:
-                            flash(f"Added {len(new_students)} new students to section.", "info")
-                        if len(duplicate_students) > 0:
-                            flash(f"Skipped {len(duplicate_students)} who were already enrolled.", "warning")
-            
-            except UnicodeError as e:
-                flash(f"Roster file has incorrect encoding. Did you download it from Blackboard?", "danger")
-                print("Error Opening file:", e)
+            add_students_from_roster(section, file_location, session)
 
             os.remove(file_location)
             return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
