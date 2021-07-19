@@ -2,7 +2,7 @@ FROM python:alpine3.14
 
 RUN apk add build-base
 
-RUN adduser -D safe
+RUN adduser -D --uid 1000 safe
 
 RUN mkdir /safe
 RUN mkdir /safe/instance
