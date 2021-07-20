@@ -1,5 +1,4 @@
 import os
-from collections import namedtuple
 import secrets
 import string
 import json
@@ -453,13 +452,9 @@ def psa_overview(semester, section_num, psa_num):
                                 group_form=new_group_form)
 
 
-TestResult = namedtuple('TestResult', ['status', 'summary', 'detail'])
-
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
 @login_required
 def psa_results(semester, section_num, psa_num, group_num):
-    # TODO: validate semester, section num, psa_num, and group_num
-
     with current_app.Session() as session:
         # TODO: combine the following queries into one!
         section = (
@@ -522,10 +517,7 @@ def psa_results(semester, section_num, psa_num, group_num):
 
         processed_results = {}
         for result in raw_results:
-            print("Current result:", result)
             category_results = processed_results.get(result["category_name"])
-
-            #new_test_result = TestResult(result["outcome"], result["summary"], result["detail"])
 
             if not category_results:
                 # Haven't seen this category before so set basic structure up
