@@ -3,6 +3,7 @@ import subprocess
 import datetime
 import json
 import requests
+import git
 
 def testing_successful(job, conn, runner_output, *args, **kwargs):
     """
@@ -51,6 +52,15 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
             print(f"Could not pull: {repo_name}")
             return
 
+    # get time, author, and message for latest commit
+    repo = git.Repo(os.getcwd())
+    latest_commit = repo.commit('master')
+
+    submission_time = str(latest_commit.committed_datetime)
+    author = latest_commit.author
+    commit_author = f"{author.name} ({author.email})"
+    commit_comment = latest_commit.message.strip()
+
     # check if the tester code directory exists, creating it if
     # necessary
     if not os.path.exists("tester"):
@@ -94,11 +104,6 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
             stdout_file.write(output_text)
         if error_text is not None:
             stderr_file.write(error_text)
-
-    # TODO: get real submission time, author, and comment using git log
-    submission_time = "Tue Jul 13 08:25:09 2021 -0700"
-    commit_author = "Sat Garcia (sat@sandiego.edu)"
-    commit_comment = "Fixed last bug. We're done!"
 
     runner_output = {}
     runner_output['author'] = commit_author
