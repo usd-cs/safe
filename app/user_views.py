@@ -552,6 +552,7 @@ def psa_results(semester, section_num, psa_num, group_num):
                                 assignment=assignment,
                                 group_num=group_num,
                                 submit_time=commit_time,
+                                commit_author=latest_test_results.commit_author,
                                 commit_comment=latest_test_results.commit_comment,
                                 results_time=results_time,
                                 test_results=categories)

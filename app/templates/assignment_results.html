@@ -25,11 +25,17 @@ bg-warning
     {% if test_results %}
         <ul class="list-group pb-3">
             <li class="list-group-item"><strong>Submission Time:</strong>
-                {{submit_time}}</li>
+                {{submit_time}}
+            </li>
+            <li class="list-group-item"><strong>Submitter:</strong>
+                {{commit_author}}
+            </li>
             <li class="list-group-item"><strong>Commit Comment:</strong>
-                {{commit_comment}}</li>
+                {{commit_comment}}
+            </li>
             <li class="list-group-item"><strong>Feedback Time:</strong>
-                {{results_time}}</li>
+                {{results_time}}
+            </li>
         </ul>
         {% for category in test_results %}
         <div class="container pb-3">
