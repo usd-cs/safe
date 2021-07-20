@@ -50,8 +50,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
         result = subprocess.call(["git", "clone", f"git@{git_server}:{repo_name}"])
 
         if result != 0:
-            print(f"Could not clone: {repo_name}")
-            return
+            raise RuntimeError(f"Could not clone: {repo_name}")
 
         needs_pulled = False # fresh clone so don't need to pull later
 
@@ -61,8 +60,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
     if needs_pulled:
         print("\tPulling from repository...")
         if subprocess.call(["git", "pull"]) != 0:
-            print(f"Could not pull: {repo_name}")
-            return
+            raise RuntimeError(f"Could not pull: {repo_name}")
 
     # get time, author, and message for latest commit
     repo = git.Repo(os.getcwd())
@@ -79,8 +77,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
         print("\tSetting up tester directory...")
         result = subprocess.call(["cp", "-r", test_code_dir, "tester"])
         if result != 0:
-            print(f"Could not copy tester code: {repo_name}")
-            return
+            raise RuntimeError(f"Could not copy tester code: {repo_name}")
 
     files_under_test = []
     for filename in source_files:
@@ -95,8 +92,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
 
     cp_args = ["cp"] + files_under_test + ["tester/"]
     if subprocess.call(cp_args) != 0:
-        print(f"Could not copy {', '.join(files_under_test)}: {repo_name}")
-        return
+        raise RuntimeError(f"Could not copy {', '.join(files_under_test)}: {repo_name}")
 
     os.chdir("tester/")
     print("\tRunning grader...")
