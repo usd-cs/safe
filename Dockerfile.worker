@@ -15,4 +15,4 @@ RUN mkdir /home/safe/.ssh
 RUN ssh-keygen -t rsa -q -f "/home/safe/.ssh/id_rsa" -N ""
 RUN ssh-keyscan $GIT_SERVER >> /home/safe/.ssh/known_hosts
 
-ENTRYPOINT ["/safe/venv/bin/rq", "worker", "safe-tests"]
+ENTRYPOINT ["./boot-worker.sh"]

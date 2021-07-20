@@ -25,4 +25,4 @@ RUN chown -R safe:safe ./
 USER safe
 
 EXPOSE 5000
-ENTRYPOINT ["./boot.sh"]
+ENTRYPOINT ["./boot-webapp.sh"]
