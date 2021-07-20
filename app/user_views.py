@@ -461,6 +461,7 @@ def psa_results(semester, section_num, psa_num, group_num):
     # TODO: validate semester, section num, psa_num, and group_num
 
     with current_app.Session() as session:
+        # TODO: combine the following queries into one!
         section = (
             session.query(db_models.Section)
                 .filter(db_models.Section.course == "comp110")
@@ -506,6 +507,7 @@ def psa_results(semester, section_num, psa_num, group_num):
                 .filter(db_models.TestResults.team_id == group.team_id)
                 .filter(db_models.TestResults.finished)
                 .order_by(db_models.TestResults.commit_time.desc())
+                .order_by(db_models.TestResults.completed_at.desc())
                 .first()
         )
 
@@ -516,19 +518,39 @@ def psa_results(semester, section_num, psa_num, group_num):
                                     assignment=assignment,
                                     group_num=group_num)
 
-        unprocess_results = json.loads(latest_test_results.results)
+        raw_results = json.loads(latest_test_results.results)
 
         processed_results = {}
-        for result in unprocess_results:
-            section_results = processed_results.get(result["section"])
-            new_test_result = TestResult(result["status"], result["summary"], result["detail"])
+        for result in raw_results:
+            print("Current result:", result)
+            category_results = processed_results.get(result["category_name"])
 
-            if section_results:
-                section_results.append(new_test_result)
-            else:
-                section_results = [new_test_result]
+            #new_test_result = TestResult(result["outcome"], result["summary"], result["detail"])
 
-            processed_results[result["section"]] = section_results
+            if not category_results:
+                # Haven't seen this category before so set basic structure up
+                # for us (a dictionary with a few items) and add it to our
+                # processed results
+                category_results = {
+                    "category_num": result["category_num"],
+                    "category_name": result["category_name"],
+                    "metrics": {}
+                }
+
+                processed_results[result["category_name"]] = category_results
+
+            new_metric = {
+                "description": result["metric"],
+                "outcome": result["outcome"]
+            }
+
+            if "message" in result:
+                new_metric["message"] = result["message"]
+
+            category_results["metrics"][result["test_num"]] = new_metric
+
+
+        categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
 
         commit_time = f"{latest_test_results.commit_time: %b %d, %Y @ %I:%M:%S %p}"
         results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
@@ -540,5 +562,5 @@ def psa_results(semester, section_num, psa_num, group_num):
                                 submit_time=commit_time,
                                 commit_comment=latest_test_results.commit_comment,
                                 results_time=results_time,
-                                test_results=processed_results)
+                                test_results=categories)
 

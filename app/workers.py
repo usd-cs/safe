@@ -4,29 +4,6 @@ import datetime
 import json
 import requests
 
-mock_json_data = """
-[
-    {
-        "section": "Part 1: Yada yada yada",
-        "status": "PASS",
-        "summary": "Requirement 1",
-        "detail": "All tests passed for this requirement."
-    },
-    {
-        "section": "Part 1: Yada yada yada",
-        "status": "FAIL",
-        "summary": "Requirement 2",
-        "detail": "One or more tests did not pass for this requirement."
-    },
-    {
-        "section": "Part 2: Boop",
-        "status": "PASS",
-        "summary": "Requirement 1",
-        "detail": "All tests passed for this requirement."
-    }
-]
-"""
-
 def testing_successful(job, conn, runner_output, *args, **kwargs):
     """
     Callback function when testing job completes successfully.
@@ -128,7 +105,9 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
     runner_output['submission_time'] = submission_time
     runner_output['commit_comment'] = commit_comment
     runner_output['results_time'] = str(datetime.datetime.now())
-    runner_output['results'] = json.loads(mock_json_data)
+
+    with open('results.json', 'r') as results_file:
+        runner_output['results'] = json.load(results_file)
 
     return runner_output
 
