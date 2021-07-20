@@ -14,15 +14,27 @@ def testing_successful(job, conn, runner_output, *args, **kwargs):
     print(f"SUCCESS: {job_id}")
     #print(f"result: {runner_output}")
 
-    requests.post(f"http://localhost:5000/done/{job_id}", json=runner_output)
+    # FIXME: URL needs customized based on app's config
+    server_response = requests.post(f"http://localhost:5000/notify/success/{job_id}", 
+                                    json=runner_output)
+    print("Server Response:", server_response.text)
 
 
 def testing_failed(job, conn, exception_type, exception_instance, traceback):
     """
     Callback function when testing job fails.
     """
-    print(f"FAILED: {job.get_id()}")
-    print(f"\t{exception_type}")
+    job_id = job.get_id()
+
+    print(f"FAILED: {job_id}")
+    print(f"\t{exception_instance}")
+
+    failure_info = { "error": str(exception_instance) }
+
+    # FIXME: URL needs customized based on app's config
+    server_response = requests.post(f"http://localhost:5000/notify/failed/{job_id}",
+                                    json=failure_info)
+    print("Server Response:", server_response.text)
 
 
 def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, timeout_length, source_files):

@@ -59,7 +59,33 @@ def create_app(test_config=None):
             print(f"Couldn't find user with id {user_id}")
             return None
 
-    @app.route("/done/<job_id>", methods=["post"])
+    @app.route("/notify/failed/<job_id>", methods=["post"])
+    def remove_failed(job_id):
+        from flask import request
+
+        failure_info = request.get_json()
+        if failure_info:
+            print("Failure Reason:", failure_info["error"])
+        else:
+            return "Failure info expected in JSON format"
+
+        with app.Session() as session:
+            test_results = (
+                session.query(db_models.TestResults)
+                    .filter(db_models.TestResults.job_id == job_id)
+                    .first()
+            )
+
+            if not test_results:
+                abort(404)
+            else:
+                # remove the test results
+                session.delete(test_results)
+                session.commit()
+                return "Failure notification received."
+
+
+    @app.route("/notify/success/<job_id>", methods=["post"])
     def update_results(job_id):
         from rq.job import Job
         from flask import request
@@ -92,7 +118,7 @@ def create_app(test_config=None):
             test_results.completed_at = parser.parse(results_data['results_time'])
             session.commit()
 
-        return "Results updated"
+        return "Results successfully received"
 
     @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>")
     @app.route("/notify/<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>")
