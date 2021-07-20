@@ -6,7 +6,6 @@
     <ul class="list-group">
         <li class="list-group-item"><strong>Name:</strong> PSA
             {{assignment.num}}: {{assignment.title}}</li>
-        <li class="list-group-item"><strong>Deadline:</strong> FIXME</li>
         <li class="list-group-item"><strong>Group Number:</strong> {{group_num}}</li>
     </ul>
 </div>
@@ -43,6 +42,8 @@ bg-warning
                         <strong>{{ metric["description"] }}</strong>
                         {% if metric["message"] %}
                             <br/><em>{{ metric["message"] }}</em>
+                        {% else %}
+                            <br/><em>All tests passed for this metric!</em>
                         {% endif %}
                     </div>
                     <span class="badge {{ badge_color(metric["outcome"]) }} rounded-pill text-light">
