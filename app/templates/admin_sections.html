@@ -53,17 +53,7 @@
                 </div>
             </div>
 
-            <div class="form-group pt-2 pb-2">
-                <strong>{{ form.instructors.label }}:</strong>
-                <div class="container">
-                    {% for choice in form.instructors %}
-                    <div class="form-check">
-                        {{ choice(class_="form-check-input") }}
-                        {{ choice.label(class_="form-check-label") }}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            {{ forms.checkbox_input(form.instructors) }}
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
     </div>
