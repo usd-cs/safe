@@ -149,15 +149,17 @@ def create_app(test_config=None):
             if group:
                 repo_name += f"-group{group}"
 
+            base_assignment = target_group.assignment.base_assignment
+
             test_code_dir = os.path.join(app.config['TESTER_CODE_BASE_DIR'],
-                                            f"{target_group.assignment.base_assignment.assignment_id}")
+                                            f"{base_assignment.assignment_id}")
 
             # FIXME: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment
 
-            test_command = target_group.assignment.tester_run_command.split()
-            source_files = [sf.filename for sf in target_group.assignment.files]
-            max_runtime = target_group.assignment.max_runtime
+            test_command = base_assignment.tester_run_command.split()
+            source_files = [sf.filename for sf in base_assignment.files]
+            max_runtime = base_assignment.max_runtime
 
             job = app.test_queue.enqueue('app.workers.run_test',
                                             'code.sandiego.edu', repo_dir,

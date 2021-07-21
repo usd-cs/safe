@@ -13,7 +13,9 @@ from flask import (
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import StringField, SubmitField, IntegerField, MultipleFileField
+from wtforms import (
+    StringField, SubmitField, IntegerField, MultipleFileField, SelectField
+)
 from wtforms.validators import DataRequired, Regexp, NumberRange 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
@@ -66,13 +68,7 @@ def permission_denied(error):
 
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
-    title = StringField('Assignment Title', validators=[DataRequired()])
-    # TODO: add verification of correct format for assignment files (i.e.
-    # space separated files)
-    tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
-    files = StringField('Assignment Files', validators=[DataRequired()])
-    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
-    max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
+    base_assignment_id = SelectField('Base Assignment', coerce=int)
     submit = SubmitField("Submit")
 
 
@@ -230,7 +226,10 @@ def section_overview(semester, section_num):
                                     )
 
         new_assignment_form = NewAssignmentForm()
-        roster_upload_form = RosterUploadForm()
+
+        base_choices = [(ba.assignment_id, ba.title) 
+                            for ba in session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
+        new_assignment_form.base_assignment_id.choices = base_choices
 
         if new_assignment_form.validate_on_submit():
             # TODO: make this a forms validator so error shows up next to fields
@@ -246,69 +245,22 @@ def section_overview(semester, section_num):
                 flash(f"Assignment {new_assignment_form.assignment_num.data} already exists!", "danger")
 
             else:
-                # create new assignment for DB
-                new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
-                                                                tester_run_command=new_assignment_form.tester_run_command.data,
-                                                                max_runtime=new_assignment_form.max_runtime.data)
-
-                session.add(new_base_assignment)
-                session.flush()
-
-                """
-                new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
-                                                        title=new_assignment_form.title.data,
-                                                        tester_run_command=new_assignment_form.tester_run_command.data,
-                                                        max_runtime=new_assignment_form.max_runtime.data,
-                                                        section_id=section.section_id)
-
-                """
-
+                # create new assignment based on the selected base assignment
+                # and add it to our database
                 new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                         section_id=section.section_id,
-                                                        base_assignment_id=new_base_assignment.assignment_id)
+                                                        base_assignment_id=new_assignment_form.base_assignment_id.data)
 
                 session.add(new_assignment)
-                session.flush()
-
-                # create separete SourceFile entries for each source file
-                assignment_files = new_assignment_form.files.data.split()
-                
-                # TODO: check for duplicate filenames
-                for af in assignment_files:
-                    new_file = db_models.SourceFile(filename=af,
-                                                    base_assignment_id=new_base_assignment.assignment_id)
-                    session.add(new_file)
-
-                session.flush()
-
-                # Create separate TesterFile entries for each uploaded tester
-                # file and save files to a directory for workers to access.
-                tester_files = request.files.getlist(new_assignment_form.tester_files.name)
-
-                # FIXME: this should go to a more unique path, whose base dir is
-                # part of the app configuration
-                tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                                f"psa{new_assignment.num}")
-                os.makedirs(tester_code_dir, exist_ok=True)
-
-                for tf in tester_files:
-                    # TODO: store tf.content_type attribute in DB
-                    new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                            data=tf.read(),
-                                                            base_assignment_id=new_base_assignment.assignment_id)
-                    session.add(new_tester_file)
-
-                    # save to the tester code directory
-                    filename = secure_filename(tf.filename)
-                    file_location = os.path.join(tester_code_dir, filename)
-                    with open(file_location, 'wb') as new_file:
-                        new_file.write(new_tester_file.data)
-
                 session.commit()
 
-                flash(f"Assignment {new_assignment_form.assignment_num.data} added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
+                flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
+                        "info")
 
                 return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+
+        roster_upload_form = RosterUploadForm()
 
         if roster_upload_form.validate_on_submit():
             # add users to database
