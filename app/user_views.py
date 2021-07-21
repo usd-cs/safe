@@ -72,6 +72,7 @@ class NewAssignmentForm(FlaskForm):
     tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
     files = StringField('Assignment Files', validators=[DataRequired()])
     tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
+    max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
     submit = SubmitField("Submit")
 
 
@@ -246,6 +247,7 @@ def section_overview(semester, section_num):
                 new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                         title=new_assignment_form.title.data,
                                                         tester_run_command=new_assignment_form.tester_run_command.data,
+                                                        max_runtime=new_assignment_form.max_runtime.data,
                                                         section_id=section.section_id)
 
                 session.add(new_assignment)
