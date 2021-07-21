@@ -34,15 +34,7 @@
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
             {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
             {{ forms.input(assignment_form.max_runtime, "Enter maximum tester runtime (in seconds)") }}
-            <div class="form-group">
-                <strong>{{ assignment_form.tester_files.label() }}:</strong>
-                {{ assignment_form.tester_files(class="form-control-file") }}
-                {% if assignment_form.tester_files.errors %}
-                    {% for error in assignment_form.tester_files.errors %}
-                    <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                {% endif %}
-            </div>
+            {{ forms.input(assignment_form.tester_files, "", "form-control-file") }}
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
