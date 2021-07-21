@@ -6,7 +6,7 @@
 	<h2>Assignment Info</h2>
     <ul class="list-group">
         <li class="list-group-item">
-            <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.title}}
+            <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.base_assignment.title}}
         </li>
         <li class="list-group-item">
             <strong>Course:</strong> {{section.course | upper}}, Section
@@ -15,7 +15,7 @@
         <li class="list-group-item">
             <strong>Student Submitted Files:</strong> 
             <ul>
-                {% for sf in assignment.files %}
+                {% for sf in assignment.base_assignment.files %}
                 <li>{{sf.filename}}</li>
                 {% endfor %}
             </ul>
@@ -23,13 +23,13 @@
         <li class="list-group-item">
             <strong>Tester Files:</strong> 
             <ul>
-                {% for tf in assignment.tester_files %}
+                {% for tf in assignment.base_assignment.tester_files %}
                 <li>{{tf.filename}}</li>
                 {% endfor %}
             </ul>
         </li>
         <li class="list-group-item">
-            <strong>Tester Command:</strong> {{ assignment.tester_run_command }}
+            <strong>Tester Command:</strong> {{ assignment.base_assignment.tester_run_command }}
         </li>
     </ul>
 </div>

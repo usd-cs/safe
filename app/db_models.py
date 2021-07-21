@@ -71,20 +71,31 @@ class Section(Base):
     assignments = relationship("Assignment", backref=backref("section"))
 
 
+class BaseAssignment(Base):
+    __tablename__ = "base_assignment"
+    assignment_id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    tester_run_command = Column(String, nullable=False)
+    max_runtime = Column(Integer, nullable=False)
+
+    # one assignment potentially has many files (source and tester)
+    files = relationship("SourceFile", backref=backref("base_assignment"))
+    tester_files = relationship("TesterFile", backref=backref("base_assignment"))
+
+    # each assignment can be used by many actual assignments
+    assignments = relationship("Assignment", backref=backref("base_assignment"))
+
+
 class Assignment(Base):
     __tablename__ = "assignment"
     assignment_id = Column(Integer, primary_key=True)
     num = Column(Integer, nullable=False)
-    title = Column(String, nullable=False)
-    tester_run_command = Column(String, nullable=False)
-    max_runtime = Column(Integer, nullable=False)
-    # TODO: add deadline column?
+    # TODO: add deadline column
 
     section_id = Column(Integer, ForeignKey("section.section_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
-    # one assignment has many files and teams
-    files = relationship("SourceFile", backref=backref("assignment"))
-    tester_files = relationship("TesterFile", backref=backref("assignment"))
+    # one assignment can have many teams
     teams = relationship("Team", backref=backref("assignment"))
 
 
@@ -123,7 +134,7 @@ class SourceFile(Base):
     __tablename__ = "source_file"
     source_file_id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=False)
-    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
 
 # TODO: add content_type column
@@ -132,7 +143,7 @@ class TesterFile(Base):
     id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=False)
     data = Column(LargeBinary, nullable=False)
-    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
 
 class PasswordResetRequest(Base):

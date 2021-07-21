@@ -189,7 +189,10 @@ def section_overview(semester, section_num):
             # only admins and seciton instructor(s) can view this page.
             abort(403)
 
+        #print("YAYAYA:", section.users.contains(current_user))
+
         if not (current_user.admin or current_user.instructor):
+            # Construct the student's view of this page
             instructors = (
                 session.query(db_models.User)
                     .join(db_models.Section.users)
@@ -203,14 +206,14 @@ def section_overview(semester, section_num):
             # get intersection of section's assignments and user's teams
             # assignments
             teams_in_section = (
-                session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
                     .join(db_models.Section.assignments)
                     .join(db_models.Assignment.teams)
                     .filter(db_models.Section.section_id == section.section_id)
             )
 
             teams_with_user = (
-                session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
                     .select_from(db_models.Team)
                     .join(db_models.User.teams)
                     .join(db_models.Assignment)
@@ -232,6 +235,8 @@ def section_overview(semester, section_num):
         roster_upload_form = RosterUploadForm()
 
         if new_assignment_form.validate_on_submit():
+            # TODO: make this a forms validator so error shows up next to fields
+            # rather than a flash at the top after submitting
             num_matches = (
                     session.query(db_models.Assignment)
                         .filter(db_models.Assignment.section_id == section.section_id)
@@ -244,11 +249,25 @@ def section_overview(semester, section_num):
 
             else:
                 # create new assignment for DB
+                new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
+                                                                tester_run_command=new_assignment_form.tester_run_command.data,
+                                                                max_runtime=new_assignment_form.max_runtime.data)
+
+                session.add(new_base_assignment)
+                session.flush()
+
+                """
                 new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                         title=new_assignment_form.title.data,
                                                         tester_run_command=new_assignment_form.tester_run_command.data,
                                                         max_runtime=new_assignment_form.max_runtime.data,
                                                         section_id=section.section_id)
+
+                """
+
+                new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
+                                                        section_id=section.section_id,
+                                                        base_assignment_id=new_base_assignment.assignment_id)
 
                 session.add(new_assignment)
                 session.flush()
@@ -259,7 +278,7 @@ def section_overview(semester, section_num):
                 # TODO: check for duplicate filenames
                 for af in assignment_files:
                     new_file = db_models.SourceFile(filename=af,
-                                                    assignment_id=new_assignment.assignment_id)
+                                                    base_assignment_id=new_base_assignment.assignment_id)
                     session.add(new_file)
 
                 session.flush()
@@ -278,7 +297,7 @@ def section_overview(semester, section_num):
                     # TODO: store tf.content_type attribute in DB
                     new_tester_file = db_models.TesterFile(filename=tf.filename,
                                                             data=tf.read(),
-                                                            assignment_id=new_assignment.assignment_id)
+                                                            base_assignment_id=new_base_assignment.assignment_id)
                     session.add(new_tester_file)
 
                     # save to the tester code directory

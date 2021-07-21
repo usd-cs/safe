@@ -39,13 +39,19 @@ def init_db(app):
                         )
                         """)
         engine.execute("""
+                        CREATE TABLE base_assignment (
+                          assignment_id INTEGER NOT NULL PRIMARY KEY,
+                          title VARCHAR NOT NULL,
+                          tester_run_command VARCHAR NOT NULL,
+                          max_runtime INTEGER NOT NULL
+                        )
+                        """)
+        engine.execute("""
                         CREATE TABLE assignment (
                           assignment_id INTEGER NOT NULL PRIMARY KEY,
                           num INTEGER NOT NULL,
-                          title VARCHAR NOT NULL,
-                          tester_run_command VARCHAR NOT NULL,
-                          max_runtime INTEGER NOT NULL,
                           section_id INTEGER REFERENCES section
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
@@ -71,7 +77,7 @@ def init_db(app):
                         CREATE TABLE source_file (
                           source_file_id INTEGER NOT NULL PRIMARY KEY,
                           filename VARCHAR NOT NULL,
-                          assignment_id INTEGER REFERENCES psa
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
@@ -79,7 +85,7 @@ def init_db(app):
                           id INTEGER NOT NULL PRIMARY KEY,
                           filename VARCHAR NOT NULL,
                           data BLOB NOT NULL,
-                          assignment_id INTEGER REFERENCES psa
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
