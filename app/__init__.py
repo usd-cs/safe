@@ -157,11 +157,12 @@ def create_app(test_config=None):
 
             test_command = target_group.assignment.tester_run_command.split()
             source_files = [sf.filename for sf in target_group.assignment.files]
+            max_runtime = target_group.assignment.max_runtime
 
             job = app.test_queue.enqueue('app.workers.run_test',
                                             'code.sandiego.edu', repo_dir,
                                             repo_name, test_code_dir, test_command,
-                                            15, source_files,
+                                            max_runtime, source_files,
                                             on_success=workers.testing_successful,
                                             on_failure=workers.testing_failed)
             print(f"New Job ID: {job.get_id()}")

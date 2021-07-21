@@ -44,6 +44,7 @@ def init_db(app):
                           num INTEGER NOT NULL,
                           title VARCHAR NOT NULL,
                           tester_run_command VARCHAR NOT NULL,
+                          max_runtime INTEGER NOT NULL,
                           section_id INTEGER REFERENCES section
                         )
                         """)
