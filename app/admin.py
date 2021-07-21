@@ -1,3 +1,4 @@
+import os
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
     flash
@@ -5,7 +6,7 @@ from flask import (
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField, SubmitField, PasswordField, SelectMultipleField, IntegerField,
-    BooleanField, SelectField
+    BooleanField, SelectField, MultipleFileField
 )
 from wtforms.validators import (
     ValidationError, DataRequired, Length, NumberRange
@@ -16,6 +17,7 @@ from flask_login import (
 )
 from sqlalchemy import insert, delete, and_
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 from . import db_models
 
 admin = Blueprint('admin', __name__)
@@ -332,4 +334,80 @@ def admin_delete_user():
 
     return redirect(url_for('.admin_users'))
 
+
+class NewAssignmentForm(FlaskForm):
+    # TODO: add validator that title is unique
+    title = StringField('Assignment Title', validators=[DataRequired()])
+    tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
+    # TODO: add validator for formated of files field
+    files = StringField('Assignment Files', validators=[DataRequired()])
+    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
+    max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
+    submit = SubmitField("Submit")
+
+
+@admin.route('/assignments', methods=['get', 'post'])
+@login_required
+def admin_assignments():
+    if not current_user.admin:
+        abort(403)
+        
+    new_assignment_form = NewAssignmentForm()
+
+    if new_assignment_form.validate_on_submit():
+        with current_app.Session() as session:
+            # create new assignment for DB
+            new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
+                                                            tester_run_command=new_assignment_form.tester_run_command.data,
+                                                            max_runtime=new_assignment_form.max_runtime.data)
+
+            session.add(new_base_assignment)
+            session.flush()
+
+            # create separate SourceFile entries for each source file
+            assignment_files = new_assignment_form.files.data.split()
+            
+            # TODO: check for duplicate filenames
+            for af in assignment_files:
+                new_file = db_models.SourceFile(filename=af,
+                                                base_assignment_id=new_base_assignment.assignment_id)
+                session.add(new_file)
+
+            session.flush()
+
+            # Create separate TesterFile entries for each uploaded tester
+            # file and save files to a directory for workers to access.
+            tester_files = request.files.getlist(new_assignment_form.tester_files.name)
+
+            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                            f"{new_base_assignment.assignment_id}")
+            os.makedirs(tester_code_dir, exist_ok=True)
+
+            for tf in tester_files:
+                # TODO: store tf.content_type attribute in DB
+                new_tester_file = db_models.TesterFile(filename=tf.filename,
+                                                        data=tf.read(),
+                                                        base_assignment_id=new_base_assignment.assignment_id)
+                session.add(new_tester_file)
+
+                # save to the tester code directory
+                filename = secure_filename(tf.filename)
+                file_location = os.path.join(tester_code_dir, filename)
+                with open(file_location, 'wb') as new_file:
+                    new_file.write(new_tester_file.data)
+
+            session.commit()
+
+        flash(f"Assignment named '{new_assignment_form.title.data}' added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
+
+        return redirect(url_for(f'.admin_assignments'))
+
+    with current_app.Session() as session:
+        all_assignments = session.query(db_models.BaseAssignment)
+
+        return render_template("admin_assignments.html",
+                                page_title="Admin Assignments: SAFE @ USD",
+                                user=current_user,
+                                assignment_form=new_assignment_form,
+                                assignments=all_assignments)
 

@@ -150,7 +150,7 @@ def create_app(test_config=None):
                 repo_name += f"-group{group}"
 
             test_code_dir = os.path.join(app.config['TESTER_CODE_BASE_DIR'],
-                                            f"psa{psa}")
+                                            f"{target_group.assignment.base_assignment.assignment_id}")
 
             # FIXME: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment

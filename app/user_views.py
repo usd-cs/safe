@@ -189,8 +189,6 @@ def section_overview(semester, section_num):
             # only admins and seciton instructor(s) can view this page.
             abort(403)
 
-        #print("YAYAYA:", section.users.contains(current_user))
-
         if not (current_user.admin or current_user.instructor):
             # Construct the student's view of this page
             instructors = (
