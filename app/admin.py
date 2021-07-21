@@ -4,10 +4,11 @@ from flask import (
 )
 from flask_wtf import FlaskForm
 from wtforms import (
-    StringField, SubmitField, PasswordField, SelectMultipleField, IntegerField, BooleanField
+    StringField, SubmitField, PasswordField, SelectMultipleField, IntegerField,
+    BooleanField, SelectField
 )
 from wtforms.validators import (
-    ValidationError, DataRequired, Length, AnyOf, NumberRange
+    ValidationError, DataRequired, Length, NumberRange
 )
 from wtforms.widgets import ListWidget, CheckboxInput
 from flask_login import (
@@ -107,9 +108,12 @@ class MultiCheckboxField(SelectMultipleField):
 
 
 class NewSectionForm(FlaskForm):
-    # TODO: use regex for course, semester, and section_num
-    course = StringField('Course', validators=[AnyOf(['comp110'])])
-    semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
+    course = SelectField('Course', 
+                            choices=[('comp110', 'COMP110: Computational Problem Solving')])
+    semester = SelectField('Semester', 
+                            choices=[('sp21', 'Spring 2021'),
+                                     ('fa21', 'Fall 2021')])
+    #semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
     section_num = IntegerField('Section Number', validators=[NumberRange(min=1)])
     instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
     submit = SubmitField("Submit")
@@ -248,6 +252,9 @@ def admin_sections():
 
     if form.validate_on_submit():
         with current_app.Session() as session:
+            # TODO: Turn this isn't a form validator so error shows up closer to
+            # where it matters (i.e. under the section field, not as a flash at
+            # the top of the page.
             num_matching_sections = (
                 session.query(db_models.Section)
                     .filter(db_models.Section.course == form.course.data)

@@ -43,10 +43,10 @@
             {{ form.csrf_token() }}
             <div class="row">
                 <div class="col">
-                    {{ forms.input(form.course, "Course (e.g. comp110)") }}
+                    {{ forms.input(form.course, "", "form-select") }}
                 </div>
                 <div class="col">
-                    {{ forms.input(form.semester, "Semester (e.g. sp21)") }}
+                    {{ forms.input(form.semester, "", "form-select") }}
                 </div>
                 <div class="col">
                     {{ forms.input(form.section_num, "Section Number") }}

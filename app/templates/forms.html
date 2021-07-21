@@ -1,7 +1,7 @@
-{% macro input(form_field, placeholder) -%}
+{% macro input(form_field, placeholder, form_class="form-control") -%}
     <div class="form-group pb-3">
         <strong>{{ form_field.label }}:</strong>
-        {{ form_field(class_="form-control", placeholder=placeholder) }}
+        {{ form_field(class_=form_class, placeholder=placeholder) }}
 
         {% if form_field.errors %} 
         <small class="text-danger">
