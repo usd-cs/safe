@@ -29,11 +29,23 @@
         <h2>Add Assignment</h2>
         <form method="POST" action="" enctype="multipart/form-data">
             {{ assignment_form.csrf_token() }}
-            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
-            {{ forms.input(assignment_form.title, "Enter assignment title") }}
+            <div class="row">
+                <div class="col">
+                    {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
+                </div>
+                <div class="col">
+                    {{ forms.input(assignment_form.title, "Enter assignment title") }}
+                </div>
+            </div>
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
-            {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
-            {{ forms.input(assignment_form.max_runtime, "Enter maximum tester runtime (in seconds)") }}
+            <div class="row">
+                <div class="col">
+                    {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
+                </div>
+                <div class="col">
+                    {{ forms.input(assignment_form.max_runtime, "Enter maximum tester runtime (in seconds)") }}
+                </div>
+            </div>
             {{ forms.input(assignment_form.tester_files, "", "form-control-file") }}
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
