@@ -15,9 +15,9 @@ RUN venv/bin/pip install -r requirements.txt
 RUN venv/bin/pip install gunicorn
 
 COPY app app
-COPY safe.py config.py boot.sh ./
+COPY safe.py config.py boot-webapp.sh boot-worker.sh ./
 COPY instance_config.py instance/config.py
-RUN chmod +x boot.sh
+RUN chmod +x boot-webapp.sh boot-worker.sh
 
 ENV FLASK_APP safe.py
 
