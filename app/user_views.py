@@ -226,6 +226,7 @@ def section_overview(semester, section_num):
                                     )
 
         new_assignment_form = NewAssignmentForm()
+        new_assignment_failed = False
 
         base_choices = [(ba.assignment_id, ba.title) 
                             for ba in session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
@@ -259,6 +260,11 @@ def section_overview(semester, section_num):
 
                 return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
 
+        elif new_assignment_form.is_submitted():
+            # form was submitted but validation failed so tell template so it
+            # can pop the modal up again
+            new_assignment_failed = True
+
 
         roster_upload_form = RosterUploadForm()
 
@@ -285,7 +291,8 @@ def section_overview(semester, section_num):
                                 user=current_user,
                                 section=section,
                                 assignment_form=new_assignment_form,
-                                roster_form=roster_upload_form
+                                roster_form=roster_upload_form,
+                                new_assignment_failed=new_assignment_failed
                                 )
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
