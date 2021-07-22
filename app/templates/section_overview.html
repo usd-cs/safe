@@ -3,11 +3,14 @@
 
 {% block body %}
 <div class="container pt-3">
-	<h1>Course Info</h1>
+	<h1>Section Info</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Name:</strong> {{section.course}}</li>
-        <li class="list-group-item"><strong>Semester:</strong> {{section.semester}}</li>
-        <li class="list-group-item"><strong>Section:</strong> {{section.section_num}}</li>
+        <li class="list-group-item"><strong>Course:</strong>
+            {{section.course|upper}}</li>
+        <li class="list-group-item"><strong>Semester:</strong>
+            {{section.semester|upper}}</li>
+        <li class="list-group-item"><strong>Section:</strong> 
+            {{section.section_num}}</li>
     </ul>
 </div>
 
@@ -29,8 +32,14 @@
         <h2>Add Assignment</h2>
         <form method="POST" action="" enctype="multipart/form-data">
             {{ assignment_form.csrf_token() }}
-            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
-            {{ forms.input(assignment_form.base_assignment_id, "", "form-select") }}
+            <div class="row">
+                <div class="col">
+                    {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
+                </div>
+                <div class="col">
+                    {{ forms.input(assignment_form.base_assignment_id, "", "form-select") }}
+                </div>
+            </div>
             {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
