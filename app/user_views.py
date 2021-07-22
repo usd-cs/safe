@@ -58,13 +58,13 @@ def root():
 def page_not_found(error):
     return render_template("not_found.html", 
                             page_title="404: SAFE @ USD",
-                            user=current_user)
+                            user=current_user), 404
 
 @user_views.app_errorhandler(403)
 def permission_denied(error):
     return render_template("forbidden.html",
                             page_title="403: SAFE @ USD",
-                            user=current_user)
+                            user=current_user), 403
 
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
