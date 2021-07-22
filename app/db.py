@@ -50,7 +50,7 @@ def init_db(app):
                         CREATE TABLE assignment (
                           assignment_id INTEGER NOT NULL PRIMARY KEY,
                           num INTEGER NOT NULL,
-                          section_id INTEGER REFERENCES section
+                          section_id INTEGER REFERENCES section,
                           base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
