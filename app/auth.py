@@ -33,7 +33,7 @@ def login():
 
     service_url = f"{url_for('.verify_ticket', _external=True)}"
     if next_url:
-        service_url += "?next={next_url}"
+        service_url += f"?next={next_url}"
 
     current_app.cas_client.service_url = service_url
     #print("CAS service_url:", current_app.cas_client.service_url)
