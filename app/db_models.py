@@ -8,8 +8,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from flask_login import UserMixin
 import datetime
 
-from werkzeug.security import check_password_hash
-
 Base = declarative_base()
 
 # Intermediate entity for many-many relationship between users and groups (AKA teams)
@@ -36,7 +34,6 @@ class User(UserMixin, Base):
     admin = Column(Boolean, nullable=False, default=False)
     instructor = Column(Boolean, nullable=False, default=False)
     username = Column(String, nullable=False)
-    password = Column(String, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
 
@@ -52,8 +49,6 @@ class User(UserMixin, Base):
     def get_id(self):
         return self.user_id
 
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
 
 class Section(Base):
     __tablename__ = "section"
@@ -144,12 +139,3 @@ class TesterFile(Base):
     filename = Column(String, nullable=False)
     data = Column(LargeBinary, nullable=False)
     base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
-
-
-class PasswordResetRequest(Base):
-    __tablename__ = "password_reset_request"
-    request_id = Column(Integer, primary_key=True)
-    hashed_id = Column(String, nullable=False)
-    time = Column(TIMESTAMP, default=datetime.datetime.now, nullable=False)
-
-    user_id = Column(Integer, ForeignKey("user.user_id"))

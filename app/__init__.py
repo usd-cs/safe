@@ -1,11 +1,13 @@
 import os
 
-from flask import Flask
+from flask import Flask, url_for
 from sqlalchemy.orm import sessionmaker, joinedload
 from flask_login import LoginManager
 
 import rq
 from redis import Redis
+
+from cas import CASClient
 
 from . import user_views
 from . import admin
@@ -25,7 +27,10 @@ def create_app(test_config=None):
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
+    assert app.config['CAS_SERVER_URL'] is not None, "CAS_SERVER_URL not set in config"
+
     # try to make the instance folder
+    # TODO: Robustify
     try:
         os.makedirs(app.instance_path)
     except OSError:
@@ -40,7 +45,16 @@ def create_app(test_config=None):
     app.register_blueprint(admin.admin, url_prefix="/admin")
     app.register_blueprint(auth.auth, url_prefix="/auth")
     app.register_blueprint(user_views.user_views)
+    
 
+    with app.app_context():
+        app.cas_client = CASClient(
+            version=3,
+            service_url=f"{url_for('auth.verify_ticket', next=url_for('user_views.root', _external=False))}",
+            server_url=app.config['CAS_SERVER_URL']
+        )
+
+    #print('CAS service_url:', app.cas_client.service_url)
 
     @login_manager.user_loader
     def load_user(user_id):

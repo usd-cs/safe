@@ -16,7 +16,6 @@ from flask_login import (
     LoginManager, current_user, login_required
 )
 from sqlalchemy import insert, delete, and_
-from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from . import db_models
 
@@ -33,7 +32,6 @@ class NewInstructorForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
     username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=5, max=20)])
     admin = BooleanField('Admin')
     submit = SubmitField('Submit')
 
@@ -76,7 +74,6 @@ def admin_instructors():
         # add user to database
         with current_app.Session() as session:
             new_instructor = db_models.User(username=form.username.data,
-                                                password=generate_password_hash(form.password.data),
                                                 first_name=form.first_name.data,
                                                 last_name=form.last_name.data,
                                                 admin=form.admin.data,
