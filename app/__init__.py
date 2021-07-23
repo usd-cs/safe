@@ -29,12 +29,8 @@ def create_app(test_config=None):
 
     assert app.config['CAS_SERVER_URL'] is not None, "CAS_SERVER_URL not set in config"
 
-    # try to make the instance folder
-    # TODO: Robustify
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    # ensure that the instance folder exists (creating if necessary)
+    os.makedirs(app.instance_path, exist_ok=True)
 
     db_engine = db.init_db(app)
     app.Session = sessionmaker(db_engine)
