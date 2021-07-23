@@ -6,7 +6,7 @@
 	<h2>Assignment Info</h2>
     <ul class="list-group">
         <li class="list-group-item">
-            <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.title}}
+            <strong>Name:</strong> PSA {{assignment.num}}: {{assignment.base_assignment.title}}
         </li>
         <li class="list-group-item">
             <strong>Course:</strong> {{section.course | upper}}, Section
@@ -15,7 +15,7 @@
         <li class="list-group-item">
             <strong>Student Submitted Files:</strong> 
             <ul>
-                {% for sf in assignment.files %}
+                {% for sf in assignment.base_assignment.files %}
                 <li>{{sf.filename}}</li>
                 {% endfor %}
             </ul>
@@ -23,13 +23,13 @@
         <li class="list-group-item">
             <strong>Tester Files:</strong> 
             <ul>
-                {% for tf in assignment.tester_files %}
+                {% for tf in assignment.base_assignment.tester_files %}
                 <li>{{tf.filename}}</li>
                 {% endfor %}
             </ul>
         </li>
         <li class="list-group-item">
-            <strong>Tester Command:</strong> {{ assignment.tester_run_command }}
+            <strong>Tester Command:</strong> {{ assignment.base_assignment.tester_run_command }}
         </li>
     </ul>
 </div>
@@ -63,13 +63,34 @@
                 </dl>
                 <ul class="list-unstyled">
                     <li>
-                        <a href="{{ url_for('user_views.psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">View Feedback</a>
+                        <a href="{{ 
+                                 url_for('user_views.psa_results',
+                                     semester=section.semester,
+                                     section_num=section.section_num,
+                                     psa_num=assignment.num,group_num=team.team_num)
+                                 }}">
+                            View Feedback
+                        </a>
                     </li>
                     <li>
-                        <a href="#">Regenerate Feedback</a>
+                        <a href="javascript:sendNotification('{{
+                                url_for('handle_notification',
+                                    course=section.course, semester=section.semester,
+                                    section=section.section_num, psa=assignment.num,
+                                    group=team.team_num)
+                                    }}').then(alert)">
+                            Regenerate Feedback
+                        </a>
                     </li>
                     <li>
-                        <a href="{{ url_for('user_views.delete_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num,group_num=team.team_num) }}">Delete Group</a>
+                        <a href="{{ 
+                                  url_for('user_views.delete_group',
+                                      semester=section.semester,
+                                      section_num=section.section_num,
+                                      psa_num=assignment.num,group_num=team.team_num) 
+                                  }}">
+                            Delete Group
+                        </a>
                     </li>
                 </ul>
             </li>
@@ -99,5 +120,16 @@
         </form>
     </div>
 </div>
+
+<script type="text/javascript">
+    async function sendNotification(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            alert(response.status);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.text()
+    }
+</script>
 
 {% endblock %}

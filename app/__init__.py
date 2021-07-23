@@ -1,11 +1,13 @@
 import os
 
-from flask import Flask
+from flask import Flask, url_for
 from sqlalchemy.orm import sessionmaker, joinedload
 from flask_login import LoginManager
 
 import rq
 from redis import Redis
+
+from cas import CASClient
 
 from . import user_views
 from . import admin
@@ -25,7 +27,10 @@ def create_app(test_config=None):
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
+    assert app.config['CAS_SERVER_URL'] is not None, "CAS_SERVER_URL not set in config"
+
     # try to make the instance folder
+    # TODO: Robustify
     try:
         os.makedirs(app.instance_path)
     except OSError:
@@ -40,7 +45,16 @@ def create_app(test_config=None):
     app.register_blueprint(admin.admin, url_prefix="/admin")
     app.register_blueprint(auth.auth, url_prefix="/auth")
     app.register_blueprint(user_views.user_views)
+    
 
+    with app.app_context():
+        app.cas_client = CASClient(
+            version=3,
+            service_url=f"{url_for('auth.verify_ticket', next=url_for('user_views.root', _external=False))}",
+            server_url=app.config['CAS_SERVER_URL']
+        )
+
+    #print('CAS service_url:', app.cas_client.service_url)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -149,19 +163,22 @@ def create_app(test_config=None):
             if group:
                 repo_name += f"-group{group}"
 
+            base_assignment = target_group.assignment.base_assignment
+
             test_code_dir = os.path.join(app.config['TESTER_CODE_BASE_DIR'],
-                                            f"psa{psa}")
+                                            f"{base_assignment.assignment_id}")
 
             # FIXME: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment
 
-            test_command = target_group.assignment.tester_run_command.split()
-            source_files = [sf.filename for sf in target_group.assignment.files]
+            test_command = base_assignment.tester_run_command.split()
+            source_files = [sf.filename for sf in base_assignment.files]
+            max_runtime = base_assignment.max_runtime
 
             job = app.test_queue.enqueue('app.workers.run_test',
                                             'code.sandiego.edu', repo_dir,
                                             repo_name, test_code_dir, test_command,
-                                            15, source_files,
+                                            max_runtime, source_files,
                                             on_success=workers.testing_successful,
                                             on_failure=workers.testing_failed)
             print(f"New Job ID: {job.get_id()}")

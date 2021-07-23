@@ -1,7 +1,7 @@
-{% macro input(form_field, placeholder) -%}
+{% macro input(form_field, placeholder, form_class="form-control") -%}
     <div class="form-group pb-3">
         <strong>{{ form_field.label }}:</strong>
-        {{ form_field(class_="form-control", placeholder=placeholder) }}
+        {{ form_field(class_=form_class, placeholder=placeholder) }}
 
         {% if form_field.errors %} 
         <small class="text-danger">
@@ -10,5 +10,19 @@
             {% endfor %}
         </small>
         {% endif %}
+    </div>
+{%- endmacro %}
+
+{% macro checkbox_input(form_field) -%}
+    <div class="form-group pt-2 pb-2">
+        <strong>{{ form_field.label }}:</strong>
+        <div class="container">
+            {% for choice in form_field %}
+            <div class="form-check">
+                {{ choice(class_="form-check-input") }}
+                {{ choice.label(class_="form-check-label") }}
+            </div>
+            {% endfor %}
+        </div>
     </div>
 {%- endmacro %}

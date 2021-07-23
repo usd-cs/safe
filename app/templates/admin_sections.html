@@ -43,27 +43,17 @@
             {{ form.csrf_token() }}
             <div class="row">
                 <div class="col">
-                    {{ forms.input(form.course, "Course (e.g. comp110)") }}
+                    {{ forms.input(form.course, "", "form-select") }}
                 </div>
                 <div class="col">
-                    {{ forms.input(form.semester, "Semester (e.g. sp21)") }}
+                    {{ forms.input(form.semester, "", "form-select") }}
                 </div>
                 <div class="col">
                     {{ forms.input(form.section_num, "Section Number") }}
                 </div>
             </div>
 
-            <div class="form-group pt-2 pb-2">
-                <strong>{{ form.instructors.label }}:</strong>
-                <div class="container">
-                    {% for choice in form.instructors %}
-                    <div class="form-check">
-                        {{ choice(class_="form-check-input") }}
-                        {{ choice.label(class_="form-check-label") }}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            {{ forms.checkbox_input(form.instructors) }}
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
     </div>

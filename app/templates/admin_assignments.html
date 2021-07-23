@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import 'forms.html' as forms %}
+
+{% block body %}
+    <div class="container pt-3">
+        <h2>Existing Assignments</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Title</th>
+                    <th scope="col">Source Files</th>
+                    <th scope="col">Tester Files</th>
+                    <th scope="col">Tester Command</th>
+                    <th scope="col">Max Runtime (sec)</th>
+                    <th scope="col">Action(s)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                <tr>
+                    <td>{{ assignment.title }}</td>
+                    <td>
+                        <ul class="list-unstyled">
+                            {% for sf in assignment.files %}
+                            <li>{{ sf.filename }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        <ul class="list-unstyled">
+                            {% for tf in assignment.tester_files %}
+                            <li>{{ tf.filename }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>{{ assignment.tester_run_command }}</td>
+                    <td>{{ assignment.max_runtime }}</td>
+                    <td>Modify (TODO)</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="container border pt-3 pb-3">
+        <h2>Add Assignment</h2>
+        <form method="POST" action="" enctype="multipart/form-data">
+            {{ assignment_form.csrf_token() }}
+            {{ forms.input(assignment_form.title, "Enter assignment title") }}
+            {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
+            <div class="row">
+                <div class="col">
+                    {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
+                </div>
+                <div class="col">
+                    {{ forms.input(assignment_form.max_runtime, "Enter maximum tester runtime (in seconds)") }}
+                </div>
+            </div>
+            {{ forms.input(assignment_form.tester_files, "", "form-control-file") }}
+            {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
+        </form>
+    </div>
+
+{% endblock %}

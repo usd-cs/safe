@@ -6,7 +6,6 @@ from flask.cli import with_appcontext
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 import secrets
-from werkzeug.security import generate_password_hash
 
 
 def init_db(app):
@@ -25,7 +24,6 @@ def init_db(app):
                           admin BOOLEAN NOT NULL,
                           instructor BOOLEAN NOT NULL,
                           username VARCHAR NOT NULL UNIQUE,
-                          password VARCHAR NOT NULL,
                           first_name VARCHAR NOT NULL,
                           last_name VARCHAR NOT NULL
                         )
@@ -39,12 +37,19 @@ def init_db(app):
                         )
                         """)
         engine.execute("""
+                        CREATE TABLE base_assignment (
+                          assignment_id INTEGER NOT NULL PRIMARY KEY,
+                          title VARCHAR NOT NULL,
+                          tester_run_command VARCHAR NOT NULL,
+                          max_runtime INTEGER NOT NULL
+                        )
+                        """)
+        engine.execute("""
                         CREATE TABLE assignment (
                           assignment_id INTEGER NOT NULL PRIMARY KEY,
                           num INTEGER NOT NULL,
-                          title VARCHAR NOT NULL,
-                          tester_run_command VARCHAR NOT NULL,
-                          section_id INTEGER REFERENCES section
+                          section_id INTEGER REFERENCES section,
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
@@ -70,7 +75,7 @@ def init_db(app):
                         CREATE TABLE source_file (
                           source_file_id INTEGER NOT NULL PRIMARY KEY,
                           filename VARCHAR NOT NULL,
-                          assignment_id INTEGER REFERENCES psa
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
@@ -78,7 +83,7 @@ def init_db(app):
                           id INTEGER NOT NULL PRIMARY KEY,
                           filename VARCHAR NOT NULL,
                           data BLOB NOT NULL,
-                          assignment_id INTEGER REFERENCES psa
+                          base_assignment_id INTEGER REFERENCES base_assignment
                         )
                         """)
         engine.execute("""
@@ -94,14 +99,6 @@ def init_db(app):
                         )
                         """)
 
-        engine.execute("""
-                        CREATE TABLE password_reset_request (
-                          request_id INTEGER NOT NULL PRIMARY KEY,
-                          hashed_id VARCHAR NOT NULL,
-                          time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                          user_id INTEGER REFERENCES user
-                        )
-                        """)
 
     from . import db_models
     db_models.Base.metadata.create_all(engine)
@@ -112,12 +109,7 @@ def init_db(app):
         if session.query(db_models.User).count() == 0:
             print(f"Creating first user: {app.config['FIRST_ADMIN_USER']}")
 
-            import string
-            alphabet = string.ascii_letters + string.digits
-            temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
-
             admin_user = db_models.User(username=app.config['FIRST_ADMIN_USER'][0],
-                                        password=generate_password_hash(temporary_password),
                                         first_name=app.config['FIRST_ADMIN_USER'][1],
                                         last_name=app.config['FIRST_ADMIN_USER'][2],
                                         admin=True,

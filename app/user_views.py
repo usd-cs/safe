@@ -13,7 +13,9 @@ from flask import (
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import StringField, SubmitField, IntegerField, MultipleFileField
+from wtforms import (
+    StringField, SubmitField, IntegerField, MultipleFileField, SelectField
+)
 from wtforms.validators import DataRequired, Regexp, NumberRange 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
@@ -56,22 +58,17 @@ def root():
 def page_not_found(error):
     return render_template("not_found.html", 
                             page_title="404: SAFE @ USD",
-                            user=current_user)
+                            user=current_user), 404
 
 @user_views.app_errorhandler(403)
 def permission_denied(error):
     return render_template("forbidden.html",
                             page_title="403: SAFE @ USD",
-                            user=current_user)
+                            user=current_user), 403
 
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
-    title = StringField('Assignment Title', validators=[DataRequired()])
-    # TODO: add verification of correct format for assignment files (i.e.
-    # space separated files)
-    tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
-    files = StringField('Assignment Files', validators=[DataRequired()])
-    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
+    base_assignment_id = SelectField('Base Assignment', coerce=int)
     submit = SubmitField("Submit")
 
 
@@ -128,11 +125,7 @@ def add_students_from_roster(section, file_location, session):
                         # Create new User and add to database
                         print(f"Creating student user with username {username}")
 
-                        alphabet = string.ascii_letters + string.digits
-                        temporary_password = ''.join(secrets.choice(alphabet) for i in range(20))
-
                         student_to_add = db_models.User(username=username,
-                                                        password=generate_password_hash(temporary_password),
                                                         first_name=first_name,
                                                         last_name=last_name,
                                                         instructor=False,
@@ -189,6 +182,7 @@ def section_overview(semester, section_num):
             abort(403)
 
         if not (current_user.admin or current_user.instructor):
+            # Construct the student's view of this page
             instructors = (
                 session.query(db_models.User)
                     .join(db_models.Section.users)
@@ -202,14 +196,14 @@ def section_overview(semester, section_num):
             # get intersection of section's assignments and user's teams
             # assignments
             teams_in_section = (
-                session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
                     .join(db_models.Section.assignments)
                     .join(db_models.Assignment.teams)
                     .filter(db_models.Section.section_id == section.section_id)
             )
 
             teams_with_user = (
-                session.query(db_models.Assignment.num, db_models.Assignment.title, db_models.Team.team_num)
+                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
                     .select_from(db_models.Team)
                     .join(db_models.User.teams)
                     .join(db_models.Assignment)
@@ -228,9 +222,15 @@ def section_overview(semester, section_num):
                                     )
 
         new_assignment_form = NewAssignmentForm()
-        roster_upload_form = RosterUploadForm()
+        new_assignment_failed = False
+
+        base_choices = [(ba.assignment_id, ba.title) 
+                            for ba in session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
+        new_assignment_form.base_assignment_id.choices = base_choices
 
         if new_assignment_form.validate_on_submit():
+            # TODO: make this a forms validator so error shows up next to fields
+            # rather than a flash at the top after submitting
             num_matches = (
                     session.query(db_models.Assignment)
                         .filter(db_models.Assignment.section_id == section.section_id)
@@ -242,54 +242,27 @@ def section_overview(semester, section_num):
                 flash(f"Assignment {new_assignment_form.assignment_num.data} already exists!", "danger")
 
             else:
-                # create new assignment for DB
+                # create new assignment based on the selected base assignment
+                # and add it to our database
                 new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
-                                                        title=new_assignment_form.title.data,
-                                                        tester_run_command=new_assignment_form.tester_run_command.data,
-                                                        section_id=section.section_id)
+                                                        section_id=section.section_id,
+                                                        base_assignment_id=new_assignment_form.base_assignment_id.data)
 
                 session.add(new_assignment)
-                session.flush()
-
-                # create separete SourceFile entries for each source file
-                assignment_files = new_assignment_form.files.data.split()
-                
-                # TODO: check for duplicate filenames
-                for af in assignment_files:
-                    new_file = db_models.SourceFile(filename=af,
-                                                    assignment_id=new_assignment.assignment_id)
-                    session.add(new_file)
-
-                session.flush()
-
-                # Create separate TesterFile entries for each uploaded tester
-                # file and save files to a directory for workers to access.
-                tester_files = request.files.getlist(new_assignment_form.tester_files.name)
-
-                # FIXME: this should go to a more unique path, whose base dir is
-                # part of the app configuration
-                tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                                f"psa{new_assignment.num}")
-                os.makedirs(tester_code_dir, exist_ok=True)
-
-                for tf in tester_files:
-                    # TODO: store tf.content_type attribute in DB
-                    new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                            data=tf.read(),
-                                                            assignment_id=new_assignment.assignment_id)
-                    session.add(new_tester_file)
-
-                    # save to the tester code directory
-                    filename = secure_filename(tf.filename)
-                    file_location = os.path.join(tester_code_dir, filename)
-                    with open(file_location, 'wb') as new_file:
-                        new_file.write(new_tester_file.data)
-
                 session.commit()
 
-                flash(f"Assignment {new_assignment_form.assignment_num.data} added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
+                flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
+                        "info")
 
                 return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+        elif new_assignment_form.is_submitted():
+            # form was submitted but validation failed so tell template so it
+            # can pop the modal up again
+            new_assignment_failed = True
+
+
+        roster_upload_form = RosterUploadForm()
 
         if roster_upload_form.validate_on_submit():
             # add users to database
@@ -314,7 +287,8 @@ def section_overview(semester, section_num):
                                 user=current_user,
                                 section=section,
                                 assignment_form=new_assignment_form,
-                                roster_form=roster_upload_form
+                                roster_form=roster_upload_form,
+                                new_assignment_failed=new_assignment_failed
                                 )
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")

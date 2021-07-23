@@ -3,11 +3,14 @@
 
 {% block body %}
 <div class="container pt-3">
-	<h1>Course Info</h1>
+	<h1>Section Info</h1>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Name:</strong> {{section.course}}</li>
-        <li class="list-group-item"><strong>Semester:</strong> {{section.semester}}</li>
-        <li class="list-group-item"><strong>Section:</strong> {{section.section_num}}</li>
+        <li class="list-group-item"><strong>Course:</strong>
+            {{section.course|upper}}</li>
+        <li class="list-group-item"><strong>Semester:</strong>
+            {{section.semester|upper}}</li>
+        <li class="list-group-item"><strong>Section:</strong> 
+            {{section.section_num}}</li>
     </ul>
 </div>
 
@@ -17,7 +20,7 @@
         {% if section.assignments|length > 0 %}
             {% for assignment in section.assignments %}
             <li class="list-group-item">
-                <strong>PSA {{assignment.num}}:</strong> {{assignment.title}}
+                <strong>PSA {{assignment.num}}:</strong> {{assignment.base_assignment.title}}
                 (<a href="{{ url_for('user_views.psa_overview', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>)
             </li>
             {% endfor %}
@@ -25,25 +28,11 @@
             <li class="list-group-item">No assignments found</li>
         {% endif %}
     </ul>
-    <div class="container border pt-3 pb-3">
-        <h2>Add Assignment</h2>
-        <form method="POST" action="" enctype="multipart/form-data">
-            {{ assignment_form.csrf_token() }}
-            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
-            {{ forms.input(assignment_form.title, "Enter assignment title") }}
-            {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
-            {{ forms.input(assignment_form.tester_run_command, "Enter command to be run by the tester (e.g. 'python3 my_autograde.py')") }}
-            <div class="form-group">
-                <strong>{{ assignment_form.tester_files.label() }}:</strong>
-                {{ assignment_form.tester_files(class="form-control-file") }}
-                {% if assignment_form.tester_files.errors %}
-                    {% for error in assignment_form.tester_files.errors %}
-                    <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
-        </form>
+
+    <div class="container pt-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+            Add New Assignment
+        </button>
     </div>
 </div>
 
@@ -70,15 +59,72 @@
         </tbody>
     </table>
 
-    <div class="container pl-0">
-        <form method="POST" action="" enctype="multipart/form-data">
-            {{ roster_form.csrf_token() }}
-            <div class="form-group">
-                <h4>{{ roster_form.roster_file.label }}:</h4>
-                {{ roster_form.roster_file(class_="form-control-file") }}
-            </div>
-            {{ roster_form.submit(class_="btn btn-outline-primary btn-sm") }}
-        </form>
+    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
+        Upload Roster File
+    </button>
+</div>
+
+<!-- Upload Roster File Modal -->
+<div class="modal fade" id="uploadRosterModal" tabindex="-1" aria-labelledby="uploadRosterLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="" enctype="multipart/form-data">
+                {{ roster_form.csrf_token() }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadRosterLabel">Upload Roster File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                        {{ roster_form.roster_file(class_="form-control-file") }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
+                    {{ roster_form.submit(class_="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<!-- Add New Assignment Modal -->
+<div class="modal fade" id="addAssignmentModal" tabindex="-1" aria-labelledby="addAssignmentLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="" enctype="multipart/form-data">
+                {{ assignment_form.csrf_token() }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAssignmentLabel">Add New Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col">
+                            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
+                        </div>
+                        <div class="col">
+                            {{ forms.input(assignment_form.base_assignment_id, "", "form-select") }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
+                    {{ assignment_form.submit(class_="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if new_assignment_failed %}
+<script type="text/javascript">
+    // New assignment form validation failed so we want to show the form's modal,
+    // which will have the validation errors shown.
+    document.addEventListener('DOMContentLoaded', function() {
+        var addAssignmentModal = document.getElementById('addAssignmentModal');
+        var modal = new bootstrap.Modal(addAssignmentModal);
+        modal.show();
+    }, false);
+</script>
+{% endif %}
+
 {% endblock %}

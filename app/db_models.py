@@ -8,8 +8,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from flask_login import UserMixin
 import datetime
 
-from werkzeug.security import check_password_hash
-
 Base = declarative_base()
 
 # Intermediate entity for many-many relationship between users and groups (AKA teams)
@@ -36,7 +34,6 @@ class User(UserMixin, Base):
     admin = Column(Boolean, nullable=False, default=False)
     instructor = Column(Boolean, nullable=False, default=False)
     username = Column(String, nullable=False)
-    password = Column(String, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
 
@@ -52,8 +49,6 @@ class User(UserMixin, Base):
     def get_id(self):
         return self.user_id
 
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
 
 class Section(Base):
     __tablename__ = "section"
@@ -71,19 +66,31 @@ class Section(Base):
     assignments = relationship("Assignment", backref=backref("section"))
 
 
+class BaseAssignment(Base):
+    __tablename__ = "base_assignment"
+    assignment_id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    tester_run_command = Column(String, nullable=False)
+    max_runtime = Column(Integer, nullable=False)
+
+    # one assignment potentially has many files (source and tester)
+    files = relationship("SourceFile", backref=backref("base_assignment"))
+    tester_files = relationship("TesterFile", backref=backref("base_assignment"))
+
+    # each assignment can be used by many actual assignments
+    assignments = relationship("Assignment", backref=backref("base_assignment"))
+
+
 class Assignment(Base):
     __tablename__ = "assignment"
     assignment_id = Column(Integer, primary_key=True)
     num = Column(Integer, nullable=False)
-    title = Column(String, nullable=False)
-    tester_run_command = Column(String, nullable=False)
-    # TODO: add deadline column?
+    # TODO: add deadline column
 
     section_id = Column(Integer, ForeignKey("section.section_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
-    # one assignment has many files and teams
-    files = relationship("SourceFile", backref=backref("assignment"))
-    tester_files = relationship("TesterFile", backref=backref("assignment"))
+    # one assignment can have many teams
     teams = relationship("Team", backref=backref("assignment"))
 
 
@@ -122,7 +129,7 @@ class SourceFile(Base):
     __tablename__ = "source_file"
     source_file_id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=False)
-    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
 
 # TODO: add content_type column
@@ -131,13 +138,4 @@ class TesterFile(Base):
     id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=False)
     data = Column(LargeBinary, nullable=False)
-    assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
-
-
-class PasswordResetRequest(Base):
-    __tablename__ = "password_reset_request"
-    request_id = Column(Integer, primary_key=True)
-    hashed_id = Column(String, nullable=False)
-    time = Column(TIMESTAMP, default=datetime.datetime.now, nullable=False)
-
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
