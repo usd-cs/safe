@@ -13,15 +13,23 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container">
-            <strong><a class="navbar-brand" href="#">Simplified Automatic Feedback
-                    Environment</a></strong>
+            <span class="navbar-brand">
+                <i class="bi-safe-fill" style="color: darkmagenta"></i>
+                <strong>Simplified Automatic Feedback Environment</strong>
+            </span>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
+
                 <div class="nav-item">
-                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="{{ url_for('user_views.root') }}">
+                        <i class="bi-house" style="font-size: 1.5rem"></i>
+                    </a>
                 </div>
+
                 {% if user and user.is_authenticated and user.sections|length > 0 %}
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarCoursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -54,12 +62,13 @@
 
                 {% if user and user.is_authenticated %}
                 <div class="container d-flex flex-row-reverse">
-                    <a class="btn btn-danger nav-link text-white" href="{{ url_for('auth.logout') }}" role="button">Log Out</a>
-                    <a class="nav-link" href="{{ url_for('user_views.user_profile', username=user.username) }}">Profile</a>
+                    <a class="btn btn-danger btn-sm nav-link text-white" href="{{ url_for('auth.logout') }}" role="button">Log Out</a>
+                    <a class="nav-link link-secondary" href="{{ url_for('user_views.user_profile', username=user.username) }}">Profile
+                        <i class="bi-person-circle"></i></a>
                 </div>
                 {% else %}
                 <div class="container d-flex flex-row-reverse">
-                    <a class="btn btn-primary nav-link text-white" href="{{ url_for('auth.login') }}" role="button">Sign In</a>
+                    <a class="btn btn-primary btn-sm nav-link text-white" href="{{ url_for('auth.login') }}" role="button">Sign In</a>
                 </div>
                 {% endif %}
             </div>
