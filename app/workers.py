@@ -3,7 +3,6 @@ import subprocess
 import datetime
 import json
 import requests
-import git
 
 def testing_successful(job, conn, runner_output, *args, **kwargs):
     """
@@ -61,6 +60,9 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command, 
         print("\tPulling from repository...")
         if subprocess.call(["git", "pull"]) != 0:
             raise RuntimeError(f"Could not pull: {repo_name}")
+
+    # import here to avoid making safe app container image require git
+    import git
 
     # get time, author, and message for latest commit
     repo = git.Repo(os.getcwd())
