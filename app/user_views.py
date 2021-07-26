@@ -456,11 +456,12 @@ def psa_overview(semester, section_num, psa_num):
                     .all()
         )
 
-        id_list = [s.user_id for s in students_without_groups]
-        name_list = [f"{s.last_name}, {s.first_name} ({s.username})" 
+        unassigned_students_ids = [s.user_id for s in students_without_groups]
+        unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
                         for s in students_without_groups]
 
-        new_group_form.members.choices = zip(id_list, name_list)
+        new_group_form.members.choices = zip(unassigned_students_ids,
+                                                unassigned_students_names)
 
         if new_group_form.validate_on_submit():
             # TODO: Check that group_num doesn't already exist
@@ -486,7 +487,8 @@ def psa_overview(semester, section_num, psa_num):
 
         # TRICKY: validating form seems to clear out choices so have to
         # reset them here
-        new_group_form.members.choices = zip(id_list, name_list)
+        new_group_form.members.choices = zip(unassigned_students_ids,
+                unassigned_students_names)
 
         return render_template("assignment_overview.html", 
                                 user=current_user,
