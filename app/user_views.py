@@ -14,9 +14,11 @@ from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
 from wtforms import (
-    StringField, SubmitField, IntegerField, MultipleFileField, SelectField
+    StringField, SubmitField, IntegerField, MultipleFileField, SelectField,
+    SelectMultipleField
 )
 from wtforms.validators import DataRequired, Regexp, NumberRange 
+from wtforms.widgets import CheckboxInput
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 
@@ -157,6 +159,15 @@ def add_students_from_roster(section, file_location, session):
         flash(f"Roster file has incorrect encoding. Did you download it from Blackboard?", "danger")
         print("Error Opening file:", e)
 
+
+class RemoveStudentsForm(FlaskForm):
+    students_to_remove = SelectMultipleField('Student(s) to Remove', 
+                                                coerce=int,
+                                                option_widget=CheckboxInput(), 
+                                                validators=[DataRequired()])
+    submit = SubmitField("Remove Selected Students")
+
+
 # TODO: generalize for non-COMP110 courses
 @user_views.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
 @login_required
@@ -261,6 +272,62 @@ def section_overview(semester, section_num):
             # can pop the modal up again
             new_assignment_failed = True
 
+        remove_students_form = RemoveStudentsForm()
+
+        enrolled_students = (
+            session.query(db_models.User)
+                .join(db_models.Section.users)
+                .filter(db_models.Section.section_id == section.section_id)
+                .filter(db_models.User.instructor == False)
+                .all()
+        )
+
+        all_enrolled_students = [(s.user_id, s.username) for s in enrolled_students]
+        remove_students_form.students_to_remove.choices = all_enrolled_students
+
+        if remove_students_form.validate_on_submit():
+            for student_id in remove_students_form.students_to_remove.data:
+                print("removing student with ID", student_id)
+
+                student = (
+                    session.query(db_models.User)
+                        .filter(db_models.User.user_id == student_id)
+                        .first()
+                )
+
+                if not student:
+                    # if we don't find that student, something bad happened so
+                    # send 500 response
+                    abort(500)
+
+                s = delete(db_models.section_enrollment).where(and_(
+                        db_models.section_enrollment.c.section_id == section.section_id,
+                        db_models.section_enrollment.c.user_id == student_id))
+                session.execute(s)
+
+                student_team_enrollments = (
+                    session.query(db_models.team_enrollment)
+                        .join(db_models.Team)
+                        .join(db_models.Assignment)
+                        .join(db_models.Section)
+                        .filter(db_models.Section.section_id == section.section_id)
+                        .filter(db_models.team_enrollment.c.user_id == student_id)
+                )
+
+                for t in student_team_enrollments:
+                    s = delete(db_models.team_enrollment).where(and_(
+                            db_models.team_enrollment.c.team_id == t.team_id,
+                            db_models.team_enrollment.c.user_id == t.user_id))
+                    session.execute(s)
+
+                session.commit()
+
+                # TODO: remove teams that no longer have any members after
+                # removing this student???
+
+            return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+        remove_students_form.students_to_remove.choices = all_enrolled_students
 
         roster_upload_form = RosterUploadForm()
 
@@ -287,6 +354,7 @@ def section_overview(semester, section_num):
                                 user=current_user,
                                 section=section,
                                 assignment_form=new_assignment_form,
+                                remove_students_form=remove_students_form,
                                 roster_form=roster_upload_form,
                                 new_assignment_failed=new_assignment_failed
                                 )
@@ -330,6 +398,8 @@ class NewGroupForm(FlaskForm):
     group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
     submit = SubmitField("Submit")
+
+
 
 # TODO: generalize for non comp110-courses
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])

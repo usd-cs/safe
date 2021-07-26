@@ -38,9 +38,12 @@
 
 <div class="container pt-3">
 	<h1>Roster</h1>
+    <form method="POST" action="">
+    {{ remove_students_form.csrf_token() }}
     <table class="table">
         <thead>
             <tr>
+                <th scope="col"></th>
                 <th scope="col">Name</th>
                 <th scope="col">Username</th>
                 <th scope="col">Role</th>
@@ -49,6 +52,13 @@
         <tbody>
             {% for user in section.users %}
             <tr>
+                <td>
+                    {% if not user.instructor %}
+                    <input class="form-check-input" id="students_to_remove-{{user.user_id}}"
+                                                    name="students_to_remove" type="checkbox"
+                                                    value="{{user.user_id}}">
+                    {% endif %}
+                </td>
                 <th scope="row">{{ user.last_name }}, {{ user.first_name }}</th>
                 <td>{{ user.username }}</td>
                 <td>
@@ -59,9 +69,15 @@
         </tbody>
     </table>
 
-    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
-        Upload Roster File
-    </button>
+    {{ remove_students_form.submit(class_="btn btn-sm btn-outline-danger") }}
+    </form>
+
+    <div class="container pt-3">
+        <h3>Manage Roster:</h3>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
+            Upload Roster File
+        </button>
+    </div>
 </div>
 
 <!-- Upload Roster File Modal -->
