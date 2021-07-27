@@ -8,7 +8,7 @@ from sqlalchemy import insert, delete, and_
 
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
-    flash
+    flash, Markup
 )
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -496,6 +496,55 @@ def psa_overview(semester, section_num, psa_num):
                                 assignment=assignment,
                                 teams=assignment.teams,
                                 group_form=new_group_form)
+
+
+@user_views.route("/comp110/psa<int:psa_num>/")
+@login_required
+def psa_results_shortcut(psa_num):
+    # step 0: only for students (sorry and instructors and admins!)
+    if current_user.admin or current_user.instructor:
+        flash("Assignment shortcut link only available to students!", "warning")
+        return redirect(url_for('.root'))
+
+    with current_app.Session() as session:
+        target_user = current_user
+
+        # find any teams for the given course and psa
+        matched_psa_info = (
+            session.query(db_models.Section.semester, db_models.Section.section_num, db_models.Team.team_num)
+                .join(db_models.Section.assignments)
+                .join(db_models.Assignment.teams)
+                .join(db_models.Team.members)
+                .filter(db_models.Section.course == "comp110")
+                .filter(db_models.Assignment.num == psa_num)
+                .filter(db_models.User.username == target_user.username)
+        )
+
+        if matched_psa_info.count() == 0:
+            # no teams found for this user
+            flash(f"Could not find your group for COMP110 PSA {psa_num}. Check that you have a group listed when going to the section page.",
+                    "danger")
+            return redirect(url_for('.root'))
+
+        elif matched_psa_info.count() > 1:
+            # multiple teams found so redirect home but give them helpful direct
+            # links
+            section_links = ", ".join([f'<a href="{url_for(".psa_results", semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
+                for semester, section_num, group_num in matched_psa_info])
+
+            message = Markup(f"You are enrolled in multiple groups for COMP110 PSA {psa_num}. Select among the following: {section_links}")
+            flash(message, "warning")
+            return redirect(url_for('.root'))
+
+        else:
+            # got a unique team so redirect to the correct results page
+            semester, section_num, group_num = matched_psa_info.first()
+        
+            return redirect(url_for('.psa_results', 
+                                    semester=semester,
+                                    section_num=section_num,
+                                    psa_num=psa_num,
+                                    group_num=group_num))
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
