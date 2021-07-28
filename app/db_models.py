@@ -91,7 +91,7 @@ class Assignment(Base):
     base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
     # one assignment can have many teams
-    teams = relationship("Team", backref=backref("assignment"))
+    teams = relationship("Team", order_by="Team.team_num", backref=backref("assignment"))
 
 
 class Team(Base):
