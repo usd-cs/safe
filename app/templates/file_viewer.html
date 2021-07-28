@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="container">
+    <h2>{{ filename }}</h2>
+    <div class="container border bg-light pt-3 pb-3">
+        {{ file_contents }}
+    </div>
+</div>
+{% endblock %}

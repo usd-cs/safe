@@ -22,6 +22,11 @@ from wtforms.widgets import CheckboxInput
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 
+from pygments import highlight
+from pygments.lexers import get_lexer_for_filename
+from pygments.formatters import HtmlFormatter
+import pygments.util
+
 from . import db_models
 from . import admin
 
@@ -400,6 +405,38 @@ class NewGroupForm(FlaskForm):
     submit = SubmitField("Submit")
 
 
+
+@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_file/<filename>")
+@login_required
+def view_tester_file(semester, section_num, psa_num, filename):
+    with current_app.Session() as session:
+        tester_file = (
+            session.query(db_models.TesterFile)
+                .join(db_models.Section.assignments)
+                .join(db_models.BaseAssignment)
+                .join(db_models.TesterFile)
+                .filter(db_models.Section.course == "comp110")
+                .filter(db_models.Section.semester == semester)
+                .filter(db_models.Section.section_num == section_num)
+                .filter(db_models.Assignment.num == psa_num)
+                .filter(db_models.TesterFile.filename == filename)
+                .first()
+        )
+
+        if not tester_file:
+            abort(404)
+
+        try:
+            lexer = get_lexer_for_filename(tester_file.filename)
+            formatted_file = Markup(highlight(tester_file.data,
+                                                lexer,
+                                                HtmlFormatter(linenos=True)))
+        except pygments.util.ClassNotFound:
+            formatted_file = "Viewing this type of file is unsupported."
+
+        return render_template("file_viewer.html", 
+                                filename=tester_file.filename,
+                                file_contents=formatted_file)
 
 # TODO: generalize for non comp110-courses
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
