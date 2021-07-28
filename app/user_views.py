@@ -410,8 +410,8 @@ class NewGroupForm(FlaskForm):
 @login_required
 def view_tester_file(semester, section_num, psa_num, filename):
     with current_app.Session() as session:
-        tester_file = (
-            session.query(db_models.TesterFile)
+        file_query = (
+            session.query(db_models.Section, db_models.TesterFile)
                 .join(db_models.Section.assignments)
                 .join(db_models.BaseAssignment)
                 .join(db_models.TesterFile)
@@ -420,10 +420,19 @@ def view_tester_file(semester, section_num, psa_num, filename):
                 .filter(db_models.Section.section_num == section_num)
                 .filter(db_models.Assignment.num == psa_num)
                 .filter(db_models.TesterFile.filename == filename)
-                .first()
         )
 
-        if not tester_file:
+
+        if file_query.count() == 0:
+            # Couldn't find the requested file
+            abort(404)
+
+        section, tester_file = file_query.first()
+
+        if not (current_user.admin or 
+                (current_user.instructor and current_user in section.users)):
+            # Only admin's and this section's instructors can view
+            # Note: we 404 rather than 403 here to hide filenames from peekers
             abort(404)
 
         try:
@@ -434,7 +443,10 @@ def view_tester_file(semester, section_num, psa_num, filename):
         except pygments.util.ClassNotFound:
             formatted_file = "Viewing this type of file is unsupported."
 
+        # TODO: send md5sum and creation date to template
+
         return render_template("file_viewer.html", 
+                                user=current_user,
                                 filename=tester_file.filename,
                                 file_contents=formatted_file)
 
