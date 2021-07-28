@@ -24,7 +24,11 @@
             <strong>Tester Files:</strong> 
             <ul>
                 {% for tf in assignment.base_assignment.tester_files %}
-                <li>{{tf.filename}}</li>
+                <li>
+                    <a href="{{url_for('user_views.view_tester_file', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
+                        {{tf.filename}}
+                    </a>
+                </li>
                 {% endfor %}
             </ul>
         </li>
