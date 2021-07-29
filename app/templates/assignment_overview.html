@@ -56,14 +56,23 @@
                         </ul>
                     </dd>
 
-                    <dt class="col-lg-2">Submission Time</dt>
-                    <dd class="col-lg-10">FIXME</dd>
+                    {% if team.results|length > 0 and team.results[0].finished %}
+                     {% set latest_results = team.results[0] %}
+                        <dt class="col-lg-2">Submission Info</dt>
+                        <dd class="col-lg-10">
+                            <strong>Time:</strong> {{latest_results.commit_time.strftime('%b %d, %Y @ %I:%M:%S %p')}}
+                            <br/><strong>Author:</strong> {{latest_results.commit_author }}
+                            <br/><strong>Comment:</strong> {{latest_results.commit_comment }}
+                        </dd>
 
-                    <dt class="col-lg-2">Commit Comment</dt>
-                    <dd class="col-lg-10">FIXME</dd>
-
-                    <dt class="col-lg-2">Feedback Time</dt>
-                    <dd class="col-lg-10">FIXME</dd>
+                        <dt class="col-lg-2">Feedback Time</dt>
+                        <dd class="col-lg-10">
+                            {{ latest_results.completed_at.strftime('%b %d, %Y @ %I:%M:%S %p')}}
+                        </dd>
+                    {% else %}
+                        <dt class="col-lg-2">Submission Info</dt>
+                        <dd class="col-lg-10">No test results available</dd>
+                    {% endif %}
                 </dl>
                 <ul class="list-unstyled">
                     <li>

@@ -101,7 +101,9 @@ class Team(Base):
     assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
     # one team may have many test results
-    results = relationship("TestResults", backref=backref("team"))
+    results = relationship("TestResults",
+                            order_by="desc(TestResults.completed_at)",
+                            backref=backref("team"))
 
     # many-to-many relationship between teams and users
     members = relationship(
