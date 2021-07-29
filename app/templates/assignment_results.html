@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 
+{% macro result_icon(result) %}
+{% if result == "pass" %}
+<i class="bi-check-circle-fill" style="color: green"></i>
+{% elif result == "fail" %}
+<i class="bi-x-circle-fill" style="color: red"></i>
+{% else %}
+<i class="bi-exclamation-circle-fill" style="color: yellow"></i>
+{% endif %}
+{% endmacro %}
+
 {% block body %}
 <div class="container pt-3">
 	<h1>Assignment Info</h1>
@@ -10,15 +20,6 @@
     </ul>
 </div>
 
-{% macro badge_color(result) %}
-{% if result == "pass" %}
-bg-success
-{% elif result == "fail" %}
-bg-danger
-{% else %}
-bg-warning
-{% endif %}
-{% endmacro %}
 
 <div class="container pt-3">
 	<h1>Assignment Feedback</h1>
@@ -67,9 +68,7 @@ bg-warning
                             <br/><em>All tests passed for this metric!</em>
                         {% endif %}
                     </div>
-                    <span class="badge {{ badge_color(metric["outcome"]) }} rounded-pill text-light">
-                        {{ metric["outcome"] }}
-                    </span>
+                    {{ result_icon(metric["outcome"]) }}
                 </li>
                 {% endfor %}
             </ul>
