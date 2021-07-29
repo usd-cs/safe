@@ -406,7 +406,7 @@ class NewGroupForm(FlaskForm):
 
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_file/<filename>")
+@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
 @login_required
 def view_tester_file(semester, section_num, psa_num, filename):
     with current_app.Session() as session:
