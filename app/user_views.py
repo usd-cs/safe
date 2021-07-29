@@ -526,8 +526,6 @@ def psa_overview(semester, section_num, psa_num):
 
             return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
 
-        print("new group form errors:", new_group_form.errors)
-
         # TRICKY: validating form seems to clear out choices so have to
         # reset them here
         new_group_form.members.choices = zip(unassigned_students_ids,
