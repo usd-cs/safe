@@ -10,3 +10,4 @@ CAS_SERVER_URL = None
 EMAIL_ENABLED = False
 FIRST_ADMIN_USER = ('admin', 'System', 'Admin')
 TESTER_CODE_BASE_DIR = os.path.join(os.getcwd(), 'tester_code')
+REPOSITORY_BASE_DIR = os.path.join(os.getcwd(), 'repositories')

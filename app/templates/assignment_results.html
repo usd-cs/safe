@@ -22,22 +22,37 @@ bg-warning
 
 <div class="container pt-3">
 	<h1>Assignment Feedback</h1>
-    {% if test_results %}
+    {% if results %}
         <ul class="list-group pb-3">
             <li class="list-group-item"><strong>Submission Time:</strong>
                 {{submit_time}}
             </li>
             <li class="list-group-item"><strong>Submitter:</strong>
-                {{commit_author}}
+                {{results.commit_author}}
             </li>
             <li class="list-group-item"><strong>Commit Comment:</strong>
-                {{commit_comment}}
+                {{results.commit_comment}}
             </li>
             <li class="list-group-item"><strong>Feedback Time:</strong>
                 {{results_time}}
             </li>
+            {% if current_user.instructor %}
+            <li class="list-group-item"><strong>Submitted Files:</strong>
+                <div class="container">
+                    <ul class="list-group pb-3">
+                        {% for sf in results.submitted_files %}
+                        <li>
+                            <a href="{{ url_for('user_views.view_submitted_file', semester=assignment.section.semester, section_num=assignment.section.section_num, psa_num=assignment.num, group_num=group_num, filename=sf.filename, id=results.job_id) }}">
+                                {{sf.filename}}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
         </ul>
-        {% for category in test_results %}
+        {% for category in categories %}
         <div class="container pb-3">
             <h3>{{ category["category_name"] }}</h3>
             <ul class="list-group list-group-numbered">

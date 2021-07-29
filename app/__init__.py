@@ -126,6 +126,36 @@ def create_app(test_config=None):
             test_results.commit_comment = results_data['commit_comment']
             test_results.commit_author = results_data['author']
             test_results.completed_at = parser.parse(results_data['results_time'])
+
+            group = test_results.team
+            assignment = group.assignment
+            section = assignment.section
+
+            repo_name = f"{section.course}-{section.semester}-s{section.section_num:02}-psa{assignment.num}"
+
+            # FIXME: this breaks for non-group based assignments like comp110
+            # psa0
+            repo_name += f"-group{group.team_num}"
+
+            testing_dir = os.path.join(app.config['REPOSITORY_BASE_DIR'],
+                                        repo_name, 'safe_testing', job_id)
+
+            # add student submitted files to test results
+            source_files = [sf.filename for sf in test_results.team.assignment.base_assignment.files]
+            source_filenames = workers.get_filenames(source_files)
+
+            for filename in source_filenames:
+                file_path = os.path.join(testing_dir, filename)
+
+                with open(file_path, 'rb') as source_file:
+                    file_contents = source_file.read()
+                    
+                submitted_file = db_models.SubmittedFile(filename=filename,
+                                                            data=file_contents,
+                                                            job_id=job_id)
+
+                session.add(submitted_file)
+
             session.commit()
 
         return "Results successfully received"
@@ -153,8 +183,6 @@ def create_app(test_config=None):
             # TODO: if there are results in progress (i.e. in queue or
             # processing), cancel them and put this in the queue instead
 
-            repo_dir = os.path.join(app.instance_path, 'repositories')
-
             repo_name = f"{course}-{semester}-s{section:02}-psa{psa}"
             if group:
                 repo_name += f"-group{group}"
@@ -169,12 +197,15 @@ def create_app(test_config=None):
 
             test_command = base_assignment.tester_run_command.split()
             source_files = [sf.filename for sf in base_assignment.files]
+            tester_files = [tf.filename for tf in base_assignment.tester_files]
             max_runtime = base_assignment.max_runtime
 
             job = app.test_queue.enqueue('app.workers.run_test',
-                                            'code.sandiego.edu', repo_dir,
+                                            'code.sandiego.edu',
+                                            app.config['REPOSITORY_BASE_DIR'],
                                             repo_name, test_code_dir, test_command,
                                             max_runtime, source_files,
+                                            tester_files,
                                             on_success=workers.testing_successful,
                                             on_failure=workers.testing_failed)
             print(f"New Job ID: {job.get_id()}")

@@ -124,6 +124,19 @@ class TestResults(Base):
 
     team_id = Column(Integer, ForeignKey("team.team_id"))
 
+    # one set of results can have many submitted files
+    submitted_files = relationship("SubmittedFile",
+                                    order_by="SubmittedFile.filename",
+                                    backref=backref("test_results"))
+
+
+class SubmittedFile(Base):
+    __tablename__ = "submitted_file"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String, nullable=False)
+    data = Column(LargeBinary, nullable=False)
+    job_id = Column(String, ForeignKey("test_results.job_id"))
+
 
 class SourceFile(Base):
     __tablename__ = "source_file"

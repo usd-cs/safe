@@ -435,13 +435,7 @@ def view_tester_file(semester, section_num, psa_num, filename):
             # Note: we 404 rather than 403 here to hide filenames from peekers
             abort(404)
 
-        try:
-            lexer = get_lexer_for_filename(tester_file.filename)
-            formatted_file = Markup(highlight(tester_file.data,
-                                                lexer,
-                                                HtmlFormatter(linenos=True)))
-        except pygments.util.ClassNotFound:
-            formatted_file = "Viewing this type of file is unsupported."
+        formatted_file = get_formatted_file_contents(tester_file)
 
         # TODO: send md5sum and creation date to template
 
@@ -696,8 +690,68 @@ def psa_results(semester, section_num, psa_num, group_num):
                                 assignment=assignment,
                                 group_num=group_num,
                                 submit_time=commit_time,
-                                commit_author=latest_test_results.commit_author,
-                                commit_comment=latest_test_results.commit_comment,
+                                results=latest_test_results,
                                 results_time=results_time,
-                                test_results=categories)
+                                categories=categories)
 
+
+def get_formatted_file_contents(target_file):
+    try:
+        lexer = get_lexer_for_filename(target_file.filename)
+        formatted_file = Markup(highlight(target_file.data,
+                                            lexer,
+                                            HtmlFormatter(linenos=True)))
+    except pygments.util.ClassNotFound:
+        formatted_file = "Viewing this type of file is unsupported."
+
+    return formatted_file
+
+
+@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")
+@login_required
+def view_submitted_file(semester, section_num, psa_num, group_num, filename):
+    job_id = request.args.get('id')
+    if not job_id:
+        abort(404)
+
+    with current_app.Session() as session:
+        submitted_file = (
+            session.query(db_models.SubmittedFile)
+                .join(db_models.TestResults.submitted_files)
+                .filter(db_models.TestResults.job_id == job_id)
+                .filter(db_models.SubmittedFile.filename == filename)
+                .first()
+        )
+
+        if not submitted_file:
+            abort(404)
+
+        section, team = (
+            session.query(db_models.Section, db_models.Team)
+                .join(db_models.Section.assignments)
+                .join(db_models.Assignment.teams)
+                .filter(db_models.Section.course == "comp110")
+                .filter(db_models.Section.semester == semester)
+                .filter(db_models.Section.section_num == section_num)
+                .filter(db_models.Assignment.num == psa_num)
+                .filter(db_models.Team.team_num == group_num)
+                .first()
+        )
+
+
+        if not (current_user.admin or 
+                current_user in team.members or
+                (current_user.instructor and current_user in section.users)):
+            # Only admins, this section's instructors, and this group's members
+            # may view the file.
+            # Note: we 404 rather than 403 here to hide filenames from peekers
+            abort(404)
+
+        formatted_data = get_formatted_file_contents(submitted_file)
+
+        # TODO: send md5sum and creation date to template
+
+        return render_template("file_viewer.html", 
+                                user=current_user,
+                                filename=filename,
+                                file_contents=formatted_data)
