@@ -106,6 +106,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
     os.chdir(testing_dir)
     print(f"\tRunning test command: {' '.join(test_command)}...")
     try:
+        os.putenv('PYTHONDONTWRITEBYTECODE', 'TRUE')
         result = subprocess.run(test_command, capture_output=True, timeout=timeout_length)
         # TODO: if result.returncode isn't 0, raise an exception
         output_text = result.stdout
@@ -116,6 +117,9 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
         output_text = e.stdout
         error_text = e.stderr
         print(f"\tGrader timed out after {e.timeout} seconds")
+
+    finally:
+        os.unsetenv('PYTHONDONTWRITEBYTECODE')
 
     with open("stdout.txt", "wb") as stdout_file, open("stderr.txt", "wb") as stderr_file:
         if output_text is not None:
