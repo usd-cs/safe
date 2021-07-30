@@ -25,7 +25,7 @@
             <ul>
                 {% for tf in assignment.base_assignment.tester_files %}
                 <li>
-                    <a href="{{url_for('user_views.view_tester_file', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
+                    <a class="text-decoration-none" href="{{url_for('user_views.view_tester_file', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
                         {{tf.filename}}
                     </a>
                 </li>
@@ -73,39 +73,43 @@
                         <dt class="col-lg-2">Submission Info</dt>
                         <dd class="col-lg-10">No test results available</dd>
                     {% endif %}
+
+                    <dt class="col-lg-2">Actions</dt>
+                    <dd class="col-lg-10">
+                        <ul class="list-unstyled">
+                            <li>
+                                <a class="text-decoration-none" href="{{ 
+                                         url_for('user_views.psa_results',
+                                             semester=section.semester,
+                                             section_num=section.section_num,
+                                             psa_num=assignment.num,group_num=team.team_num)
+                                         }}">
+                                    View Feedback
+                                </a>
+                            </li>
+                            <li>
+                                <a class="text-decoration-none" href="javascript:sendNotification('{{
+                                        url_for('handle_notification',
+                                            course=section.course, semester=section.semester,
+                                            section=section.section_num, psa=assignment.num,
+                                            group=team.team_num)
+                                            }}').then(alert)">
+                                    Regrade Submission
+                                </a>
+                            </li>
+                            <li>
+                                <a class="text-decoration-none" href="{{ 
+                                          url_for('user_views.delete_group',
+                                              semester=section.semester,
+                                              section_num=section.section_num,
+                                              psa_num=assignment.num,group_num=team.team_num) 
+                                          }}">
+                                    Delete Group
+                                </a>
+                            </li>
+                        </ul>
+                    </dd>
                 </dl>
-                <ul class="list-unstyled">
-                    <li>
-                        <a href="{{ 
-                                 url_for('user_views.psa_results',
-                                     semester=section.semester,
-                                     section_num=section.section_num,
-                                     psa_num=assignment.num,group_num=team.team_num)
-                                 }}">
-                            View Feedback
-                        </a>
-                    </li>
-                    <li>
-                        <a href="javascript:sendNotification('{{
-                                url_for('handle_notification',
-                                    course=section.course, semester=section.semester,
-                                    section=section.section_num, psa=assignment.num,
-                                    group=team.team_num)
-                                    }}').then(alert)">
-                            Regenerate Feedback
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ 
-                                  url_for('user_views.delete_group',
-                                      semester=section.semester,
-                                      section_num=section.section_num,
-                                      psa_num=assignment.num,group_num=team.team_num) 
-                                  }}">
-                            Delete Group
-                        </a>
-                    </li>
-                </ul>
             </li>
             {% endfor %}
         {% else %}
