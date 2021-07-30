@@ -22,13 +22,10 @@ from wtforms.widgets import CheckboxInput
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 
-from pygments import highlight
-from pygments.lexers import get_lexer_for_filename
-from pygments.formatters import HtmlFormatter
-import pygments.util
-
 from . import db_models
 from . import admin
+
+from app.helper import get_formatted_file_contents
 
 user_views = Blueprint('user_views', __name__)
 
@@ -691,18 +688,6 @@ def psa_results(semester, section_num, psa_num, group_num):
                                 results=latest_test_results,
                                 results_time=results_time,
                                 categories=categories)
-
-
-def get_formatted_file_contents(target_file):
-    try:
-        lexer = get_lexer_for_filename(target_file.filename)
-        formatted_file = Markup(highlight(target_file.data,
-                                            lexer,
-                                            HtmlFormatter(linenos=True)))
-    except pygments.util.ClassNotFound:
-        formatted_file = "Viewing this type of file is unsupported."
-
-    return formatted_file
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")

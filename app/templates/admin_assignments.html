@@ -29,13 +29,26 @@
                     <td>
                         <ul class="list-unstyled">
                             {% for tf in assignment.tester_files %}
-                            <li>{{ tf.filename }}</li>
+                            <li>
+                                <a class="text-decoration-none" href="{{ url_for('admin.view_tester_file', assignment_id=assignment.assignment_id, filename=tf.filename) }}">{{ tf.filename }}</a>
+                                <a href="{{ url_for('admin.delete_tester_file', assignment_id=assignment.assignment_id, filename=tf.filename) }}">
+                                <i class="bi-x-square" style="color: firebrick"></i>
+                                </a>
+                            </li>
                             {% endfor %}
                         </ul>
                     </td>
                     <td>{{ assignment.tester_run_command }}</td>
                     <td>{{ assignment.max_runtime }}</td>
-                    <td>Modify (TODO)</td>
+                    <td>
+                        <ul class="list-unstyled">
+                            <li>
+                                <a class="text-decoration-none" href="{{ url_for('admin.add_tester_files', assignment_id=assignment.assignment_id) }}">
+                                Add Tester Files
+                                </a>
+                            </li>
+                        </ul>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

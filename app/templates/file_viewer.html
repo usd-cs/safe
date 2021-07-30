@@ -7,4 +7,16 @@
         {{ file_contents }}
     </div>
 </div>
+{% if current_user.admin and update_file_form %}
+<div class="container pt-3">
+    <h3>Upload New Version</h3>
+    <form method="POST" action="" enctype="multipart/form-data">
+        {{ update_file_form.csrf_token() }}
+        <div class="container">
+            {{ update_file_form.tester_file(class_="form-control-file") }}
+            <p class="pt-2">{{ update_file_form.submit(class_="btn btn-primary btn-sm")
+            }}</p>
+        </div>
+    </form>
+{% endif %}
 {% endblock %}
