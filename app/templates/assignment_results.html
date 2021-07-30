@@ -2,11 +2,11 @@
 
 {% macro result_icon(result) %}
 {% if result == "pass" %}
-<i class="bi-check-circle-fill" style="color: green"></i>
+<i class="bi-check-circle-fill" style="color: green; font-size: 2rem;"></i>
 {% elif result == "fail" %}
-<i class="bi-x-circle-fill" style="color: red"></i>
+<i class="bi-x-circle-fill" style="color: red; font-size: 2rem"></i>
 {% else %}
-<i class="bi-exclamation-circle-fill" style="color: yellow"></i>
+<i class="bi-exclamation-circle-fill" style="color: #fdd835; font-size: 2rem"></i>
 {% endif %}
 {% endmacro %}
 
