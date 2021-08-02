@@ -362,6 +362,94 @@ def section_overview(semester, section_num):
                                 new_assignment_failed=new_assignment_failed
                                 )
 
+
+@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/modify", methods=['get', 'post'])
+@login_required
+def modify_group(semester, section_num, psa_num, group_num):
+    # TODO: remove repeated code between this and delete_group
+    with current_app.Session() as session:
+        query_result = (
+            session.query(db_models.Section, db_models.Team)
+                .join(db_models.Section.assignments)
+                .join(db_models.Assignment.teams)
+                .filter(db_models.Section.semester == semester)
+                .filter(db_models.Section.section_num == section_num)
+                .filter(db_models.Assignment.num == psa_num)
+                .filter(db_models.Team.team_num == group_num)
+                .first()
+        )
+
+        if query_result:
+            section, team = query_result
+        else:
+            abort(404)
+
+        # only instructors for this section may delete a group
+        if not (current_user.instructor and current_user in section.users):
+            abort(403)
+
+        students_without_groups = get_students_without_groups(section.section_id, 
+                                                                team.assignment.assignment_id)
+
+        available_students_ids = [s.user_id for s in students_without_groups]
+        available_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
+                                    for s in students_without_groups]
+
+        existing_members_ids = [member.user_id for member in team.members]
+        existing_members_names = [f"{member.last_name}, {member.first_name} ({member.username})" 
+                                    for member in team.members]
+        
+        all_form_ids = existing_members_ids + available_students_ids
+        all_form_names = existing_members_names + available_students_names
+
+        # create list of (id, name) pairs, sorted by name
+        all_options = sorted(zip(all_form_ids, all_form_names), key=lambda x: x[1])
+
+        update_members_form = UpdateGroupMembersForm()
+        update_members_form.members.choices = all_options
+
+        if update_members_form.validate_on_submit():
+            # add members that weren't previously selected
+            for student_user_id in update_members_form.members.data:
+                if student_user_id not in existing_members_ids:
+                    new_member = (
+                        session.query(db_models.User)
+                            .filter(db_models.User.user_id == student_user_id)
+                            .first()
+                    )
+                    team.members.append(new_member)
+
+            # remove members that were selected previously but aren't now
+            for student_user_id in existing_members_ids:
+                if student_user_id not in update_members_form.members.data:
+                    ex_member = (
+                        session.query(db_models.User)
+                            .filter(db_models.User.user_id == student_user_id)
+                            .first()
+                    )
+                    team.members.remove(ex_member)
+
+            session.commit()
+
+            return redirect(url_for('.psa_overview', 
+                                    semester=semester,
+                                    section_num=section_num,
+                                    psa_num=psa_num,
+                                    group_num=group_num))
+
+
+        #update_members_form.members.choices = zip(all_form_ids, available_students_names)
+        update_members_form.members.choices = all_options
+        update_members_form.members.data = [u.user_id for u in team.members]
+
+        return render_template("modify_group_members.html",
+                                page_title=f"Modify Group : SAFE @ USD",
+                                user=current_user,
+                                team=team,
+                                form=update_members_form)
+
+
+
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
 @login_required
 def delete_group(semester, section_num, psa_num, group_num):
@@ -405,6 +493,11 @@ class NewGroupForm(FlaskForm):
     submit = SubmitField("Submit")
 
 
+class UpdateGroupMembersForm(FlaskForm):
+    members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
 @login_required
 def view_tester_file(semester, section_num, psa_num, filename):
@@ -443,6 +536,31 @@ def view_tester_file(semester, section_num, psa_num, filename):
                                 filename=tester_file.filename,
                                 file_contents=formatted_file)
 
+def get_students_without_groups(section_id, assignment_id):
+    with current_app.Session() as session:
+        enrolled_students = (
+            session.query(db_models.User)
+                .join(db_models.section_enrollment)
+                .join(db_models.Section)
+                .filter(and_(db_models.Section.section_id == section_id, 
+                                db_models.User.instructor == False))
+        )
+
+        students_in_groups = (
+            session.query(db_models.User)
+                .join(db_models.team_enrollment)
+                .join(db_models.Team)
+                .filter(db_models.Team.assignment_id == assignment_id)
+        )
+
+        students_without_groups = (
+                enrolled_students
+                    .except_(students_in_groups)
+                    .order_by(db_models.User.last_name)
+                    .all()
+        )
+
+        return students_without_groups
 
 class CopyGroupsForm(FlaskForm):
     assignment_num = SelectField('Assignment', coerce=int)
@@ -481,27 +599,9 @@ def psa_overview(semester, section_num, psa_num):
             # assignment doesn't exist!
             abort(404)
 
-        enrolled_students = (
-            session.query(db_models.User)
-                .join(db_models.section_enrollment)
-                .join(db_models.Section)
-                .filter(and_(db_models.Section.section_id == section.section_id, 
-                                db_models.User.instructor == False))
-        )
 
-        students_in_groups = (
-            session.query(db_models.User)
-                .join(db_models.team_enrollment)
-                .join(db_models.Team)
-                .filter(db_models.Team.assignment_id == assignment.assignment_id)
-        )
-
-        students_without_groups = (
-                enrolled_students
-                    .except_(students_in_groups)
-                    .order_by(db_models.User.last_name)
-                    .all()
-        )
+        students_without_groups = get_students_without_groups(section.section_id, 
+                                                                assignment.assignment_id)
 
         unassigned_students_ids = [s.user_id for s in students_without_groups]
         unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
