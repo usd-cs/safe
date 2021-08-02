@@ -397,11 +397,12 @@ def delete_group(semester, section_num, psa_num, group_num):
                                 psa_num=psa_num))
 
 
+
+
 class NewGroupForm(FlaskForm):
     group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
     submit = SubmitField("Submit")
-
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
@@ -511,24 +512,28 @@ def psa_overview(semester, section_num, psa_num):
                                                 unassigned_students_names)
 
         if new_group_form.validate_on_submit():
-            # TODO: Check that group_num doesn't already exist
-            new_group = db_models.Team(team_num=new_group_form.group_num.data,
-                                            assignment_id=assignment.assignment_id)
+            if new_group_form.group_num.data in [t.team_num for t in assignment.teams]:
+                flash("That group number is already taken. Please select another.",
+                        "danger")
 
-            session.add(new_group)
-            session.flush() # causes DB to give the new_group a team_id
+            else:
+                new_group = db_models.Team(team_num=new_group_form.group_num.data,
+                                                assignment_id=assignment.assignment_id)
 
-            # add selected students to team
-            for student_id in new_group_form.members.data:
-                statement = (
-                    insert(db_models.team_enrollment)
-                        .values(user_id=student_id, team_id=new_group.team_id)
-                )
-                session.execute(statement)
+                session.add(new_group)
+                session.flush() # causes DB to give the new_group a team_id
 
-            session.commit()
+                # add selected students to team
+                for student_id in new_group_form.members.data:
+                    statement = (
+                        insert(db_models.team_enrollment)
+                            .values(user_id=student_id, team_id=new_group.team_id)
+                    )
+                    session.execute(statement)
 
-            return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+                session.commit()
+
+                return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
 
         copy_groups_form = CopyGroupsForm()
 
