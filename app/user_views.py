@@ -70,6 +70,7 @@ def permission_denied(error):
                             page_title="403: SAFE @ USD",
                             user=current_user), 403
 
+
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     base_assignment_id = SelectField('Base Assignment', coerce=int)
@@ -441,11 +442,16 @@ def view_tester_file(semester, section_num, psa_num, filename):
                                 filename=tester_file.filename,
                                 file_contents=formatted_file)
 
+
+class CopyGroupsForm(FlaskForm):
+    assignment_num = SelectField('Assignment', coerce=int)
+    submit = SubmitField("Copy Groups")
+
+
 # TODO: generalize for non comp110-courses
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
 @login_required
 def psa_overview(semester, section_num, psa_num):
-    new_group_form = NewGroupForm()
 
     with current_app.Session() as session:
         section = (
@@ -500,6 +506,7 @@ def psa_overview(semester, section_num, psa_num):
         unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
                         for s in students_without_groups]
 
+        new_group_form = NewGroupForm()
         new_group_form.members.choices = zip(unassigned_students_ids,
                                                 unassigned_students_names)
 
@@ -523,17 +530,64 @@ def psa_overview(semester, section_num, psa_num):
 
             return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
 
+        copy_groups_form = CopyGroupsForm()
+
+        other_assignments = (
+            session.query(db_models.Assignment)
+                .join(db_models.Section.assignments)
+                .filter(db_models.Section.section_id == section.section_id)
+                .filter(db_models.Assignment.assignment_id != assignment.assignment_id)
+                .order_by(db_models.Assignment.num.desc())
+                .all()
+        )
+
+        copy_choices = [(a.num, f"PSA{a.num}: {a.base_assignment.title}") 
+                            for a in other_assignments]
+
+        copy_groups_form.assignment_num.choices = copy_choices
+
+        if copy_groups_form.validate_on_submit():
+            # Check that there aren't any existing teams in this assignment.
+            # Note: The template should disable this form if there are existing
+            # groups but want to be safe here.
+            if len(assignment.teams) != 0:
+                abort(500)
+
+            groups = (
+                session.query(db_models.Team)
+                    .join(db_models.Section.assignments)
+                    .join(db_models.Assignment.teams)
+                    .filter(db_models.Section.section_id == section.section_id)
+                    .filter(db_models.Assignment.num == copy_groups_form.assignment_num.data)
+                    .all()
+            )
+
+            for g in groups:
+                new_team = db_models.Team(team_num=g.team_num,
+                                            assignment_id=assignment.assignment_id)
+
+                for member in g.members:
+                    new_team.members.append(member)
+
+                session.add(new_team)
+
+            session.commit()
+            return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+
         # TRICKY: validating form seems to clear out choices so have to
         # reset them here
         new_group_form.members.choices = zip(unassigned_students_ids,
                 unassigned_students_names)
+
+        copy_groups_form.assignment_num.choices = copy_choices
 
         return render_template("assignment_overview.html", 
                                 user=current_user,
                                 section=section,
                                 assignment=assignment,
                                 teams=assignment.teams,
-                                group_form=new_group_form)
+                                group_form=new_group_form,
+                                copy_groups_form=copy_groups_form)
 
 
 @user_views.route("/comp110/psa<int:psa_num>/")

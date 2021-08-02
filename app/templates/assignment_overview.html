@@ -117,6 +117,21 @@
         {% endif %}
     </ul>
 
+    <div class="container pt-3">
+        <h2>Import Groups</h2>
+        <p>Select an assignment to copy groups from. Note that this option is
+        only available if this assignment doesn't have any groups.</p>
+        <form method="POST" action="">
+            {{ copy_groups_form.csrf_token() }}
+            {{ forms.input(copy_groups_form.assignment_num, "", "form-select") }}
+            {% if teams|length == 0 %}
+            {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm") }}
+            {% else %}
+            {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm disabled") }}
+            {% endif %}
+        </form>
+    </div>
+
     <div class="container pt-3 pb-3">
         <h2>Create New Group</h2>
         <form method="POST" action="">
