@@ -39,12 +39,15 @@
 </div>
 
 <div class="container pt-3">
-	<h2>Groups</h2>
+    <h2>Groups</h2>
     <ul class="list-group">
         {% if teams|length > 0 %}
             {% for team in teams %}
-            <li class="list-group-item">
-                <h5>Group {{team.team_num}}</h5>
+            <li class="list-group-item border-0">
+                <h5>
+                    <i class="bi-people"></i>
+                    Group {{team.team_num}}
+                </h5>
                 <hr/>
                 <dl class="row">
                     <dt class="col-lg-2">Members</dt>
@@ -55,6 +58,7 @@
                         {% endfor %}
                         </ul>
                         <p>
+                        <i class="bi-arrow-left-right"></i>
                         <a class="text-decoration-none" href="{{ url_for('user_views.modify_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, group_num=team.team_num) }}">
                                                           Add/Remove Members
                             </a>
@@ -83,6 +87,7 @@
                     <dd class="col-lg-10">
                         <ul class="list-unstyled">
                             <li>
+                                <i class="bi-binoculars"></i>
                                 <a class="text-decoration-none" href="{{ 
                                          url_for('user_views.psa_results',
                                              semester=section.semester,
@@ -93,6 +98,7 @@
                                 </a>
                             </li>
                             <li>
+                                <i class="bi-arrow-repeat"></i>
                                 <a class="text-decoration-none" href="javascript:sendNotification('{{
                                         url_for('handle_notification',
                                             course=section.course, semester=section.semester,
@@ -103,6 +109,7 @@
                                 </a>
                             </li>
                             <li>
+                                <i class="bi-trash"></i>
                                 <a class="text-decoration-none link-danger" href="{{ 
                                           url_for('user_views.delete_group',
                                               semester=section.semester,
