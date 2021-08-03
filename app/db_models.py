@@ -107,7 +107,7 @@ class Team(Base):
 
     # many-to-many relationship between teams and users
     members = relationship(
-        "User", secondary=team_enrollment, back_populates="teams"
+        "User", secondary=team_enrollment, order_by="User.last_name", back_populates="teams"
     )
 
     def __repr__(self):
