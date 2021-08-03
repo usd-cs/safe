@@ -90,10 +90,22 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                        {{ roster_form.roster_file(class_="form-control-file") }}
-                        <div class="form-group pt-2 pb-2">
-                            {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
-                        </div>
+                    <p>Select the CSV file containing your course roster.  This
+                    file is available in Blackboard by going to your Full Grade
+                    Center and finding the "Work Offline" ("Download") link.
+                    From there, select <strong>"User Information Only"</strong>
+                    for the DATA and <strong>"Comma"</strong> as the Delimiter
+                    Type in OPTIONS.</p>
+
+                    <p>Note: Selecting <strong>Enable Add/Drop</strong> will
+                    remove any students who do not appear in the uploaded roster
+                    file.</p>
+
+                    <strong>Roster File:</strong>
+                    {{ roster_form.roster_file(class_="form-control-file") }}
+                    <div class="form-group pt-2 pb-2">
+                        {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
