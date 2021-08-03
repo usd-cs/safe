@@ -3,23 +3,20 @@
 
 {% block body %}
 <div class="container pt-3">
-	<h1>Section Info</h1>
-    <ul class="list-group">
-        <li class="list-group-item"><strong>Course:</strong>
-            {{section.course|upper}}</li>
-        <li class="list-group-item"><strong>Semester:</strong>
-            {{section.semester|upper}}</li>
-        <li class="list-group-item"><strong>Section:</strong> 
-            {{section.section_num}}</li>
-    </ul>
+	<h2>
+        {{section.course|upper}}, Section {{section.section_num}}
+        ({{section.semester|upper}})
+    </h2>
+    <hr/>
 </div>
 
 <div class="container pt-3">
-	<h1>Assignments</h1>
+    <h3><i class="bi-list"></i> Assignments:</h3>
     <ul class="list-group">
         {% if section.assignments|length > 0 %}
             {% for assignment in section.assignments %}
-            <li class="list-group-item">
+            <li class="list-group-item border-0 fs-5">
+                <i class="bi-caret-right"></i>
                 <strong>PSA {{assignment.num}}:</strong> {{assignment.base_assignment.title}}
                 (<a href="{{ url_for('user_views.psa_overview', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>)
             </li>
@@ -36,13 +33,13 @@
     </div>
 </div>
 
-<div class="container pt-3">
-	<h1>Roster</h1>
+<div class="container pt-4">
+    <h3><i class="bi-people"></i> Roster:</h3>
     <form method="POST" action="">
     {{ remove_students_form.csrf_token() }}
     <table class="table">
         <thead>
-            <tr>
+            <tr class="fs-5">
                 <th scope="col"></th>
                 <th scope="col">Name</th>
                 <th scope="col">Username</th>
@@ -69,12 +66,14 @@
         </tbody>
     </table>
 
+    <div class="container ps-2">
     {{ remove_students_form.submit(class_="btn btn-sm btn-outline-danger") }}
+    </div>
     </form>
 
     <div class="container pt-3">
-        <h3>Manage Roster:</h3>
-        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
+        <h4><i class="bi-person-lines-fill"></i> Manage Roster:</h4>
+        <button type="button" class="btn btn-outline-primary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
             Upload Roster File
         </button>
     </div>
