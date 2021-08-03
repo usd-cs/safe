@@ -59,7 +59,7 @@ class Section(Base):
 
     # many-to-many relationship
     users = relationship(
-        "User", secondary=section_enrollment, back_populates="sections"
+        "User", secondary=section_enrollment, order_by="User.last_name", back_populates="sections"
     )
 
     # one section to many assignments
