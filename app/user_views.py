@@ -15,7 +15,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
 from wtforms import (
     StringField, SubmitField, IntegerField, MultipleFileField, SelectField,
-    SelectMultipleField
+    SelectMultipleField, BooleanField
 )
 from wtforms.validators import DataRequired, Regexp, NumberRange 
 from wtforms.widgets import CheckboxInput
@@ -74,16 +74,17 @@ def permission_denied(error):
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     base_assignment_id = SelectField('Base Assignment', coerce=int)
-    submit = SubmitField("Submit")
+    submit = SubmitField("Create Assignment")
 
 
 class RosterUploadForm(FlaskForm):
     roster_file = FileField('Class Roster', validators=[FileRequired()])
             #validators=[Regexp('^.*\.(csv|CSV)$', message="Must be CSV file format")])
+    add_drop = BooleanField('Enable Add/Drop')
     submit = SubmitField('Upload Roster')
 
 
-def add_students_from_roster(section, file_location, session):
+def add_students_from_roster(section, file_location, session, add_drop=False):
     """
     Adds students in a given roster file (CSV format) to the specified section.
 
@@ -110,6 +111,18 @@ def add_students_from_roster(section, file_location, session):
 
                 new_students = []
                 duplicate_students = []
+                students_in_file = []
+
+                initial_roster = (
+                    session.query(db_models.User)
+                        .join(db_models.Section.users)
+                        .filter(db_models.Section.section_id == section.section_id)
+                        .filter(db_models.User.instructor == False)
+                        .all()
+                )
+
+                if not initial_roster:
+                    initial_roster = []
 
                 for line in roster_reader:
                     username = line[username_col]
@@ -138,6 +151,8 @@ def add_students_from_roster(section, file_location, session):
                         session.add(student_to_add)
                         session.flush()
 
+                    students_in_file.append(student_to_add)
+
                     if student_to_add in section.users:
                         # student is already enrolled in this section so
                         # nothing more to do
@@ -152,6 +167,34 @@ def add_students_from_roster(section, file_location, session):
                         session.execute(statement)
 
                     session.commit()
+
+                if add_drop:
+                    # Find and remove students who were in the roster before but
+                    # weren't part of the roster file.
+                    students_to_remove = [s for s in initial_roster 
+                                                if s not in students_in_file]
+
+                    for student in students_to_remove:
+                        # remove student from section
+                        section.users.remove(student)
+
+                        # remove student from section teams they may be in
+                        teams_with_student = (
+                            session.query(db_models.Team)
+                                .join(db_models.Section.assignments)
+                                .join(db_models.Assignment.teams)
+                                .join(db_models.Team.members)
+                                .filter(db_models.Section.section_id == section.section_id)
+                                .filter(db_models.User.user_id == student.user_id)
+                        )
+
+                        for team in teams_with_student:
+                            team.members.remove(student)
+
+                    session.commit()
+
+                    if len(students_to_remove) > 0:
+                        flash(f"Removed {len(students_to_remove)} students from section.", "warning")
 
                 if len(new_students) > 0:
                     flash(f"Added {len(new_students)} new students to section.", "info")
@@ -347,7 +390,8 @@ def section_overview(semester, section_num):
             file_location = os.path.join(temp_dir, filename)
             uploaded_file.save(file_location)
 
-            add_students_from_roster(section, file_location, session)
+            add_students_from_roster(section, file_location, session,
+                                        add_drop=roster_upload_form.add_drop.data)
 
             os.remove(file_location)
             return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))

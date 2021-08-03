@@ -91,6 +91,9 @@
                 </div>
                 <div class="modal-body">
                         {{ roster_form.roster_file(class_="form-control-file") }}
+                        <div class="form-group pt-2 pb-2">
+                            {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
