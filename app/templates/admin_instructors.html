@@ -19,7 +19,24 @@
                     <th scope="row">{{ inst.last_name }}</th>
                     <td>{{ inst.first_name }}</td>
                     <td>{{ inst.username }}</td>
-                    <td>FIXME</td>
+                    <td>
+                        {% if inst.sections %}
+                        <ul class="list-unstyled">
+                            {% for section in inst.sections %}
+                            <li>
+                                {{section.course|upper}},
+                                {{section.semester|upper}}:
+                                Section {{section.section_num}}
+                                (<a href="{{url_for('user_views.section_overview',
+                                      semester=section.semester,
+                                      section_num=section.section_num)}}">View</a>)
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        None
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

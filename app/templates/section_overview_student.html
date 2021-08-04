@@ -2,28 +2,28 @@
 
 {% block body %}
 <div class="container pt-3">
-    <h1>Course Info ({{section.course|upper}})</h1>
+    <h2>Course Info ({{section.course|upper}})</h2>
     <ul class="list-group">
-        <li class="list-group-item"><strong>Instructor(s):</strong>
-            {{ instructors }}
+        <li class="list-group-item border-0">
+            <strong>Instructor(s):</strong> {{ instructors }}
         </li>
-        <li class="list-group-item"><strong>Semester:</strong> {{section.semester|upper}}</li>
-        <li class="list-group-item"><strong>Section:</strong> {{"%02d"|format(section.section_num)}}</li>
+        <li class="list-group-item border-0"><strong>Semester:</strong> {{section.semester|upper}}</li>
+        <li class="list-group-item border-0"><strong>Section:</strong> {{"%02d"|format(section.section_num)}}</li>
     </ul>
 </div>
 
 <div class="container pt-3">
-	<h1>Assignments</h1>
+    <h3><i class="bi-list"></i> Assignments:</h3>
     <ul class="list-group">
         {% if assignments|length > 0 %}
             {% for (assignment_num, assignment_title, group_num) in assignments %}
-            <li class="list-group-item">
+            <li class="list-group-item border-0">
                 <strong>PSA {{assignment_num}}:</strong> {{assignment_title}}
                 (<a href="{{ url_for('user_views.psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment_num, group_num=group_num) }}">Group {{ group_num }}</a>)
             </li>
             {% endfor %}
         {% else %}
-            <li class="list-group-item">No assignments found</li>
+            <li class="list-group-item border-0">No assignments found</li>
         {% endif %}
     </ul>
 </div>

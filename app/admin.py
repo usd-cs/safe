@@ -8,6 +8,7 @@ from wtforms import (
     StringField, SubmitField, PasswordField, SelectMultipleField, IntegerField,
     BooleanField, SelectField, MultipleFileField
 )
+from flask_wtf.file import FileField, FileRequired
 from wtforms.validators import (
     ValidationError, DataRequired, Length, NumberRange
 )
@@ -18,6 +19,8 @@ from flask_login import (
 from sqlalchemy import insert, delete, and_
 from werkzeug.utils import secure_filename
 from . import db_models
+
+from app.helper import get_formatted_file_contents
 
 admin = Blueprint('admin', __name__)
 
@@ -306,6 +309,164 @@ def admin_sections():
                             form=form,
                             sections=section_info)
 
+
+def get_tester_file(assignment_id, filename, session):
+    return (
+        session.query(db_models.TesterFile)
+            .join(db_models.BaseAssignment.tester_files)
+            .filter(db_models.BaseAssignment.assignment_id == assignment_id)
+            .filter(db_models.TesterFile.filename == filename)
+            .first()
+    )
+
+
+class AddTesterFilesForm(FlaskForm):
+    new_files = MultipleFileField('New Tester Files', validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+
+@admin.route("/assignments/<int:assignment_id>/tester_files/add", methods=['get','post'])
+@login_required
+def add_tester_files(assignment_id):
+    if not current_user.admin:
+        abort(403)
+
+    with current_app.Session() as session:
+        assignment = (
+            session.query(db_models.BaseAssignment)
+                .filter(db_models.BaseAssignment.assignment_id == assignment_id)
+                .first()
+        )
+
+        if not assignment:
+            abort(404)
+
+        add_files_form = AddTesterFilesForm()
+
+        if add_files_form.validate_on_submit():
+            # Create separate TesterFile entries for each uploaded tester
+            # file and save files to a directory for workers to access.
+            new_files = request.files.getlist(add_files_form.new_files.name)
+
+            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                            f"{assignment.assignment_id}")
+
+            existing_tester_files = [tf.filename for tf in assignment.tester_files]
+
+            skipped_files = []
+            for tf in new_files:
+                if tf.filename in existing_tester_files:
+                    # if there is already a file with this name, skip it
+                    skipped_files.append(tf.filename)
+                    continue
+
+                # TODO: store tf.content_type attribute in DB
+                new_tester_file = db_models.TesterFile(filename=tf.filename,
+                                                        data=tf.read(),
+                                                        base_assignment_id=assignment.assignment_id)
+                session.add(new_tester_file)
+
+                # save to the tester code directory
+                filename = secure_filename(tf.filename)
+                file_location = os.path.join(tester_code_dir, filename)
+                with open(file_location, 'wb') as new_file:
+                    new_file.write(new_tester_file.data)
+
+            session.commit()
+
+            if len(skipped_files) > 0:
+                flash(f"The following files already exist and were skipped: {' '.join(skipped_files)}",
+                        "warning")
+
+            if len(new_files) > len(skipped_files):
+                flash(f"Added {len(new_files) - len(skipped_files)} files to assignment '{assignment.title}'",
+                        "success")
+
+            return redirect(url_for('.admin_assignments'))
+
+
+        return render_template("admin_add_tester_files.html",
+                                user=current_user,
+                                assignment=assignment,
+                                files_form=add_files_form)
+
+@admin.route("/assignments/<int:assignment_id>/tester_files/<filename>/delete")
+@login_required
+def delete_tester_file(assignment_id, filename):
+    if not current_user.admin:
+        abort(403)
+
+    with current_app.Session() as session:
+        tester_file = get_tester_file(assignment_id, filename, session)
+
+        if not tester_file:
+            abort(404)
+
+        # remove the file from the tester code directory
+        tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                        f"{assignment_id}")
+
+        tester_file_loc = os.path.join(tester_code_dir, filename)
+        os.remove(tester_file_loc)
+
+        # delete from our database
+        session.delete(tester_file)
+        session.commit()
+
+        return redirect(url_for('.admin_assignments'))
+
+
+class UpdateTesterFileForm(FlaskForm):
+    tester_file = FileField('Replacement File', validators=[FileRequired()])
+    submit = SubmitField('Replace File')
+
+
+@admin.route("/assignments/<int:assignment_id>/tester_files/<filename>", methods=['get', 'post'])
+@login_required
+def view_tester_file(assignment_id, filename):
+    if not current_user.admin:
+        abort(403)
+
+    with current_app.Session() as session:
+        tester_file = get_tester_file(assignment_id, filename, session)
+
+        if not tester_file:
+            abort(404)
+
+        update_file_form = UpdateTesterFileForm()
+
+        if update_file_form.validate_on_submit():
+            # add users to database
+            uploaded_file = update_file_form.tester_file.data
+            sec_filename = secure_filename(uploaded_file.filename)
+
+            if sec_filename == filename:
+                # update file contents in database
+                tester_file.data = uploaded_file.read()
+                session.commit()
+
+                # save uploaded file to tester code directory
+                tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                                f"{assignment_id}")
+                file_location = os.path.join(tester_code_dir, sec_filename)
+
+                with open(file_location, 'wb+') as new_file:
+                    new_file.write(tester_file.data)
+
+                flash("File has been updated!", "success")
+            else:
+                flash(f"Uploaded filename ({sec_filename}) differs from this file.", "danger")
+
+
+        formatted_file = get_formatted_file_contents(tester_file)
+
+        # TODO: send md5sum and creation date to template
+
+        return render_template("file_viewer.html", 
+                                user=current_user,
+                                filename=tester_file.filename,
+                                file_contents=formatted_file,
+                                update_file_form=update_file_form)
 
 @admin.route("/users/delete")
 @login_required

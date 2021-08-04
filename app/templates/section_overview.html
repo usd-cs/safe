@@ -3,23 +3,20 @@
 
 {% block body %}
 <div class="container pt-3">
-	<h1>Section Info</h1>
-    <ul class="list-group">
-        <li class="list-group-item"><strong>Course:</strong>
-            {{section.course|upper}}</li>
-        <li class="list-group-item"><strong>Semester:</strong>
-            {{section.semester|upper}}</li>
-        <li class="list-group-item"><strong>Section:</strong> 
-            {{section.section_num}}</li>
-    </ul>
+	<h2>
+        {{section.course|upper}}, Section {{section.section_num}}
+        ({{section.semester|upper}})
+    </h2>
+    <hr/>
 </div>
 
 <div class="container pt-3">
-	<h1>Assignments</h1>
+    <h3><i class="bi-list"></i> Assignments:</h3>
     <ul class="list-group">
         {% if section.assignments|length > 0 %}
             {% for assignment in section.assignments %}
-            <li class="list-group-item">
+            <li class="list-group-item border-0 fs-5">
+                <i class="bi-caret-right"></i>
                 <strong>PSA {{assignment.num}}:</strong> {{assignment.base_assignment.title}}
                 (<a href="{{ url_for('user_views.psa_overview', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>)
             </li>
@@ -36,11 +33,14 @@
     </div>
 </div>
 
-<div class="container pt-3">
-	<h1>Roster</h1>
+<div class="container pt-4">
+    <h3><i class="bi-people"></i> Roster:</h3>
+    <form method="POST" action="">
+    {{ remove_students_form.csrf_token() }}
     <table class="table">
         <thead>
-            <tr>
+            <tr class="fs-5">
+                <th scope="col"></th>
                 <th scope="col">Name</th>
                 <th scope="col">Username</th>
                 <th scope="col">Role</th>
@@ -49,6 +49,13 @@
         <tbody>
             {% for user in section.users %}
             <tr>
+                <td>
+                    {% if not user.instructor %}
+                    <input class="form-check-input" id="students_to_remove-{{user.user_id}}"
+                                                    name="students_to_remove" type="checkbox"
+                                                    value="{{user.user_id}}">
+                    {% endif %}
+                </td>
                 <th scope="row">{{ user.last_name }}, {{ user.first_name }}</th>
                 <td>{{ user.username }}</td>
                 <td>
@@ -59,9 +66,17 @@
         </tbody>
     </table>
 
-    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
-        Upload Roster File
-    </button>
+    <div class="container ps-2">
+    {{ remove_students_form.submit(class_="btn btn-sm btn-outline-danger") }}
+    </div>
+    </form>
+
+    <div class="container pt-3">
+        <h4><i class="bi-person-lines-fill"></i> Manage Roster:</h4>
+        <button type="button" class="btn btn-outline-primary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#uploadRosterModal">
+            Upload Roster File
+        </button>
+    </div>
 </div>
 
 <!-- Upload Roster File Modal -->
@@ -75,7 +90,22 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                        {{ roster_form.roster_file(class_="form-control-file") }}
+                    <p>Select the CSV file containing your course roster.  This
+                    file is available in Blackboard by going to your Full Grade
+                    Center and finding the "Work Offline" ("Download") link.
+                    From there, select <strong>"User Information Only"</strong>
+                    for the DATA and <strong>"Comma"</strong> as the Delimiter
+                    Type in OPTIONS.</p>
+
+                    <p>Note: Selecting <strong>Enable Add/Drop</strong> will
+                    remove any students who do not appear in the uploaded roster
+                    file.</p>
+
+                    <strong>Roster File:</strong>
+                    {{ roster_form.roster_file(class_="form-control-file") }}
+                    <div class="form-group pt-2 pb-2">
+                        {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>

@@ -1,4 +1,5 @@
 FROM python:alpine3.14
+ARG FIRST_ADMIN_USER
 
 RUN apk add build-base
 RUN apk add libxml2-dev
@@ -25,6 +26,8 @@ ENV FLASK_APP safe.py
 
 RUN chown -R safe:safe ./
 USER safe
+
+RUN flask add-admin $FIRST_ADMIN_USER
 
 EXPOSE 5000
 ENTRYPOINT ["./boot-webapp.sh"]

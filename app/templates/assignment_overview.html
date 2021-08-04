@@ -24,7 +24,11 @@
             <strong>Tester Files:</strong> 
             <ul>
                 {% for tf in assignment.base_assignment.tester_files %}
-                <li>{{tf.filename}}</li>
+                <li>
+                    <a class="text-decoration-none" href="{{url_for('user_views.view_tester_file', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
+                        {{tf.filename}}
+                    </a>
+                </li>
                 {% endfor %}
             </ul>
         </li>
@@ -35,12 +39,15 @@
 </div>
 
 <div class="container pt-3">
-	<h2>Groups</h2>
+    <h2>Groups</h2>
     <ul class="list-group">
         {% if teams|length > 0 %}
             {% for team in teams %}
-            <li class="list-group-item">
-                <h5>Group {{team.team_num}}</h5>
+            <li class="list-group-item border-0">
+                <h5>
+                    <i class="bi-people"></i>
+                    Group {{team.team_num}}
+                </h5>
                 <hr/>
                 <dl class="row">
                     <dt class="col-lg-2">Members</dt>
@@ -50,49 +57,71 @@
                             <li>{{m.last_name}}, {{m.first_name}}</li>
                         {% endfor %}
                         </ul>
+                        <p>
+                        <i class="bi-arrow-left-right"></i>
+                        <a class="text-decoration-none" href="{{ url_for('user_views.modify_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, group_num=team.team_num) }}">
+                                                          Add/Remove Members
+                            </a>
+                        </p>
                     </dd>
 
-                    <dt class="col-lg-2">Submission Time</dt>
-                    <dd class="col-lg-10">FIXME</dd>
+                    {% if team.results|length > 0 and team.results[0].finished %}
+                     {% set latest_results = team.results[0] %}
+                        <dt class="col-lg-2">Submission Info</dt>
+                        <dd class="col-lg-10">
+                            <strong>Time:</strong> {{latest_results.commit_time.strftime('%b %d, %Y @ %I:%M:%S %p')}}
+                            <br/><strong>Author:</strong> {{latest_results.commit_author }}
+                            <br/><strong>Comment:</strong> {{latest_results.commit_comment }}
+                        </dd>
 
-                    <dt class="col-lg-2">Commit Comment</dt>
-                    <dd class="col-lg-10">FIXME</dd>
+                        <dt class="col-lg-2">Feedback Time</dt>
+                        <dd class="col-lg-10">
+                            {{ latest_results.completed_at.strftime('%b %d, %Y @ %I:%M:%S %p')}}
+                        </dd>
+                    {% else %}
+                        <dt class="col-lg-2">Submission Info</dt>
+                        <dd class="col-lg-10">No test results available</dd>
+                    {% endif %}
 
-                    <dt class="col-lg-2">Feedback Time</dt>
-                    <dd class="col-lg-10">FIXME</dd>
+                    <dt class="col-lg-2">Actions</dt>
+                    <dd class="col-lg-10">
+                        <ul class="list-unstyled">
+                            <li>
+                                <i class="bi-binoculars"></i>
+                                <a class="text-decoration-none" href="{{ 
+                                         url_for('user_views.psa_results',
+                                             semester=section.semester,
+                                             section_num=section.section_num,
+                                             psa_num=assignment.num,group_num=team.team_num)
+                                         }}">
+                                    View Feedback
+                                </a>
+                            </li>
+                            <li>
+                                <i class="bi-arrow-repeat"></i>
+                                <a class="text-decoration-none" href="javascript:sendNotification('{{
+                                        url_for('notify.handle_notification',
+                                            course=section.course, semester=section.semester,
+                                            section=section.section_num, psa=assignment.num,
+                                            group=team.team_num)
+                                            }}').then(alert)">
+                                    Regrade Submission
+                                </a>
+                            </li>
+                            <li>
+                                <i class="bi-trash"></i>
+                                <a class="text-decoration-none link-danger" href="{{ 
+                                          url_for('user_views.delete_group',
+                                              semester=section.semester,
+                                              section_num=section.section_num,
+                                              psa_num=assignment.num,group_num=team.team_num) 
+                                          }}">
+                                    Delete Group
+                                </a>
+                            </li>
+                        </ul>
+                    </dd>
                 </dl>
-                <ul class="list-unstyled">
-                    <li>
-                        <a href="{{ 
-                                 url_for('user_views.psa_results',
-                                     semester=section.semester,
-                                     section_num=section.section_num,
-                                     psa_num=assignment.num,group_num=team.team_num)
-                                 }}">
-                            View Feedback
-                        </a>
-                    </li>
-                    <li>
-                        <a href="javascript:sendNotification('{{
-                                url_for('handle_notification',
-                                    course=section.course, semester=section.semester,
-                                    section=section.section_num, psa=assignment.num,
-                                    group=team.team_num)
-                                    }}').then(alert)">
-                            Regenerate Feedback
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ 
-                                  url_for('user_views.delete_group',
-                                      semester=section.semester,
-                                      section_num=section.section_num,
-                                      psa_num=assignment.num,group_num=team.team_num) 
-                                  }}">
-                            Delete Group
-                        </a>
-                    </li>
-                </ul>
             </li>
             {% endfor %}
         {% else %}
@@ -100,7 +129,24 @@
         {% endif %}
     </ul>
 
-    <div class="container border pt-3 pb-3">
+    <hr/>
+    <div class="container pt-2 pb-2">
+        <h2>Import Groups</h2>
+        <p>Select an assignment to copy groups from. Note that this option is
+        only available if this assignment doesn't have any groups.</p>
+        <form method="POST" action="">
+            {{ copy_groups_form.csrf_token() }}
+            {{ forms.input(copy_groups_form.assignment_num, "", "form-select") }}
+            {% if teams|length == 0 %}
+            {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm") }}
+            {% else %}
+            {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm disabled") }}
+            {% endif %}
+        </form>
+    </div>
+
+    <hr/>
+    <div class="container pt-2 pb-2">
         <h2>Create New Group</h2>
         <form method="POST" action="">
             {{ group_form.csrf_token() }}

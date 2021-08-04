@@ -1,6 +1,9 @@
 *.swp
 *.sqlite3
+dump.rdb
 
 instance/
 __pycache__
 venv/
+repositories
+tester_code

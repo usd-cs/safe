@@ -1,60 +1,66 @@
 {% extends "base.html" %}
 
-{% block body %}
-<div class="container pt-3">
-	<h1>Assignment Info</h1>
-    <ul class="list-group">
-        <li class="list-group-item"><strong>Name:</strong> PSA
-            {{assignment.num}}: {{assignment.base_assignment.title}}</li>
-        <li class="list-group-item"><strong>Group Number:</strong> {{group_num}}</li>
-    </ul>
-</div>
-
-{% macro badge_color(result) %}
+{% macro result_icon(result) %}
 {% if result == "pass" %}
-bg-success
+<i class="bi-check-circle-fill" style="color: green; font-size: 2rem;"></i>
 {% elif result == "fail" %}
-bg-danger
+<i class="bi-x-circle-fill" style="color: red; font-size: 2rem"></i>
 {% else %}
-bg-warning
+<i class="bi-exclamation-circle-fill" style="color: #fdd835; font-size: 2rem"></i>
 {% endif %}
 {% endmacro %}
 
+{% block body %}
 <div class="container pt-3">
-	<h1>Assignment Feedback</h1>
-    {% if test_results %}
+    <h2>PSA {{assignment.num}} ({{assignment.base_assignment.title}}) Feedback:
+        Group {{group_num}}</h2>
+    {% if results %}
         <ul class="list-group pb-3">
-            <li class="list-group-item"><strong>Submission Time:</strong>
-                {{submit_time}}
+            <li class="list-group-item border-0">
+                <i class="bi-clock"></i>
+                <strong>Submission Time:</strong>{{submit_time}}
             </li>
-            <li class="list-group-item"><strong>Submitter:</strong>
-                {{commit_author}}
+            <li class="list-group-item border-0">
+                <i class="bi-person-check"></i>
+                <strong>Submitter:</strong> {{results.commit_author}}
             </li>
-            <li class="list-group-item"><strong>Commit Comment:</strong>
-                {{commit_comment}}
+            <li class="list-group-item border-0">
+                <i class="bi-chat-left-text"></i>
+                <strong>Commit Comment:</strong> {{results.commit_comment}}
             </li>
-            <li class="list-group-item"><strong>Feedback Time:</strong>
-                {{results_time}}
+            <li class="list-group-item border-0">
+                <i class="bi-clock"></i>
+                <strong>Feedback Time:</strong> {{results_time}}
             </li>
+            {% if current_user.instructor %}
+            <li class="list-group-item border-0">
+                <i class="bi-files"></i>
+                <strong>Submitted Files:</strong>
+                {% for sf in results.submitted_files %}
+                    <a class="text-decoration-none" href="{{ url_for('user_views.view_submitted_file', semester=assignment.section.semester, section_num=assignment.section.section_num, psa_num=assignment.num, group_num=group_num, filename=sf.filename, id=results.job_id) }}">
+                        {{sf.filename}}
+                    </a>
+                {% endfor %}
+            </li>
+            {% endif %}
         </ul>
-        {% for category in test_results %}
+        <h3>Test Results</h3>
+        {% for category in categories %}
         <div class="container pb-3">
-            <h3>{{ category["category_name"] }}</h3>
+            <h4 class="text-capitalize">{{ category["category_name"] }}</h4>
             <ul class="list-group list-group-numbered">
                 {% for metric_num in category["metrics"] %}
                 {% set metric = category["metrics"][metric_num] %}
                 <li class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="ms-2 me-auto">
-                        <strong>{{ metric["description"] }}</strong>
+                        <strong class="fs-5">{{ metric["description"] }}</strong>
                         {% if metric["message"] %}
                             <br/><em>{{ metric["message"] }}</em>
                         {% else %}
                             <br/><em>All tests passed for this metric!</em>
                         {% endif %}
                     </div>
-                    <span class="badge {{ badge_color(metric["outcome"]) }} rounded-pill text-light">
-                        {{ metric["outcome"] }}
-                    </span>
+                    {{ result_icon(metric["outcome"]) }}
                 </li>
                 {% endfor %}
             </ul>

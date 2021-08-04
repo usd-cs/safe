@@ -26,14 +26,13 @@ section_enrollment = Table(
     Column("section_id", Integer, ForeignKey("section.section_id")),
 )
 
-# TODO: make columns unique=True where appropriate
 
 class User(UserMixin, Base):
     __tablename__ = "user"
     user_id = Column(Integer, primary_key=True)
     admin = Column(Boolean, nullable=False, default=False)
     instructor = Column(Boolean, nullable=False, default=False)
-    username = Column(String, nullable=False)
+    username = Column(String, nullable=False, unique=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
 
@@ -59,7 +58,7 @@ class Section(Base):
 
     # many-to-many relationship
     users = relationship(
-        "User", secondary=section_enrollment, back_populates="sections"
+        "User", secondary=section_enrollment, order_by="User.last_name", back_populates="sections"
     )
 
     # one section to many assignments
@@ -69,7 +68,7 @@ class Section(Base):
 class BaseAssignment(Base):
     __tablename__ = "base_assignment"
     assignment_id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
+    title = Column(String, nullable=False, unique=True)
     tester_run_command = Column(String, nullable=False)
     max_runtime = Column(Integer, nullable=False)
 
@@ -91,7 +90,7 @@ class Assignment(Base):
     base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))
 
     # one assignment can have many teams
-    teams = relationship("Team", backref=backref("assignment"))
+    teams = relationship("Team", order_by="Team.team_num", backref=backref("assignment"))
 
 
 class Team(Base):
@@ -101,11 +100,13 @@ class Team(Base):
     assignment_id = Column(Integer, ForeignKey("assignment.assignment_id"))
 
     # one team may have many test results
-    results = relationship("TestResults", backref=backref("team"))
+    results = relationship("TestResults",
+                            order_by="desc(TestResults.completed_at)",
+                            backref=backref("team"))
 
     # many-to-many relationship between teams and users
     members = relationship(
-        "User", secondary=team_enrollment, back_populates="teams"
+        "User", secondary=team_enrollment, order_by="User.last_name", back_populates="teams"
     )
 
     def __repr__(self):
@@ -123,6 +124,19 @@ class TestResults(Base):
     completed_at = Column(TIMESTAMP)
 
     team_id = Column(Integer, ForeignKey("team.team_id"))
+
+    # one set of results can have many submitted files
+    submitted_files = relationship("SubmittedFile",
+                                    order_by="SubmittedFile.filename",
+                                    backref=backref("test_results"))
+
+
+class SubmittedFile(Base):
+    __tablename__ = "submitted_file"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String, nullable=False)
+    data = Column(LargeBinary, nullable=False)
+    job_id = Column(String, ForeignKey("test_results.job_id"))
 
 
 class SourceFile(Base):
