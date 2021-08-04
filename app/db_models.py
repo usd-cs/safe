@@ -26,14 +26,13 @@ section_enrollment = Table(
     Column("section_id", Integer, ForeignKey("section.section_id")),
 )
 
-# TODO: make columns unique=True where appropriate
 
 class User(UserMixin, Base):
     __tablename__ = "user"
     user_id = Column(Integer, primary_key=True)
     admin = Column(Boolean, nullable=False, default=False)
     instructor = Column(Boolean, nullable=False, default=False)
-    username = Column(String, nullable=False)
+    username = Column(String, nullable=False, unique=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
 
@@ -69,7 +68,7 @@ class Section(Base):
 class BaseAssignment(Base):
     __tablename__ = "base_assignment"
     assignment_id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
+    title = Column(String, nullable=False, unique=True)
     tester_run_command = Column(String, nullable=False)
     max_runtime = Column(Integer, nullable=False)
 
