@@ -12,94 +12,6 @@ def init_db(app):
     engine = create_engine(app.config['DATABASE_URI'],
                             echo=app.config['DATABASE_VERBOSE'])
 
-    # if database is empty (i.e. hasn't been initialized), initialize it by
-    # creating the basic tables.
-    if inspect(engine).get_table_names() == []:
-        print("Initializing database!")
-
-        # FIXME: use "with engine.connect() as connection" here for executing
-        engine.execute("""
-                        CREATE TABLE user (
-                          user_id INTEGER NOT NULL PRIMARY KEY,
-                          admin BOOLEAN NOT NULL,
-                          instructor BOOLEAN NOT NULL,
-                          username VARCHAR NOT NULL UNIQUE,
-                          first_name VARCHAR NOT NULL,
-                          last_name VARCHAR NOT NULL
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE section (
-                          section_id INTEGER NOT NULL PRIMARY KEY,
-                          course VARCHAR NOT NULL,
-                          semester VARCHAR NOT NULL,
-                          section_num INTEGER NOT NULL
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE base_assignment (
-                          assignment_id INTEGER NOT NULL PRIMARY KEY,
-                          title VARCHAR NOT NULL,
-                          tester_run_command VARCHAR NOT NULL,
-                          max_runtime INTEGER NOT NULL
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE assignment (
-                          assignment_id INTEGER NOT NULL PRIMARY KEY,
-                          num INTEGER NOT NULL,
-                          section_id INTEGER REFERENCES section,
-                          base_assignment_id INTEGER REFERENCES base_assignment
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE team (
-                          team_id INTEGER NOT NULL PRIMARY KEY,
-                          team_num INTEGER NOT NULL,
-                          assignment_id INTEGER REFERENCES assignment
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE test_results (
-                          job_id VARCHAR NOT NULL PRIMARY KEY,
-                          finished BOOLEAN NOT NULL,
-                          results VARCHAR,
-                          commit_time DATETIME,
-                          commit_author VARCHAR,
-                          commit_comment VARCHAR,
-                          completed_at DATETIME,
-                          team_id INTEGER REFERENCES team
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE source_file (
-                          source_file_id INTEGER NOT NULL PRIMARY KEY,
-                          filename VARCHAR NOT NULL,
-                          base_assignment_id INTEGER REFERENCES base_assignment
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE tester_file (
-                          id INTEGER NOT NULL PRIMARY KEY,
-                          filename VARCHAR NOT NULL,
-                          data BLOB NOT NULL,
-                          base_assignment_id INTEGER REFERENCES base_assignment
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE team_enrollment (
-                          user_id INTEGER REFERENCES student,
-                          team_id INTEGER REFERENCES team
-                        )
-                        """)
-        engine.execute("""
-                        CREATE TABLE section_enrollment (
-                          user_id INTEGER REFERENCES student,
-                          section_id INTEGER REFERENCES section
-                        )
-                        """)
-
-
     from . import db_models
     db_models.Base.metadata.create_all(engine)
 
@@ -107,7 +19,7 @@ def init_db(app):
     Session = sessionmaker(engine)
     with Session() as session:
         if session.query(db_models.User).count() == 0:
-            print(f"Creating first user: {app.config['FIRST_ADMIN_USER']}")
+            #print(f"Creating first user: {app.config['FIRST_ADMIN_USER']}")
 
             admin_user = db_models.User(username=app.config['FIRST_ADMIN_USER'][0],
                                         first_name=app.config['FIRST_ADMIN_USER'][1],
