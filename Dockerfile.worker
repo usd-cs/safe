@@ -9,6 +9,7 @@ RUN apk add tk
 
 USER safe
 
+RUN mkdir /safe/db
 RUN mkdir /safe/instance/repositories
 
 RUN mkdir /home/safe/.ssh
