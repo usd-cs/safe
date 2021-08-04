@@ -2,7 +2,7 @@ from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
     flash
 )
-from flask_login import current_user, login_user, logout_user
+from flask_login import current_user, login_user, logout_user, LoginManager
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField, SubmitField, PasswordField
@@ -10,14 +10,49 @@ from wtforms import (
 from wtforms.validators import DataRequired, InputRequired, Length, EqualTo
 from werkzeug.security import generate_password_hash
 
-# used for sending password recovery emails
-import secrets, hashlib, smtplib, ssl, datetime
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from sqlalchemy.orm import joinedload
+from cas import CASClient
 
 from . import db_models
 
 auth = Blueprint('auth', __name__)
+
+login_manager = LoginManager()
+
+
+def init_auth(app):
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = None
+
+    assert app.config['CAS_SERVER_URL'] is not None, "CAS_SERVER_URL not set in config"
+
+    with app.app_context():
+        app.cas_client = CASClient(
+            version=3,
+            service_url=f"{url_for('auth.verify_ticket', next=url_for('user_views.root', _external=False))}",
+            server_url=app.config['CAS_SERVER_URL']
+        )
+
+    #print('CAS service_url:', app.cas_client.service_url)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    print("loading user:", user_id)
+
+    with current_app.Session() as session:
+        matching_users = (
+            session.query(db_models.User)
+                .options(joinedload(db_models.User.sections))
+                .filter(db_models.User.user_id == int(user_id))
+        )
+
+    if matching_users.count() == 1:
+        return matching_users.first()
+    else:
+        print(f"Couldn't find user with id {user_id}")
+        return None
 
 
 @auth.route('/login', methods = ['POST', 'GET'])
