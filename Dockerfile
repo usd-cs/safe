@@ -1,6 +1,8 @@
 FROM python:alpine3.14
 
 RUN apk add build-base
+RUN apk add libxml2-dev
+RUN apk add libxslt-dev
 
 RUN adduser -D --uid 1000 safe
 
