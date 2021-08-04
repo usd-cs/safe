@@ -1,5 +1,6 @@
 import os
 
+APPLICATION_ROOT = '/safe'
 SECRET_KEY = 'dev'
 DATABASE_URI = 'sqlite:///:memory:'
 DATABASE_VERBOSE = False

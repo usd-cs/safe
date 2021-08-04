@@ -3,7 +3,11 @@ import subprocess
 import datetime
 import json
 import requests
+from flask import url_for
 from rq import get_current_job
+
+import app
+safe_app = app.create_app()
 
 def get_filenames(source_files):
     all_filenames = []
@@ -27,9 +31,10 @@ def testing_successful(job, conn, runner_output, *args, **kwargs):
     print(f"SUCCESS: {job_id}")
     #print(f"result: {runner_output}")
 
-    # FIXME: URL needs customized based on app's config
-    server_response = requests.post(f"http://localhost:5000/notify/success/{job_id}", 
-                                    json=runner_output)
+    with safe_app.app_context():
+        notification_url = url_for('notify.update_results', job_id=job_id, _external=True)
+
+    server_response = requests.post(notification_url, json=runner_output)
     print("Server Response:", server_response.text)
 
 
@@ -44,9 +49,10 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
 
     failure_info = { "error": str(exception_instance) }
 
-    # FIXME: URL needs customized based on app's config
-    server_response = requests.post(f"http://localhost:5000/notify/failed/{job_id}",
-                                    json=failure_info)
+    with safe_app.app_context():
+        notification_url = url_for('notify.remove_failed', job_id=job_id, _external=True)
+
+    server_response = requests.post(notification_url, json=failure_info)
     print("Server Response:", server_response.text)
 
 

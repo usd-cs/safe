@@ -1,18 +1,19 @@
 import os
+import json
+from dateutil import parser
 
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
     flash
 )
+from rq.job import Job
+
 from . import db_models
-from . import workers
 
 notify = Blueprint('notify', __name__)
 
 @notify.route("/failed/<job_id>", methods=["post"])
 def remove_failed(job_id):
-    from flask import request
-
     failure_info = request.get_json()
     if failure_info:
         print("Failure Reason:", failure_info["error"])
@@ -37,10 +38,7 @@ def remove_failed(job_id):
 
 @notify.route("/success/<job_id>", methods=["post"])
 def update_results(job_id):
-    from rq.job import Job
-    from flask import request
-    import json
-    from dateutil import parser
+    from app.workers import get_filenames
 
     results_data = request.get_json()
     if not results_data:
@@ -82,7 +80,7 @@ def update_results(job_id):
 
         # add student submitted files to test results
         source_files = [sf.filename for sf in test_results.team.assignment.base_assignment.files]
-        source_filenames = workers.get_filenames(source_files)
+        source_filenames = get_filenames(source_files)
 
         for filename in source_filenames:
             file_path = os.path.join(testing_dir, filename)
@@ -103,6 +101,7 @@ def update_results(job_id):
 @notify.route("<course>-<semester>-s<int:section>-psa<int:psa>")
 @notify.route("<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>")
 def handle_notification(course, semester, section, psa, group=None):
+    from app.workers import testing_successful, testing_failed
 
     with current_app.Session() as session:
         target_group = (
@@ -146,8 +145,8 @@ def handle_notification(course, semester, section, psa, group=None):
                                         repo_name, test_code_dir, test_command,
                                         max_runtime, source_files,
                                         tester_files,
-                                        on_success=workers.testing_successful,
-                                        on_failure=workers.testing_failed)
+                                        on_success=testing_successful,
+                                        on_failure=testing_failed)
         print(f"New Job ID: {job.get_id()}")
 
         new_test_results = db_models.TestResults(job_id=job.get_id(),
