@@ -3,12 +3,6 @@ from flask import (
     flash
 )
 from flask_login import current_user, login_user, logout_user, LoginManager
-from flask_wtf import FlaskForm
-from wtforms import (
-    StringField, SubmitField, PasswordField
-)
-from wtforms.validators import DataRequired, InputRequired, Length, EqualTo
-from werkzeug.security import generate_password_hash
 
 from sqlalchemy.orm import joinedload
 from cas import CASClient
