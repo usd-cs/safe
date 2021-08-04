@@ -1,44 +1,43 @@
 import sqlite3
 
 import click
-from flask import current_app, g
+from flask import current_app
 from flask.cli import with_appcontext
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import secrets
+
+from app.db_models import User, Base
 
 
 def init_db(app):
     engine = create_engine(app.config['DATABASE_URI'],
                             echo=app.config['DATABASE_VERBOSE'])
 
-    from . import db_models
-    db_models.Base.metadata.create_all(engine)
-
-    # if no users yet (i.e. first run), create our first admin user
-    Session = sessionmaker(engine)
-    with Session() as session:
-        if session.query(db_models.User).count() == 0:
-            #print(f"Creating first user: {app.config['FIRST_ADMIN_USER']}")
-
-            admin_user = db_models.User(username=app.config['FIRST_ADMIN_USER'][0],
-                                        first_name=app.config['FIRST_ADMIN_USER'][1],
-                                        last_name=app.config['FIRST_ADMIN_USER'][2],
-                                        admin=True,
-                                        instructor=True)
-            session.add(admin_user)
-            session.commit()
+    Base.metadata.create_all(engine)
 
     return engine
 
 
-@click.command('init-db')
+@click.command('add-admin')
+@click.argument('username')
+@click.argument('first_name')
+@click.argument('last_name')
 @with_appcontext
-def init_db_command():
-    """Clear the existing data and create new tables."""
-    init_db()
-    click.echo('Initialized the database.')
+def add_admin_user(username, first_name, last_name):
+    """Adds a new admin user to the database."""
+
+    with current_app.Session() as session:
+        admin_user = User(username=username,
+                            first_name=first_name,
+                            last_name=last_name,
+                            admin=True,
+                            instructor=True)
+        session.add(admin_user)
+        session.commit()
+
+    click.echo(f"Added new admin user: {first_name} {last_name} ({username}).")
+
+
 
 def init_app(app):
-    app.teardown_appcontext(close_db)
-    app.cli.add_command(init_db_command)
+    app.cli.add_command(add_admin_user)

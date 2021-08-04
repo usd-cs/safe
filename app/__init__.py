@@ -34,5 +34,6 @@ def create_app(test_config=None):
     app.register_blueprint(user_views.user_views)
     
     auth.init_auth(app)
+    db.init_app(app)
 
     return app
