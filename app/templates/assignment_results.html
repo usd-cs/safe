@@ -55,9 +55,9 @@
                     <div class="ms-2 me-auto">
                         <strong class="fs-5">{{ metric["description"] }}</strong>
                         {% if metric["message"] %}
-                            <br/><em>{{ metric["message"] }}</em>
+                            <p>{{ metric["message"] }}</p>
                         {% else %}
-                            <br/><em>All tests passed for this metric!</em>
+                            <br /><em>All tests passed for this metric!</em>
                         {% endif %}
                     </div>
                     {{ result_icon(metric["outcome"]) }}

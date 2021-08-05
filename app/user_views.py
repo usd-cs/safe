@@ -873,7 +873,7 @@ def psa_results(semester, section_num, psa_num, group_num):
             }
 
             if "message" in result:
-                new_metric["message"] = result["message"]
+                new_metric["message"] = Markup(result["message"])
 
             category_results["metrics"][result["test_num"]] = new_metric
 
