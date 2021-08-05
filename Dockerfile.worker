@@ -7,6 +7,8 @@ RUN apk add git
 RUN apk add openssh
 RUN apk add tk
 
+RUN venv/bin/pip install -r worker-requirements.txt
+
 USER safe
 
 RUN mkdir /safe/db
