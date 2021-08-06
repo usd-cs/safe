@@ -62,7 +62,7 @@ class Section(Base):
     )
 
     # one section to many assignments
-    assignments = relationship("Assignment", backref=backref("section"))
+    assignments = relationship("Assignment", order_by="Assignment.num", backref=backref("section"))
 
 
 class BaseAssignment(Base):
