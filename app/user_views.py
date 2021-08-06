@@ -313,10 +313,11 @@ def section_overview(semester, section_num):
 
                 return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
 
-        elif new_assignment_form.is_submitted():
+        elif request.method == 'POST' and request.form['submit'] == "Create Assignment":
             # form was submitted but validation failed so tell template so it
             # can pop the modal up again
             new_assignment_failed = True
+
 
         remove_students_form = RemoveStudentsForm()
 
@@ -330,6 +331,8 @@ def section_overview(semester, section_num):
 
         all_enrolled_students = [(s.user_id, s.username) for s in enrolled_students]
         remove_students_form.students_to_remove.choices = all_enrolled_students
+
+        roster_upload_failed = False
 
         if remove_students_form.validate_on_submit():
             for student_id in remove_students_form.students_to_remove.data:
@@ -346,11 +349,13 @@ def section_overview(semester, section_num):
                     # send 500 response
                     abort(500)
 
+                # TODO: Use section.users.remove for simplicity
                 s = delete(db_models.section_enrollment).where(and_(
                         db_models.section_enrollment.c.section_id == section.section_id,
                         db_models.section_enrollment.c.user_id == student_id))
                 session.execute(s)
 
+                # TODO: change this to return teams that the student is a member of
                 student_team_enrollments = (
                     session.query(db_models.team_enrollment)
                         .join(db_models.Team)
@@ -360,18 +365,25 @@ def section_overview(semester, section_num):
                         .filter(db_models.team_enrollment.c.user_id == student_id)
                 )
 
+                # TODO: Use team.members.remove for simplicity
                 for t in student_team_enrollments:
                     s = delete(db_models.team_enrollment).where(and_(
                             db_models.team_enrollment.c.team_id == t.team_id,
                             db_models.team_enrollment.c.user_id == t.user_id))
                     session.execute(s)
 
+                    # TODO: remove teams that no longer have any members after
+                    # removing this student???
+
                 session.commit()
 
-                # TODO: remove teams that no longer have any members after
-                # removing this student???
 
             return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+        elif request.method == 'POST' and request.form['submit'] == "Upload Roster":
+            # form was submitted but validation failed so tell template so it
+            # can pop the modal up again
+            roster_upload_failed = True
 
         remove_students_form.students_to_remove.choices = all_enrolled_students
 
@@ -403,7 +415,8 @@ def section_overview(semester, section_num):
                                 assignment_form=new_assignment_form,
                                 remove_students_form=remove_students_form,
                                 roster_form=roster_upload_form,
-                                new_assignment_failed=new_assignment_failed
+                                new_assignment_failed=new_assignment_failed,
+                                roster_upload_failed=roster_upload_failed
                                 )
 
 

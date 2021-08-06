@@ -97,15 +97,16 @@
                     for the DATA and <strong>"Comma"</strong> as the Delimiter
                     Type in OPTIONS.</p>
 
+                    <div class="container border pt-2 pb-2">
+                        {{ forms.input(roster_form.roster_file, "", "form-control-file") }}
+                        <div class="form-group pt-2">
+                            {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
+                        </div>
+                    </div>
+
                     <p>Note: Selecting <strong>Enable Add/Drop</strong> will
                     remove any students who do not appear in the uploaded roster
                     file.</p>
-
-                    <strong>Roster File:</strong>
-                    {{ roster_form.roster_file(class_="form-control-file") }}
-                    <div class="form-group pt-2 pb-2">
-                        {{ roster_form.add_drop(class_="pl-2 form-check-input") }} {{ roster_form.add_drop.label }}
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
@@ -152,6 +153,17 @@
     document.addEventListener('DOMContentLoaded', function() {
         var addAssignmentModal = document.getElementById('addAssignmentModal');
         var modal = new bootstrap.Modal(addAssignmentModal);
+        modal.show();
+    }, false);
+</script>
+{% endif %}
+
+{% if roster_upload_failed %}
+<script type="text/javascript">
+    // Same as above, but for failures in the roster upload form.
+    document.addEventListener('DOMContentLoaded', function() {
+        var uploadRosterModal = document.getElementById('uploadRosterModal');
+        var modal = new bootstrap.Modal(uploadRosterModal);
         modal.show();
     }, false);
 </script>
