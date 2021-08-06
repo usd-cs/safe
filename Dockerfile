@@ -1,10 +1,8 @@
-FROM python:alpine3.14
+FROM python:3.9-slim-buster
 
-RUN apk add build-base
-RUN apk add libxml2-dev
-RUN apk add libxslt-dev
+RUN apt-get update
 
-RUN adduser -D --uid 1000 safe
+RUN adduser --system --group --uid 1000 safe
 
 RUN mkdir /safe
 RUN mkdir /safe/instance

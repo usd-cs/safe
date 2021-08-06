@@ -3,10 +3,12 @@ ARG GIT_SERVER
 
 USER root
 
-RUN apk add git
-RUN apk add openssh
-RUN apk add tk
+RUN apt-get -y install git
+RUN apt-get -y install openssh-client
+RUN apt-get -y install tk
+RUN apt-get -y install build-essential
 
+COPY worker-requirements.txt worker-requirements.txt
 RUN venv/bin/pip install -r worker-requirements.txt
 
 USER safe

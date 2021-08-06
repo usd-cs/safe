@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 source venv/bin/activate
 
 #exec flask run -h 0.0.0.0
