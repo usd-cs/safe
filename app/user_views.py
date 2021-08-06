@@ -12,7 +12,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileRequired
+from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import (
     StringField, SubmitField, IntegerField, MultipleFileField, SelectField,
     SelectMultipleField, BooleanField
@@ -78,8 +78,9 @@ class NewAssignmentForm(FlaskForm):
 
 
 class RosterUploadForm(FlaskForm):
-    roster_file = FileField('Class Roster', validators=[FileRequired()])
-            #validators=[Regexp('^.*\.(csv|CSV)$', message="Must be CSV file format")])
+    roster_file = FileField('Class Roster', 
+                            validators=[FileRequired(),
+                                        FileAllowed(['csv'], 'Roster file must be CSV format')])
     add_drop = BooleanField('Enable Add/Drop')
     submit = SubmitField('Upload Roster')
 
