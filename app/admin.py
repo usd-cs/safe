@@ -36,7 +36,7 @@ class NewInstructorForm(FlaskForm):
     last_name = StringField('Last Name', validators=[DataRequired()])
     username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
     admin = BooleanField('Admin')
-    submit = SubmitField('Submit')
+    submit = SubmitField('Create Instructor')
 
 
 @admin.route('/')
@@ -118,11 +118,11 @@ class NewSectionForm(FlaskForm):
     #semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
     section_num = IntegerField('Section Number', validators=[NumberRange(min=1)])
     instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Create Section")
 
 class ModifySectionForm(FlaskForm):
     instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Update Instructors")
 
 
 @admin.route('/sections/modify', methods=['get', 'post'])
@@ -322,7 +322,7 @@ def get_tester_file(assignment_id, filename, session):
 
 class AddTesterFilesForm(FlaskForm):
     new_files = MultipleFileField('New Tester Files', validators=[DataRequired()])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Add Files")
 
 
 @admin.route("/assignments/<int:assignment_id>/tester_files/add", methods=['get','post'])
@@ -501,7 +501,7 @@ class NewAssignmentForm(FlaskForm):
     files = StringField('Assignment Files', validators=[DataRequired()])
     tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Create Assignment")
 
 
 @admin.route('/assignments', methods=['get', 'post'])

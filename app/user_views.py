@@ -548,12 +548,12 @@ def delete_group(semester, section_num, psa_num, group_num):
 class NewGroupForm(FlaskForm):
     group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Create Group")
 
 
 class UpdateGroupMembersForm(FlaskForm):
     members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
-    submit = SubmitField("Submit")
+    submit = SubmitField("Update Members")
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
