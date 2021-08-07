@@ -2,26 +2,40 @@
 {% import 'forms.html' as forms %}
 
 {% block body %}
-<div class="container pt-3">
-	<h2>Add Tester Files</h2>
-    <ul class="list-group">
-        <li class="list-group-item"><strong>Assignment Title:</strong>
-            {{assignment.title}}</li>
-        {% if assignment.tester_files|length > 0 %}
-        <li class="list-group-item"><strong>Existing Files:</strong> 
-            <ul>
-            {% for tf in assignment.tester_files %}
-                <li>{{tf.filename}}</li>
-            {% endfor %}
-            </ul>
-        </li>
-        {% endif %}
-    </ul>
-    <div class="container pt-3">
+<div class="container pt-1">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.admin_home') }}">Admin</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.admin_assignments') }}">Assignments</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Add Tester Files</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="container pt-2">
+    <h2>SAFE Admin: Tester Files ({{assignment.title}})</h2>
+    <hr/>
+</div>
+
+<div class="container pt-2">
+    {% if assignment.tester_files|length > 0 %}
+    <h4>Existing Tester Files:</h4> 
+    <ol>
+    {% for tf in assignment.tester_files %}
+        <li>{{tf.filename}}</li>
+    {% endfor %}
+    </ol>
+    {% endif %}
+
+    <div class="container pt-2">
         <form method="POST" action="" enctype="multipart/form-data">
             {{ files_form.csrf_token() }}
             {{ forms.input(files_form.new_files, "", "form-control-file") }}
-            {{ files_form.submit(class_="btn btn-outline-primary btn-sm") }}
+            {{ files_form.submit(class_="btn btn-primary btn-sm") }}
         </form>
     </div>
 </div>
