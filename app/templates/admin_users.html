@@ -2,9 +2,14 @@
 {% import 'forms.html' as forms %}
 
 {% block body %}
-    <div class="container pt-3">
-        <h2>Current Users</h2>
-        <table class="table">
+    <div class="container pt-2">
+        <h2>SAFE Admin: Users</h2>
+        <hr/>
+    </div>
+
+    <div class="container pt-2">
+        <h3>Current Users</h3>
+        <table class="table table-striped">
             <thead>
                 <tr>
                     <th scope="col">Last</th>
@@ -28,8 +33,9 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('admin.admin_delete_user', id=user.user_id) }}">
-                            Delete User</a>
+                        <a class="text-decoration-none link-danger" href="{{ url_for('admin.admin_delete_user', id=user.user_id) }}">
+                            <i class="bi-x-square-fill"></i>
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}

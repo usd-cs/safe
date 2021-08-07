@@ -2,9 +2,14 @@
 {% import 'forms.html' as forms %}
 
 {% block body %}
-    <div class="container pt-3">
-        <h2>Current Instructors</h2>
-        <table class="table">
+    <div class="container pt-2">
+        <h2>SAFE Admin: Instructors</h2>
+        <hr/>
+    </div>
+
+    <div class="container pt-2">
+        <h3>Current Instructors</h3>
+        <table class="table table-striped">
             <thead>
                 <tr>
                     <th scope="col">Last</th>
@@ -42,8 +47,9 @@
             </tbody>
         </table>
     </div>
-    <div class="container border pt-3 pb-3">
-        <h2>Add New Instructor</h2>
+
+    <div class="container pt-2">
+        <h3>Add New Instructor</h3>
         <form method="POST" action="">
             {{ form.csrf_token() }}
             {{ forms.input(form.first_name, "Enter Instructor's First Name") }}
@@ -51,7 +57,7 @@
             <div class="form-group">
                 <strong>{{ form.username.label }}:</strong>
                 <div class="input-group">
-                    {{ form.username(class_="form-control", placeholder="Enter USD username") }}
+                    {{ form.username(class_="form-control", placeholder="Enter Instructor's USD username") }}
                     <span class="input-group-text" id="basic-addon2">@sandiego.edu</span>
                 </div>
                 {% if form.username.errors %} 
@@ -62,7 +68,7 @@
                 </small>
                 {% endif %}
             </div>
-            <div class="form-group pt-2 pb-2">
+            <div class="form-group ms-1 pt-2 pb-2">
                 {{ form.admin(class_="pl-2 form-check-input") }} {{ form.admin.label }}
             </div>
             {{ form.submit(class_="btn btn-primary") }}

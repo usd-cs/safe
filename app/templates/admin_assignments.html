@@ -2,9 +2,14 @@
 {% import 'forms.html' as forms %}
 
 {% block body %}
-    <div class="container pt-3">
-        <h2>Existing Assignments</h2>
-        <table class="table">
+    <div class="container pt-2">
+        <h2>SAFE Admin: Assignments</h2>
+        <hr/>
+    </div>
+
+    <div class="container pt-2">
+        <h3>Existing Assignments</h3>
+        <table class="table table-striped">
             <thead>
                 <tr>
                     <th scope="col">Title</th>
@@ -55,8 +60,8 @@
         </table>
     </div>
 
-    <div class="container border pt-3 pb-3">
-        <h2>Add Assignment</h2>
+    <div class="container pt-2">
+        <h3>Add Assignment</h3>
         <form method="POST" action="" enctype="multipart/form-data">
             {{ assignment_form.csrf_token() }}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
@@ -70,7 +75,7 @@
                 </div>
             </div>
             {{ forms.input(assignment_form.tester_files, "", "form-control-file") }}
-            {{ assignment_form.submit(class_="btn btn-outline-primary btn-sm") }}
+            {{ assignment_form.submit(class_="btn btn-primary btn-sm") }}
         </form>
     </div>
 
