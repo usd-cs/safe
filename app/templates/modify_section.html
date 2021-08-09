@@ -27,6 +27,10 @@
         <form method="POST" action="">
             {{ form.csrf_token() }}
             {{ forms.checkbox_input(form.instructors) }}
+            <button type="button" class="btn btn-danger"
+                                  onclick="window.location.href='{{ url_for('admin.admin_sections') }}';">
+                Cancel
+            </button>
             {{ form.submit(class_="btn btn-primary") }}
         </form>
     </div>
