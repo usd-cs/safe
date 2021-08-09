@@ -17,25 +17,34 @@
 </div>
 
 <div class="container pt-2">
-    <h2>SAFE Admin: Tester Files ({{assignment.title}})</h2>
+    <h2>SAFE Admin: Add Tester Files</h2>
     <hr/>
 </div>
 
 <div class="container pt-2">
+    <h3>Assignment: {{assignment.title}}</h3>
     {% if assignment.tester_files|length > 0 %}
-    <h4>Existing Tester Files:</h4> 
-    <ol>
-    {% for tf in assignment.tester_files %}
-        <li>{{tf.filename}}</li>
-    {% endfor %}
-    </ol>
+    <div class="container pt-2">
+        <h5>Existing Tester Files:</h5> 
+        <ol>
+            {% for tf in assignment.tester_files %}
+            <li>{{tf.filename}}</li>
+            {% endfor %}
+        </ol>
+    </div>
     {% endif %}
 
-    <div class="container pt-2">
+    <div class="container pt-1">
         <form method="POST" action="" enctype="multipart/form-data">
             {{ files_form.csrf_token() }}
             {{ forms.input(files_form.new_files, "", "form-control-file") }}
-            {{ files_form.submit(class_="btn btn-primary btn-sm") }}
+            <div class="container pt-2 ps-0">
+                <button type="button" class="btn btn-danger"
+                                      onclick="window.location.href='{{ url_for('admin.admin_assignments') }}';">
+                    Cancel
+                </button>
+                {{ files_form.submit(class_="btn btn-primary") }}
+            </div>
         </form>
     </div>
 </div>
