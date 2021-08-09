@@ -1,4 +1,6 @@
 import os
+import re
+
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
     flash
@@ -25,18 +27,19 @@ from app.helper import get_formatted_file_contents
 admin = Blueprint('admin', __name__)
 
 
-def check_instructor_username(form, field):
-    with current_app.Session() as session:
-        if session.query(db_models.User).filter(db_models.User.username == field.data).count() != 0:
-            raise ValidationError("An instructor with that username already exists")
 
 
 class NewInstructorForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
-    username = StringField('USD Username', validators=[DataRequired(), check_instructor_username])
+    username = StringField('USD Username', validators=[DataRequired()])
     admin = BooleanField('Admin')
     submit = SubmitField('Create Instructor')
+
+    def validate_username(form, field):
+        with current_app.Session() as session:
+            if session.query(db_models.User).filter(db_models.User.username == field.data).count() != 0:
+                raise ValidationError("An instructor with that username already exists")
 
 
 @admin.route('/')
@@ -494,14 +497,36 @@ def admin_delete_user():
 
 
 class NewAssignmentForm(FlaskForm):
-    # TODO: add validator that title is unique
     title = StringField('Assignment Title', validators=[DataRequired()])
     tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
-    # TODO: add validator for formated of files field
+
     files = StringField('Assignment Files', validators=[DataRequired()])
     tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
     submit = SubmitField("Create Assignment")
+
+    def validate_title(form, field):
+        """ Validate that title isn't already used by an assignment. """
+        with current_app.Session() as session:
+            if session.query(db_models.BaseAssignment).filter(db_models.BaseAssignment.title == field.data).count() != 0:
+                raise ValidationError("An assignment with that title already exists")
+
+    def validate_files(form, field):
+        """
+        Validate that source filenames do not contain any invalid characters.
+        """
+
+        filenames = field.data.split()
+
+        bad_names = []
+
+        for f in filenames:
+            if not re.fullmatch("\w[\w-]*(\.[\w-]+)*", f):
+                bad_names.append(f)
+
+        if len(bad_names) != 0:
+            raise ValidationError("The following filenames are invalid: " + ", ".join(bad_names))
+
 
 
 @admin.route('/assignments', methods=['get', 'post'])
