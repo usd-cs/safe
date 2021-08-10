@@ -13,6 +13,9 @@
             {{section.section_num}} ({{section.semester | upper}})
         </li>
         <li class="list-group-item">
+            <strong>Deadline:</strong> {{ assignment.deadline.strftime("%b %d, %Y @ %I:%M %p") }}
+        </li>
+        <li class="list-group-item">
             <strong>Student Submitted Files:</strong> 
             <ul>
                 {% for sf in assignment.base_assignment.files %}

@@ -84,7 +84,7 @@ class Assignment(Base):
     __tablename__ = "assignment"
     assignment_id = Column(Integer, primary_key=True)
     num = Column(Integer, nullable=False)
-    # TODO: add deadline column
+    deadline = Column(TIMESTAMP, nullable=False)
 
     section_id = Column(Integer, ForeignKey("section.section_id"))
     base_assignment_id = Column(Integer, ForeignKey("base_assignment.assignment_id"))

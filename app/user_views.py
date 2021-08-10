@@ -3,6 +3,7 @@ import secrets
 import string
 import json
 import csv
+import datetime
 
 from sqlalchemy import insert, delete, and_
 
@@ -20,7 +21,9 @@ from wtforms import (
 from wtforms.validators import (
     DataRequired, Regexp, NumberRange, ValidationError
 )
+from wtforms.fields import DateField, TimeField
 from wtforms.widgets import CheckboxInput, HiddenInput
+from wtforms.widgets.html5 import DateInput, TimeInput
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 
@@ -76,6 +79,8 @@ def permission_denied(error):
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     base_assignment_id = SelectField('Base Assignment', coerce=int)
+    due_date = DateField('Due Date', widget=DateInput(), validators=[DataRequired()])
+    due_time = TimeField('Due Time', widget=TimeInput(), validators=[DataRequired()])
     section_id = IntegerField('Section ID',
                                 widget=HiddenInput(), 
                                 validators=[NumberRange(min=0)])
@@ -304,11 +309,16 @@ def section_overview(semester, section_num):
         new_assignment_form.base_assignment_id.choices = base_choices
 
         if new_assignment_form.validate_on_submit():
+            # combine due date and time into single datetime
+            deadline = datetime.datetime.combine(new_assignment_form.due_date.data,
+                                                    new_assignment_form.due_time.data)
+
             # create new assignment based on the selected base assignment
             # and add it to our database
             new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
                                                     section_id=section.section_id,
-                                                    base_assignment_id=new_assignment_form.base_assignment_id.data)
+                                                    base_assignment_id=new_assignment_form.base_assignment_id.data,
+                                                    deadline=deadline)
 
             session.add(new_assignment)
             session.commit()
@@ -899,6 +909,13 @@ def psa_results(semester, section_num, psa_num, group_num):
         categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
 
         commit_time = f"{latest_test_results.commit_time: %b %d, %Y @ %I:%M:%S %p}"
+
+        # add a late notice to time string
+        if latest_test_results.commit_time > assignment.deadline:
+            commit_time += " (<span class=\"text-danger\"><strong>LATE</strong></span>)"
+
+        commit_time = Markup(commit_time)
+
         results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
 
         return render_template("assignment_results.html",

@@ -137,6 +137,14 @@
                             {{ forms.input(assignment_form.base_assignment_id, "", "form-select") }}
                         </div>
                     </div>
+                    <strong>Deadline:</strong>
+                    <div class="row pb-3">
+                        <div class="col">
+                            {{ assignment_form.due_date(class="form-control") }}
+                        </div>
+                        <div class="col">
+                            {{ assignment_form.due_time(class="form-control") }}
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
