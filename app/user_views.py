@@ -25,7 +25,6 @@ from wtforms.fields import DateField, TimeField
 from wtforms.widgets import CheckboxInput, HiddenInput
 from wtforms.widgets.html5 import DateInput, TimeInput
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash
 
 from . import db_models
 from . import admin
@@ -637,6 +636,39 @@ def get_students_without_groups(section_id, assignment_id):
 class CopyGroupsForm(FlaskForm):
     assignment_num = SelectField('Assignment', coerce=int)
     submit = SubmitField("Copy Groups")
+
+
+@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/delete")
+@login_required
+def delete_assignment(semester, section_num, psa_num):
+    with current_app.Session() as session:
+        query_results = (
+            session.query(db_models.Section, db_models.Assignment)
+                .join(db_models.Section.assignments)
+                .filter(db_models.Section.course == "comp110")
+                .filter(db_models.Section.semester == semester)
+                .filter(db_models.Section.section_num == section_num)
+                .filter(db_models.Assignment.num == psa_num)
+                .first()
+        )
+
+        if not query_results:
+            # couldn't find assignment
+            abort(404)
+
+        section, assignment = query_results
+
+        if (not current_user.instructor) or (current_user not in section.users):
+            # only permit instructors for this section
+            abort(403)
+
+        session.delete(assignment)
+        session.commit()
+
+        flash(f"Successfully deleted PSA {psa_num}", "info")
+
+        return redirect(url_for('.section_overview', semester=semester, section_num=section_num))
+
 
 
 # TODO: generalize for non comp110-courses
