@@ -17,8 +17,10 @@ from wtforms import (
     StringField, SubmitField, IntegerField, MultipleFileField, SelectField,
     SelectMultipleField, BooleanField
 )
-from wtforms.validators import DataRequired, Regexp, NumberRange 
-from wtforms.widgets import CheckboxInput
+from wtforms.validators import (
+    DataRequired, Regexp, NumberRange, ValidationError
+)
+from wtforms.widgets import CheckboxInput, HiddenInput
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 
@@ -74,7 +76,22 @@ def permission_denied(error):
 class NewAssignmentForm(FlaskForm):
     assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     base_assignment_id = SelectField('Base Assignment', coerce=int)
+    section_id = IntegerField('Section ID',
+                                widget=HiddenInput(), 
+                                validators=[NumberRange(min=0)])
     submit = SubmitField("Create Assignment")
+
+    def validate_assignment_num(form, field):
+        with current_app.Session() as session:
+            num_matches = (
+                    session.query(db_models.Assignment)
+                        .filter(db_models.Assignment.section_id == form.section_id.data)
+                        .filter(db_models.Assignment.num == form.assignment_num.data)
+                        .count()
+            )
+
+            if num_matches != 0:
+                raise ValidationError("Number already in use")
 
 
 class RosterUploadForm(FlaskForm):
@@ -279,7 +296,7 @@ def section_overview(semester, section_num):
                                     assignments=assignment_info
                                     )
 
-        new_assignment_form = NewAssignmentForm()
+        new_assignment_form = NewAssignmentForm(section_id=section.section_id)
         new_assignment_failed = False
 
         base_choices = [(ba.assignment_id, ba.title) 
@@ -287,32 +304,19 @@ def section_overview(semester, section_num):
         new_assignment_form.base_assignment_id.choices = base_choices
 
         if new_assignment_form.validate_on_submit():
-            # TODO: make this a forms validator so error shows up next to fields
-            # rather than a flash at the top after submitting
-            num_matches = (
-                    session.query(db_models.Assignment)
-                        .filter(db_models.Assignment.section_id == section.section_id)
-                        .filter(db_models.Assignment.num == new_assignment_form.assignment_num.data)
-                        .count()
-            )
+            # create new assignment based on the selected base assignment
+            # and add it to our database
+            new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
+                                                    section_id=section.section_id,
+                                                    base_assignment_id=new_assignment_form.base_assignment_id.data)
 
-            if num_matches != 0:
-                flash(f"Assignment {new_assignment_form.assignment_num.data} already exists!", "danger")
+            session.add(new_assignment)
+            session.commit()
 
-            else:
-                # create new assignment based on the selected base assignment
-                # and add it to our database
-                new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
-                                                        section_id=section.section_id,
-                                                        base_assignment_id=new_assignment_form.base_assignment_id.data)
+            flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
+                    "info")
 
-                session.add(new_assignment)
-                session.commit()
-
-                flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
-                        "info")
-
-                return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+            return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
 
         elif request.method == 'POST' and request.form['submit'] == "Create Assignment":
             # form was submitted but validation failed so tell template so it
