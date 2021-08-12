@@ -559,7 +559,7 @@ def delete_group(semester, section_num, psa_num, group_num):
 
 
 class NewGroupForm(FlaskForm):
-    group_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
+    group_num = IntegerField('Group Number', validators=[NumberRange(min=0)])
     members = admin.MultiCheckboxField('Group Member(s)', coerce=int, validators=[DataRequired()])
     submit = SubmitField("Create Group")
 
