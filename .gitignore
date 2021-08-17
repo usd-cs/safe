@@ -1,6 +1,7 @@
 *.swp
 *.sqlite3
 dump.rdb
+safe.log
 
 instance/
 __pycache__

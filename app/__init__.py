@@ -1,4 +1,5 @@
 import os
+import logging
 
 from flask import Flask
 from sqlalchemy.orm import sessionmaker
@@ -18,6 +19,13 @@ def create_app(test_config=None):
 
     app.config.from_object('config')
     app.config.from_pyfile('config.py', silent=True)
+
+    # setting of logging of app-specific messages to safe.log
+    handler = logging.FileHandler('safe.log')
+    handler.setLevel(app.config.get('LOGGING_LEVEL', logging.INFO))
+    formatter = logging.Formatter('%(asctime)s %(levelname)s [%(filename)s:%(lineno)d - %(funcName)s] : %(message)s')
+    handler.setFormatter(formatter)
+    app.logger.addHandler(handler)
 
     # ensure that the instance folder exists (creating if necessary)
     os.makedirs(app.instance_path, exist_ok=True)
