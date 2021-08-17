@@ -27,6 +27,15 @@ def create_app(test_config=None):
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
 
+    if app.config.get('EMAIL_ERRORS', False):
+        # email error and critical events to admin(s)
+        mail_handler = logging.handlers.SMTPHandler(mailhost=app.config['SMTP_SERVER'],
+                                                    fromaddr=app.config['EMAIL_FROM'],
+                                                    toaddrs=app.config['EMAIL_ERRORS_TO'],
+                                                    subject="SAFE Error Report")
+        mail_handler.setLevel(logging.ERROR)
+        app.logger.addHandler(mail_handler)
+
     # ensure that the instance folder exists (creating if necessary)
     os.makedirs(app.instance_path, exist_ok=True)
 
