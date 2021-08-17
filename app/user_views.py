@@ -160,11 +160,9 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                     if student_to_add:
                         # found the student already so no need to create a
                         # new User object
-                        print(f"User with {username} already exists. Skipping creation!")
+                        current_app.logger.debug(f"User with {username} already exists. Skipping creation!")
                     else:
                         # Create new User and add to database
-                        print(f"Creating student user with username {username}")
-
                         student_to_add = db_models.User(username=username,
                                                         first_name=first_name,
                                                         last_name=last_name,
@@ -172,6 +170,8 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                                                         admin=False)
                         session.add(student_to_add)
                         session.flush()
+
+                        current_app.logger.info(f"Created student user with username {username}")
 
                     students_in_file.append(student_to_add)
 
@@ -188,6 +188,9 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                         )
                         session.execute(statement)
 
+                    current_app.logger.debug(f"Skipped (Already enrolled): {duplicate_students}")
+                    current_app.logger.info(f"Enrolled: {new_students}")
+
                     session.commit()
 
                 if add_drop:
@@ -199,6 +202,7 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                     for student in students_to_remove:
                         # remove student from section
                         section.users.remove(student)
+                        current_app.logger.info(f"Removed {student.username} from section {section.section_id}")
 
                         # remove student from section teams they may be in
                         teams_with_student = (
@@ -212,6 +216,7 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
 
                         for team in teams_with_student:
                             team.members.remove(student)
+                            current_app.logger.debug(f"Removed from team {team.team_id}")
 
                     session.commit()
 
@@ -224,8 +229,8 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                     flash(f"Skipped {len(duplicate_students)} who were already enrolled.", "warning")
     
     except UnicodeError as e:
+        current_app.logger.warning(f"Roster file has incorrect encoding.")
         flash(f"Roster file has incorrect encoding. Did you download it from Blackboard?", "danger")
-        print("Error Opening file:", e)
 
 
 class RemoveStudentsForm(FlaskForm):
@@ -350,7 +355,6 @@ def section_overview(semester, section_num):
 
         if remove_students_form.validate_on_submit():
             for student_id in remove_students_form.students_to_remove.data:
-                print("removing student with ID", student_id)
 
                 student = (
                     session.query(db_models.User)
@@ -361,7 +365,10 @@ def section_overview(semester, section_num):
                 if not student:
                     # if we don't find that student, something bad happened so
                     # send 500 response
+                    current_app.logger.error(f"Student with ID {student_id} not found")
                     abort(500)
+
+                current_app.logger.info(f"Removing {student.username} from section")
 
                 # TODO: Use section.users.remove for simplicity
                 s = delete(db_models.section_enrollment).where(and_(
@@ -385,6 +392,7 @@ def section_overview(semester, section_num):
                             db_models.team_enrollment.c.team_id == t.team_id,
                             db_models.team_enrollment.c.user_id == t.user_id))
                     session.execute(s)
+                    current_app.logger.debug(f"Removed from team {t.team_id}")
 
                     # TODO: remove teams that no longer have any members after
                     # removing this student???

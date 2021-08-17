@@ -46,6 +46,7 @@ class NewInstructorForm(FlaskForm):
 @login_required
 def admin_home():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
         
     return render_template("admin.html", 
@@ -57,6 +58,7 @@ def admin_home():
 @login_required
 def admin_users():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
     with current_app.Session() as session:
@@ -72,6 +74,7 @@ def admin_users():
 @login_required
 def admin_instructors():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
         
     form = NewInstructorForm()
@@ -88,6 +91,7 @@ def admin_instructors():
             session.commit()
 
             flash(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}", "success")
+            current_app.logger.info(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}")
 
         return redirect(url_for('.admin_instructors'))
 
@@ -132,17 +136,20 @@ class ModifySectionForm(FlaskForm):
 @login_required
 def modify_section():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
     section_id = request.args.get('section_id')
 
     if not section_id:
+        current_app.logger.error("Missing section_id")
         abort(404)
     else:
         try:
             section_id = int(section_id)
         except ValueError:
             flash(f"Invalid value for section_id: {section_id}", "danger")
+            current_app.logger.error(f"Invalid section_id: {section_id}")
             return redirect(url_for('.admin_sections'))
 
     with current_app.Session() as session:
@@ -154,6 +161,7 @@ def modify_section():
             )
 
         if not section:
+            current_app.logger.error(f"No section found with id {section_id}")
             abort(404)
 
         all_instructors = (
@@ -172,7 +180,7 @@ def modify_section():
     previous_instructors_ids = [i.user_id for i in section_instructors]
 
     if form.validate_on_submit():
-        print("\n\n\nMOOOO selected:", form.instructors.data)
+        current_app.logger.debug(f"selected instructors: {form.instructors.data}")
         with current_app.Session() as session:
             # add newly selected instructors to section
             for instructor_id in form.instructors.data:
@@ -182,6 +190,7 @@ def modify_section():
                             .values(user_id=instructor_id, section_id=section_id)
                     )
                     session.execute(statement)
+                    current_app.logger.debug(f"Added instructor {instructor_id}")
 
             # remove old instructors who weren't selected this time
             for instructor_id in previous_instructors_ids:
@@ -192,8 +201,10 @@ def modify_section():
                                 db_models.section_enrollment.c.section_id == section_id)
                     )
                     session.execute(statement)
+                    current_app.logger.debug(f"Removed instructor {instructor_id}")
 
             session.commit()
+            current_app.logger.info(f"Updated instructors for section {section_id}")
 
             return redirect(url_for('.modify_section', section_id=section_id))
 
@@ -211,6 +222,7 @@ def modify_section():
 @login_required
 def admin_sections():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
         
     form = NewSectionForm()
@@ -247,7 +259,7 @@ def admin_sections():
                                     db_models.User.instructor == False))
                     .count()
             )
-            print(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
+            current_app.logger.debug(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
             section_info.append((section, section_instructors, num_students))
 
     id_list = [i.user_id for i in all_instructors]
@@ -295,14 +307,17 @@ def admin_sections():
                         .values(user_id=instructor_id, section_id=new_section.section_id)
                 )
                 session.execute(statement)
+                current_app.logger.debug(f"Added instructor {instructor_id} to section")
 
             session.commit()
 
+            current_app.logger.info(f"Added new section (ID: {new_section.section_id}): {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})")
             flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
 
         return redirect(url_for('.admin_sections'))
 
-    print("form errors:", form.errors)
+    if form.errors:
+        current_app.logger.debug(f"form errors: {form.errors}")
 
     form.instructors.choices = zip(id_list, name_list)
 
@@ -332,6 +347,7 @@ class AddTesterFilesForm(FlaskForm):
 @login_required
 def add_tester_files(assignment_id):
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
     with current_app.Session() as session:
@@ -342,6 +358,7 @@ def add_tester_files(assignment_id):
         )
 
         if not assignment:
+            current_app.logger.warning(f"No assignment with id {assignment_id}")
             abort(404)
 
         add_files_form = AddTesterFilesForm()
@@ -361,6 +378,7 @@ def add_tester_files(assignment_id):
                 if tf.filename in existing_tester_files:
                     # if there is already a file with this name, skip it
                     skipped_files.append(tf.filename)
+                    current_app.logger.debug(f"Skipped existing file: {tf.filename}")
                     continue
 
                 # TODO: store tf.content_type attribute in DB
@@ -368,6 +386,7 @@ def add_tester_files(assignment_id):
                                                         data=tf.read(),
                                                         base_assignment_id=assignment.assignment_id)
                 session.add(new_tester_file)
+                current_app.logger.info(f"Added {tf.filename} to assignment {assignment_id}")
 
                 # save to the tester code directory
                 filename = secure_filename(tf.filename)
@@ -397,12 +416,14 @@ def add_tester_files(assignment_id):
 @login_required
 def delete_tester_file(assignment_id, filename):
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
     with current_app.Session() as session:
         tester_file = get_tester_file(assignment_id, filename, session)
 
         if not tester_file:
+            current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
             abort(404)
 
         # remove the file from the tester code directory
@@ -416,6 +437,8 @@ def delete_tester_file(assignment_id, filename):
         session.delete(tester_file)
         session.commit()
 
+        current_app.logger.info(f"Removed {filename} from assignment {assignment_id} tester files")
+
         return redirect(url_for('.admin_assignments'))
 
 
@@ -428,12 +451,14 @@ class UpdateTesterFileForm(FlaskForm):
 @login_required
 def view_tester_file(assignment_id, filename):
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
     with current_app.Session() as session:
         tester_file = get_tester_file(assignment_id, filename, session)
 
         if not tester_file:
+            current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
             abort(404)
 
         update_file_form = UpdateTesterFileForm()
@@ -457,7 +482,9 @@ def view_tester_file(assignment_id, filename):
                     new_file.write(tester_file.data)
 
                 flash("File has been updated!", "success")
+                current_app.logger.info(f"{filename} has been updated in assignment {assignment_id}")
             else:
+                current_app.logger.debug(f"Uploaded file {sec_filename} does not match filename ({filename})")
                 flash(f"Uploaded filename ({sec_filename}) differs from this file.", "danger")
 
 
@@ -475,20 +502,24 @@ def view_tester_file(assignment_id, filename):
 @login_required
 def admin_delete_user():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
         
     user_id = request.args.get('id')
 
     # if user id wasn't specified, just redirect to admin page for users
     if not user_id:
+        current_app.logger.error("Failed: Missing user id")
         flash("Could not delete user. ID missing.", "danger")
     else:
         with current_app.Session() as session:
             user = session.query(db_models.User).filter(db_models.User.user_id == int(user_id)).first()
 
             if not user:
+                current_app.logger.error(f"Failed: Invalid user ID ({user_id})")
                 flash("Could not delete user. Invalid ID.", "danger")
             else:
+                current_app.logger.info(f"Deleted user {user.username}")
                 flash(f"Successfully deleted user {user.username}", "success")
                 session.delete(user)
                 session.commit()
@@ -533,6 +564,7 @@ class NewAssignmentForm(FlaskForm):
 @login_required
 def admin_assignments():
     if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
         
     new_assignment_form = NewAssignmentForm()
@@ -547,6 +579,8 @@ def admin_assignments():
             session.add(new_base_assignment)
             session.flush()
 
+            current_app.logger.info(f"Created new base assignment with ID {new_base_assignment.assignment_id}")
+
             # create separate SourceFile entries for each source file
             assignment_files = new_assignment_form.files.data.split()
             
@@ -555,6 +589,7 @@ def admin_assignments():
                 new_file = db_models.SourceFile(filename=af,
                                                 base_assignment_id=new_base_assignment.assignment_id)
                 session.add(new_file)
+                current_app.logger.info(f"Added source file {af} to base assignment")
 
             session.flush()
 
@@ -565,6 +600,7 @@ def admin_assignments():
             tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
                                             f"{new_base_assignment.assignment_id}")
             os.makedirs(tester_code_dir, exist_ok=True)
+            current_app.logger.debug(f"Set assignment tester code dir: {tester_code_dir}")
 
             for tf in tester_files:
                 # TODO: store tf.content_type attribute in DB
@@ -578,6 +614,8 @@ def admin_assignments():
                 file_location = os.path.join(tester_code_dir, filename)
                 with open(file_location, 'wb') as new_file:
                     new_file.write(new_tester_file.data)
+
+                current_app.logger.info(f"Added tester file {tf.filename} to base assignment")
 
             session.commit()
 

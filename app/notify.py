@@ -16,7 +16,7 @@ notify = Blueprint('notify', __name__)
 def remove_failed(job_id):
     failure_info = request.get_json()
     if failure_info:
-        print("Failure Reason:", failure_info["error"])
+        current_app.logger.info(f"Failure Reason: {failure_info['error']}")
     else:
         return "Failure info expected in JSON format"
 
@@ -28,11 +28,13 @@ def remove_failed(job_id):
         )
 
         if not test_results:
+            current_app.logger.error(f"Invalid Job ID: {job_id}")
             abort(404)
         else:
             # remove the test results
             session.delete(test_results)
             session.commit()
+            current_app.logger.info(f"Removed failed job with ID {job_id}")
             return "Failure notification received."
 
 
@@ -42,6 +44,7 @@ def update_results(job_id):
 
     results_data = request.get_json()
     if not results_data:
+        current_app.logger.error("Test results not found")
         return "Test results expected in JSON format"
 
     with current_app.Session() as session:
@@ -52,6 +55,7 @@ def update_results(job_id):
         )
 
         if not test_results:
+            current_app.logger.error(f"Invalid Job ID: {job_id}")
             abort(404)
 
         job = Job.fetch(job_id, connection=current_app.redis)
@@ -78,6 +82,8 @@ def update_results(job_id):
         testing_dir = os.path.join(current_app.config['REPOSITORY_BASE_DIR'],
                                     repo_name, 'safe_testing', job_id)
 
+        current_app.logger.debug(f"Getting source files from {testing_dir}")
+
         # add student submitted files to test results
         source_files = [sf.filename for sf in test_results.team.assignment.base_assignment.files]
         source_filenames = get_filenames(source_files)
@@ -93,6 +99,7 @@ def update_results(job_id):
                                                         job_id=job_id)
 
             session.add(submitted_file)
+            current_app.logger.debug(f"Saved file {filename}")
 
         session.commit()
 
@@ -117,7 +124,8 @@ def handle_notification(course, semester, section, psa, group=None):
         )
 
         if not target_group:
-            return "Invalid parameters for notify"
+            current_app.logger.warning(f"No team found for {course}, {semester}, Section {section}, PSA {psa}, Group # {group}")
+            return "Invalid parameters for notify", 404
 
         # TODO: if there are results in progress (i.e. in queue or
         # processing), cancel them and put this in the queue instead
@@ -131,8 +139,11 @@ def handle_notification(course, semester, section, psa, group=None):
         test_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
                                         f"{base_assignment.assignment_id}")
 
-        # FIXME: if test_code_dir doesn't exist, create it based on
-        # TesterFiles associated with the assignment
+        if not os.path.isdir():
+            # TODO: if test_code_dir doesn't exist, create it based on
+            # TesterFiles associated with the assignment
+            current_app.logger.critical(f"Missing Test code directory: {test_code_dir}")
+            abort(500)
 
         test_command = base_assignment.tester_run_command.split()
         source_files = [sf.filename for sf in base_assignment.files]
@@ -147,7 +158,8 @@ def handle_notification(course, semester, section, psa, group=None):
                                         tester_files,
                                         on_success=testing_successful,
                                         on_failure=testing_failed)
-        print(f"New Job ID: {job.get_id()}")
+
+        current_app.logger.info(f"Enqueued {repo_name}. Job ID: {job.get_id()}")
 
         new_test_results = db_models.TestResults(job_id=job.get_id(),
                                                     team_id=target_group.team_id)

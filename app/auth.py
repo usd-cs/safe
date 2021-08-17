@@ -28,12 +28,12 @@ def init_auth(app):
             server_url=app.config['CAS_SERVER_URL']
         )
 
-    #print('CAS service_url:', app.cas_client.service_url)
+    app.logger.debug(f'Initial CAS service_url: {app.cas_client.service_url}')
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    print("loading user:", user_id)
+    current_app.logger.debug(f"loading user: {user_id}")
 
     with current_app.Session() as session:
         matching_users = (
@@ -45,7 +45,7 @@ def load_user(user_id):
     if matching_users.count() == 1:
         return matching_users.first()
     else:
-        print(f"Couldn't find user with id {user_id}")
+        current_app.logger.error(f"Couldn't find user with id {user_id}")
         return None
 
 
@@ -65,7 +65,7 @@ def login():
         service_url += f"?next={next_url}"
 
     current_app.cas_client.service_url = service_url
-    #print("CAS service_url:", current_app.cas_client.service_url)
+    current_app.logger.debug(f"login: CAS service_url: {current_app.cas_client.service_url}")
 
     cas_login_url = current_app.cas_client.get_login_url()
     return redirect(cas_login_url)
@@ -73,25 +73,23 @@ def login():
 
 @auth.route('/verify_ticket')
 def verify_ticket():
-    # TODO: log invalid attempts
     next_url = request.args.get('next')
     ticket = request.args.get('ticket')
 
-    #print('ticket:', ticket)
-    #print('next_url:', next_url)
-
     if not ticket:
         # If there isn't a ticket, flash a message and send them to home page
+        current_app.logger.error("Missing ticket for verify_ticket")
         flash("Login process failed: missing authentication ticket!", "danger")
         redirect(url_for('user_views.root'))
                 
     # validate ticket and get username by calling verify_ticket
     username, attributes, pgtiou = current_app.cas_client.verify_ticket(ticket)
 
-    #print('CAS verify ticket response: username: %s, attributes: %s, pgtiou: %s', username, attributes, pgtiou)
+    current_app.logger.debug(f'CAS verify_ticket response: username: {username}, attributes: {attributes}, pgtiou: {pgtiou}')
 
     if not username:
         # verifying ticket failed so send them to the homepage
+        current_app.logger.warning("Authentication failed")
         flash("Login process failed: authentication failed!", "danger")
         redirect(url_for('user_views.root'))
 
@@ -106,11 +104,13 @@ def verify_ticket():
 
         if not matching_user:
             # couldn't find this user in our database
+            current_app.logger.warning(f"Unauthorized login attempt: {username}")
             flash("Login process failed: unauthorized user!", "danger")
             redirect(url_for('user_views.root'))
         else:
             # login process complete!
             login_user(matching_user)
+            current_app.logger.info(f"Successful login: {username}")
             flash(f"You have successfully signed in as {username}!", "success")
             if next_url is None:
                 return redirect(url_for('user_views.root'))
@@ -123,10 +123,11 @@ def logout():
     if current_user.is_authenticated:
         logout_user()
         flash("You've successfully logged out!", "success")
+        current_app.logger.info(f"logout: {current_user.username}")
 
         redirect_url = url_for('user_views.root', _external=True)
         cas_logout_url = current_app.cas_client.get_logout_url(redirect_url)
-        #print('CAS logout URL: %s', cas_logout_url)
+        current_app.logger.debug(f'CAS logout URL: {cas_logout_url}')
 
         return redirect(cas_logout_url)
     else:
