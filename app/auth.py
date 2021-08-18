@@ -80,7 +80,7 @@ def verify_ticket():
         # If there isn't a ticket, flash a message and send them to home page
         current_app.logger.error("Missing ticket for verify_ticket")
         flash("Login process failed: missing authentication ticket!", "danger")
-        redirect(url_for('user_views.root'))
+        return redirect(url_for('user_views.root'))
                 
     # validate ticket and get username by calling verify_ticket
     username, attributes, pgtiou = current_app.cas_client.verify_ticket(ticket)
@@ -91,7 +91,7 @@ def verify_ticket():
         # verifying ticket failed so send them to the homepage
         current_app.logger.warning("Authentication failed")
         flash("Login process failed: authentication failed!", "danger")
-        redirect(url_for('user_views.root'))
+        return redirect(url_for('user_views.root'))
 
 
     with current_app.Session() as session:
@@ -106,7 +106,7 @@ def verify_ticket():
             # couldn't find this user in our database
             current_app.logger.warning(f"Unauthorized login attempt: {username}")
             flash("Login process failed: unauthorized user!", "danger")
-            redirect(url_for('user_views.root'))
+            return redirect(url_for('user_views.root'))
         else:
             # login process complete!
             login_user(matching_user)
