@@ -552,7 +552,7 @@ class NewAssignmentForm(FlaskForm):
         bad_names = []
 
         for f in filenames:
-            if not re.fullmatch("\w[\w-]*(\.[\w-]+)*", f):
+            if not re.fullmatch("(\w[\w-]*|\*)(\.[\w-]+)*", f):
                 bad_names.append(f)
 
         if len(bad_names) != 0:
