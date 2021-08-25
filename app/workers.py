@@ -3,20 +3,21 @@ import subprocess
 import datetime
 import json
 import requests
+from glob import glob
 from flask import url_for
 from rq import get_current_job
 
 import app
 safe_app = app.create_app()
 
-def get_filenames(source_files):
+def get_filenames(source_files, source_dir='.'):
     all_filenames = []
     for filename in source_files:
         if '*' in filename:
             # if this contains a wildcard, use glob to get list of
             # matching files
-            from glob import glob
-            all_filenames += glob(filename)
+            pathname = os.path.join(source_dir, filename)
+            all_filenames += [os.path.split(f)[1] for f in glob(pathname)]
         else:
             all_filenames.append(filename)
 
@@ -57,7 +58,7 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
 
 
 def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
-                timeout_length, source_files, tester_files):
+                timeout_length, source_files, tester_files, group_members):
     print(f"Handling request for {repo_name}")
     job = get_current_job()
 
@@ -109,12 +110,22 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
     if subprocess.call(cp_args) != 0:
         raise RuntimeError(f"Could not copy {', '.join(files_under_test)}: {repo_name}")
 
+    # replace special tokens in test command with proper values
+    final_test_command = []
+    for cmd_arg in test_command:
+        if cmd_arg == '%g':
+            final_test_command += group_members
+        else:
+            final_test_command.append(cmd_arg)
+
     os.chdir(testing_dir)
-    print(f"\tRunning test command: {' '.join(test_command)}...")
+    print(f"\tRunning test command: {' '.join(final_test_command)}...")
     try:
         os.putenv('PYTHONDONTWRITEBYTECODE', 'TRUE')
-        result = subprocess.run(test_command, capture_output=True, timeout=timeout_length)
+        result = subprocess.run(final_test_command, capture_output=True, timeout=timeout_length)
+
         # TODO: if result.returncode isn't 0, raise an exception
+
         output_text = result.stdout
         error_text = result.stderr
         print(f"\tGrader finished with status code {result.returncode}")

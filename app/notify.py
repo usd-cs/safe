@@ -79,14 +79,14 @@ def update_results(job_id):
         # psa0
         repo_name += f"-group{group.team_num}"
 
-        testing_dir = os.path.join(current_app.config['REPOSITORY_BASE_DIR'],
-                                    repo_name, 'safe_testing', job_id)
+        repo_dir = os.path.join(current_app.config['REPOSITORY_BASE_DIR'], repo_name)
+        testing_dir = os.path.join(repo_dir, 'safe_testing', job_id)
 
         current_app.logger.debug(f"Getting source files from {testing_dir}")
 
         # add student submitted files to test results
         source_files = [sf.filename for sf in test_results.team.assignment.base_assignment.files]
-        source_filenames = get_filenames(source_files)
+        source_filenames = get_filenames(source_files, repo_dir)
 
         for filename in source_filenames:
             file_path = os.path.join(testing_dir, filename)
@@ -139,7 +139,7 @@ def handle_notification(course, semester, section, psa, group=None):
         test_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
                                         f"{base_assignment.assignment_id}")
 
-        if not os.path.isdir():
+        if not os.path.isdir(test_code_dir):
             # TODO: if test_code_dir doesn't exist, create it based on
             # TesterFiles associated with the assignment
             current_app.logger.critical(f"Missing Test code directory: {test_code_dir}")
@@ -150,12 +150,14 @@ def handle_notification(course, semester, section, psa, group=None):
         tester_files = [tf.filename for tf in base_assignment.tester_files]
         max_runtime = base_assignment.max_runtime
 
+        group_members = [member.username for member in target_group.members]
+
         job = current_app.test_queue.enqueue('app.workers.run_test',
                                         'code.sandiego.edu',
                                         current_app.config['REPOSITORY_BASE_DIR'],
                                         repo_name, test_code_dir, test_command,
                                         max_runtime, source_files,
-                                        tester_files,
+                                        tester_files, group_members,
                                         on_success=testing_successful,
                                         on_failure=testing_failed)
 
