@@ -39,6 +39,14 @@
             <strong>Tester Command:</strong>
             <code class="text-dark">{{ assignment.base_assignment.tester_run_command }}</code>
         </li>
+        {% if current_user.admin %}
+        <li class="list-group-item">
+            <strong>Gitolite Conf:</strong>
+            <a href="{{ url_for('admin.get_gitolite_conf', assignment_id=assignment.assignment_id) }}">
+                View
+            </a>
+        </li>
+        {% endif %}
     </ul>
 </div>
 

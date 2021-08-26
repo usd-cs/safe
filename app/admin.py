@@ -632,3 +632,46 @@ def admin_assignments():
                                 assignment_form=new_assignment_form,
                                 assignments=all_assignments)
 
+@admin.route("/gitolite/assignment/<int:assignment_id>")
+@login_required
+def get_gitolite_conf(assignment_id):
+
+    if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
+        abort(403)
+
+    with current_app.Session() as session:
+        assignment = (
+            session.query(db_models.Assignment)
+                .filter(db_models.Assignment.assignment_id == assignment_id)
+                .first()
+        )
+
+        if not assignment:
+            abort(404)
+            current_app.logger.error(f"No assignment found with id {assignment_id}")
+
+        section = assignment.section
+
+        response = ""
+
+        for group in assignment.teams:
+            repo_name = f"comp110-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
+            response += f"repo {repo_name}\n"
+
+            # set up git hook to send notification to SAFE app
+            response += "\toption hook.post-receive = notify-safe\n"
+
+            # add read/write permissions to course staff (i.e. instructors)
+            response += f"\tRW+ = @comp110-{section.semester}-s{section.section_num:02}-staff\n"
+
+            # add read/write permissions to group members
+            group_usernames = " ".join([member.username for member in group.members])
+            response += f"\tRW+ = {group_usernames}\n"
+
+            # give read-only permission to the safe_app
+            response += f"\tR   = safe_app\n\n"
+
+
+    return response, 200, {'Content-Type': 'text/plain'}
+
