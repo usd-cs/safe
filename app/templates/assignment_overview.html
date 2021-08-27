@@ -42,7 +42,8 @@
         {% if current_user.admin %}
         <li class="list-group-item">
             <strong>Gitolite Conf:</strong>
-            <a href="{{ url_for('admin.get_gitolite_conf', assignment_id=assignment.assignment_id) }}">
+            <a class="text-decoration-none"
+				href="{{ url_for('admin.get_gitolite_conf', assignment_id=assignment.assignment_id) }}">
                 View
             </a>
         </li>
