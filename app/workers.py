@@ -66,9 +66,11 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
 def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
                 timeout_length, source_files, tester_files, group_members):
     print(f"Handling request for {repo_name}")
-    job = get_current_job()
 
-    # TODO: throw exception if test_code_dir or repo_base_dir doesn't exist
+    if not os.path.exists(test_code_dir):
+        raise RuntimeError(f"Testing code directory does not exist: {repo_base_dir}")
+    elif not os.path.exists(repo_base_dir):
+        raise RuntimeError(f"Repo base directory does not exist: {repo_base_dir}")
 
     repo_location = os.path.join(repo_base_dir, repo_name)
 
@@ -101,6 +103,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
     commit_comment = latest_commit.message.strip()
 
     print("\tSetting up testing directory...")
+    job = get_current_job()
     testing_dir = os.path.join(repo_location, "safe_testing", job.id)
     os.makedirs(testing_dir)
 
