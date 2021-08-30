@@ -33,7 +33,10 @@ def testing_successful(job, conn, runner_output, *args, **kwargs):
     #print(f"result: {runner_output}")
 
     with safe_app.app_context():
-        notification_url = url_for('notify.update_results', job_id=job_id, _external=True)
+        notification_url = url_for('notify.update_results', 
+                                   job_id=job_id, 
+                                   _external=True,
+                                   _scheme=safe_app.config['PREFERRED_URL_SCHEME'])
 
     server_response = requests.post(notification_url, json=runner_output)
     print("Server Response:", server_response.text)
@@ -51,7 +54,10 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
     failure_info = { "error": str(exception_instance) }
 
     with safe_app.app_context():
-        notification_url = url_for('notify.remove_failed', job_id=job_id, _external=True)
+        notification_url = url_for('notify.remove_failed',
+                                   job_id=job_id,
+                                   _external=True,
+                                   _scheme=safe_app.config['PREFERRED_URL_SCHEME'])
 
     server_response = requests.post(notification_url, json=failure_info)
     print("Server Response:", server_response.text)
