@@ -106,7 +106,7 @@ def update_results(job_id):
     return "Results successfully received"
 
 @notify.route("<course>-<semester>-s<int:section>-psa<int:psa>")
-@notify.route("<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>")
+@notify.route("<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>", methods=['post'])
 def handle_notification(course, semester, section, psa, group=None):
     from app.workers import testing_successful, testing_failed
 
