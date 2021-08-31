@@ -105,9 +105,8 @@ def update_results(job_id):
 
     return "Results successfully received"
 
-@notify.route("<course>-<semester>-s<int:section>-psa<int:psa>")
 @notify.route("<course>-<semester>-s<int:section>-psa<int:psa>-group<int:group>", methods=['post'])
-def handle_notification(course, semester, section, psa, group=None):
+def handle_notification(course, semester, section, psa, group):
     from app.workers import testing_successful, testing_failed
 
     with current_app.Session() as session:
@@ -119,7 +118,7 @@ def handle_notification(course, semester, section, psa, group=None):
                 .filter(db_models.Section.semester == semester)
                 .filter(db_models.Section.section_num == section)
                 .filter(db_models.Assignment.num == psa)
-                .filter(db_models.Team.team_num == group) # FIXME: only when not None
+                .filter(db_models.Team.team_num == group)
                 .first()
         )
 
@@ -130,9 +129,7 @@ def handle_notification(course, semester, section, psa, group=None):
         # TODO: if there are results in progress (i.e. in queue or
         # processing), cancel them and put this in the queue instead
 
-        repo_name = f"{course}-{semester}-s{section:02}-psa{psa}"
-        if group:
-            repo_name += f"-group{group}"
+        repo_name = f"{course}-{semester}-s{section:02}-psa{psa}-group{group}"
 
         base_assignment = target_group.assignment.base_assignment
 
