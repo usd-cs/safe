@@ -32,7 +32,6 @@
                 <i class="bi-clock"></i>
                 <strong>Feedback Time:</strong> {{results_time}}
             </li>
-            {% if current_user.instructor %}
             <li class="list-group-item border-0">
                 <i class="bi-files"></i>
                 <strong>Submitted Files:</strong>
@@ -42,7 +41,6 @@
                     </a>
                 {% endfor %}
             </li>
-            {% endif %}
         </ul>
         <h3>Test Results</h3>
         {% for category in categories %}
