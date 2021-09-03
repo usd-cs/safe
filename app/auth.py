@@ -93,6 +93,7 @@ def verify_ticket():
         flash("Login process failed: authentication failed!", "danger")
         return redirect(url_for('user_views.root'))
 
+    username = username.lower()
 
     with current_app.Session() as session:
         # try to find the username in our database
