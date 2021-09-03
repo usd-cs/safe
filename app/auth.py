@@ -122,9 +122,9 @@ def verify_ticket():
 @auth.route('/logout')
 def logout():
     if current_user.is_authenticated:
+        current_app.logger.info(f"logout: {current_user.username}")
         logout_user()
         flash("You've successfully logged out!", "success")
-        current_app.logger.info(f"logout: {current_user.username}")
 
         redirect_url = url_for('user_views.root', _external=True)
         cas_logout_url = current_app.cas_client.get_logout_url(redirect_url)
