@@ -951,10 +951,11 @@ def psa_results(semester, section_num, psa_num, group_num):
 
                 category_results["metrics"][result["test_num"]] = new_metric
             
-            # otherwise we add error messages
-            else:
-                if "message" in result:
-                    metric_results["message"] += Markup(result["message"]+"<br>")
+            # otherwise we add error messages 
+            # (commented out code to just show one error at a time)
+            # else:
+            #    if "message" in result:
+            #        metric_results["message"] += Markup(result["message"]+"<br>")
 
 
 
