@@ -935,15 +935,27 @@ def psa_results(semester, section_num, psa_num, group_num):
 
                 processed_results[result["category_name"]] = category_results
 
-            new_metric = {
-                "description": result["metric"],
-                "outcome": result["outcome"]
-            }
+            # added code to fix errors not showing
+            metric_results = category_results["metrics"].get(result["test_num"])
 
-            if "message" in result:
-                new_metric["message"] = Markup(result["message"])
+            #if we don't have results or the result it a pass, can rewrite it
+            if not metric_results or metric_results['outcome'] == 'pass':
 
-            category_results["metrics"][result["test_num"]] = new_metric
+                new_metric = {
+                    "description": result["metric"],
+                    "outcome": result["outcome"]
+                }
+
+                if "message" in result:
+                    new_metric["message"] = Markup(result["message"]+"<br>")
+
+                category_results["metrics"][result["test_num"]] = new_metric
+            
+            # otherwise we add error messages
+            else:
+                if "message" in result:
+                    metric_results["message"] += Markup(result["message"]+"<br>")
+
 
 
         categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
