@@ -144,23 +144,24 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
         error_text = e.stderr
         print(f"\tGrader timed out after {e.timeout} seconds")
 
+    else:
+        runner_output = {}
+        runner_output['author'] = commit_author
+        runner_output['submission_time'] = submission_time
+        runner_output['commit_comment'] = commit_comment
+        runner_output['results_time'] = str(datetime.datetime.now())
+
+        with open('results.json', 'r') as results_file:
+            runner_output['results'] = json.load(results_file)
+
     finally:
         os.unsetenv('PYTHONDONTWRITEBYTECODE')
 
-    with open("stdout.txt", "wb") as stdout_file, open("stderr.txt", "wb") as stderr_file:
-        if output_text is not None:
-            stdout_file.write(output_text)
-        if error_text is not None:
-            stderr_file.write(error_text)
+        with open("stdout.txt", "wb") as stdout_file, open("stderr.txt", "wb") as stderr_file:
+            if output_text is not None:
+                stdout_file.write(output_text)
+            if error_text is not None:
+                stderr_file.write(error_text)
 
-    runner_output = {}
-    runner_output['author'] = commit_author
-    runner_output['submission_time'] = submission_time
-    runner_output['commit_comment'] = commit_comment
-    runner_output['results_time'] = str(datetime.datetime.now())
-
-    with open('results.json', 'r') as results_file:
-        runner_output['results'] = json.load(results_file)
-
-    return runner_output
+        return runner_output
 
