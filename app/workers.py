@@ -129,9 +129,16 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
 
     os.chdir(testing_dir)
     print(f"\tRunning test command: {' '.join(final_test_command)}...")
+
+    runner_output = {}
+    runner_output['author'] = commit_author
+    runner_output['submission_time'] = submission_time
+    runner_output['commit_comment'] = commit_comment
+
     try:
         os.putenv('PYTHONDONTWRITEBYTECODE', 'TRUE')
         result = subprocess.run(final_test_command, capture_output=True, timeout=timeout_length)
+        runner_output['results_time'] = str(datetime.datetime.now())
 
         # TODO: if result.returncode isn't 0, raise an exception
 
@@ -139,12 +146,17 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
         error_text = result.stderr
         print(f"\tGrader finished with status code {result.returncode}")
 
+        with open('results.json', 'r') as results_file:
+            runner_output['results'] = json.load(results_file)
+
     except subprocess.TimeoutExpired as e:
         output_text = e.stdout
         error_text = e.stderr
+
         print(f"\tGrader timed out after {e.timeout} seconds")
 
-        runner_output = {}
+        runner_output['results_time'] = str(datetime.datetime.now())
+
         timeout_result = {"category_num": 99,
                             "category_name": "Misc.",
                             "test_num": 1,
@@ -153,19 +165,8 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
                             "message": f"Tests could not complete within {timeout_length} seconds. Check that you do not have any infinite loops or recursion."}
         runner_output['results'] = [timeout_result]
 
-    else:
-        runner_output = {}
-
-        with open('results.json', 'r') as results_file:
-            runner_output['results'] = json.load(results_file)
-
     finally:
         os.unsetenv('PYTHONDONTWRITEBYTECODE')
-
-        runner_output['author'] = commit_author
-        runner_output['submission_time'] = submission_time
-        runner_output['commit_comment'] = commit_comment
-        runner_output['results_time'] = str(datetime.datetime.now())
 
         with open("stdout.txt", "wb") as stdout_file, open("stderr.txt", "wb") as stderr_file:
             if output_text is not None:
