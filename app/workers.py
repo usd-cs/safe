@@ -144,18 +144,28 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
         error_text = e.stderr
         print(f"\tGrader timed out after {e.timeout} seconds")
 
+        runner_output = {}
+        timeout_result = {"category_num": 99,
+                            "category_name": "Misc.",
+                            "test_num": 1,
+                            "metric": "Program finished in a reasonable amount of time.",
+                            "outcome": "error",
+                            "message": f"Tests could not complete within {timeout_length} seconds. Check that you do not have any infinite loops or recursion."}
+        runner_output['results'] = [timeout_result]
+
     else:
         runner_output = {}
-        runner_output['author'] = commit_author
-        runner_output['submission_time'] = submission_time
-        runner_output['commit_comment'] = commit_comment
-        runner_output['results_time'] = str(datetime.datetime.now())
 
         with open('results.json', 'r') as results_file:
             runner_output['results'] = json.load(results_file)
 
     finally:
         os.unsetenv('PYTHONDONTWRITEBYTECODE')
+
+        runner_output['author'] = commit_author
+        runner_output['submission_time'] = submission_time
+        runner_output['commit_comment'] = commit_comment
+        runner_output['results_time'] = str(datetime.datetime.now())
 
         with open("stdout.txt", "wb") as stdout_file, open("stderr.txt", "wb") as stderr_file:
             if output_text is not None:
