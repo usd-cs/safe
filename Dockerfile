@@ -24,5 +24,5 @@ ENV FLASK_APP safe.py
 RUN chown -R safe:safe ./
 USER safe
 
-EXPOSE 5000
+EXPOSE 6000
 ENTRYPOINT ["./boot-webapp.sh"]
