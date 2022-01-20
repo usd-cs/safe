@@ -1,6 +1,7 @@
 FROM python:3.9-slim-buster
 
 RUN apt-get update
+RUN apt-get -y install vim
 
 RUN adduser --system --group --uid 1000 safe
 
