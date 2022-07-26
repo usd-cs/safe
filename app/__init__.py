@@ -2,17 +2,14 @@ import os
 import logging, logging.handlers
 
 from flask import Flask
-from sqlalchemy.orm import sessionmaker
+from flask_sqlalchemy import SQLAlchemy
+
+#from sqlalchemy.orm import sessionmaker
 
 import rq
 from redis import Redis
 
-from . import user_views
-from . import admin
-from . import auth
-from . import notify
-from . import db
-
+db = SQLAlchemy()
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -39,18 +36,35 @@ def create_app(test_config=None):
     # ensure that the instance folder exists (creating if necessary)
     os.makedirs(app.instance_path, exist_ok=True)
 
-    db_engine = db.init_db(app)
-    app.Session = sessionmaker(db_engine)
-    
+    from app.database import init_app as init_app_db
+    init_app_db(app)
+    #db.init_app(app)
+
+    #db_engine = db.init_db(app)
+    #app.Session = sessionmaker(db_engine)
+
     app.redis = Redis.from_url(app.config['REDIS_URL'])
     app.test_queue = rq.Queue('safe-tests', connection=app.redis)
 
+    from app import admin
     app.register_blueprint(admin.admin, url_prefix="/admin")
+
+    from app import auth
     app.register_blueprint(auth.auth, url_prefix="/auth")
+
+    from . import notify
     app.register_blueprint(notify.notify, url_prefix="/notify")
+
+    from app import user_views
     app.register_blueprint(user_views.user_views)
-    
+
+    #from app import tests
+    #app.register_blueprint(tests.tests, url_prefix="/tests") # FIXME: only in testing mode
+
     auth.init_auth(app)
-    db.init_app(app)
+
+    with app.app_context():
+        app.logger.debug("CREATING ALL TABLES!")
+        db.create_all()
 
     return app

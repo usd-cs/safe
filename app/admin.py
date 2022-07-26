@@ -22,11 +22,10 @@ from sqlalchemy import insert, delete, and_
 from werkzeug.utils import secure_filename
 from . import db_models
 
+from app import db
 from app.helper import get_formatted_file_contents
 
 admin = Blueprint('admin', __name__)
-
-
 
 
 class NewInstructorForm(FlaskForm):
@@ -37,9 +36,8 @@ class NewInstructorForm(FlaskForm):
     submit = SubmitField('Create Instructor')
 
     def validate_username(form, field):
-        with current_app.Session() as session:
-            if session.query(db_models.User).filter(db_models.User.username == field.data).count() != 0:
-                raise ValidationError("An instructor with that username already exists")
+        if db_models.User.query.filter(db_models.User.username == field.data).count() != 0:
+            raise ValidationError("An instructor with that username already exists")
 
 
 @admin.route('/')
@@ -61,13 +59,12 @@ def admin_users():
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    with current_app.Session() as session:
-        all_users = session.query(db_models.User).order_by(db_models.User.last_name).all()
+    all_users = db_models.User.query.order_by(db_models.User.last_name).all()
 
-        return render_template("admin_users.html", 
-                                page_title="Admin Users: SAFE @ USD", 
-                                user=current_user,
-                                users=all_users)
+    return render_template("admin_users.html", 
+                            page_title="Admin Users: SAFE @ USD", 
+                            user=current_user,
+                            users=all_users)
         
 
 @admin.route('/instructors', methods=['get', 'post'])
@@ -81,33 +78,31 @@ def admin_instructors():
 
     if form.validate_on_submit():
         # add user to database
-        with current_app.Session() as session:
-            new_instructor = db_models.User(username=form.username.data,
-                                                first_name=form.first_name.data,
-                                                last_name=form.last_name.data,
-                                                admin=form.admin.data,
-                                                instructor=True)
-            session.add(new_instructor)
-            session.commit()
+        new_instructor = db_models.User(username=form.username.data,
+                                            first_name=form.first_name.data,
+                                            last_name=form.last_name.data,
+                                            admin=form.admin.data,
+                                            instructor=True)
+        db.session.add(new_instructor)
+        db.session.commit()
 
-            flash(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}", "success")
-            current_app.logger.info(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}")
+        flash(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}", "success")
+        current_app.logger.info(f"Added new instructor: {new_instructor.first_name} {new_instructor.last_name}")
 
         return redirect(url_for('.admin_instructors'))
 
     # form wasn't valid so re-render the page
-    with current_app.Session() as session:
-        instructors = (
-            session.query(db_models.User)
-                .filter(db_models.User.instructor == True)
-                .order_by(db_models.User.last_name)
-        )
+    instructors = (
+        db_models.User.query
+            .filter(db_models.User.instructor == True)
+            .order_by(db_models.User.last_name)
+    )
 
-        return render_template("admin_instructors.html", 
-                                page_title="Admin Instructors: SAFE @ USD", 
-                                user=current_user,
-                                form=form,
-                                instructors=instructors) 
+    return render_template("admin_instructors.html", 
+                            page_title="Admin Instructors: SAFE @ USD", 
+                            user=current_user,
+                            form=form,
+                            instructors=instructors) 
 
 
 # TODO: This is a generic form element so don't bury this in here
@@ -152,24 +147,20 @@ def modify_section():
             current_app.logger.error(f"Invalid section_id: {section_id}")
             return redirect(url_for('.admin_sections'))
 
-    with current_app.Session() as session:
-        # verify there is a section with the given ID
-        section = (
-            session.query(db_models.Section)
-                .filter(db_models.Section.section_id == section_id)
-                .first()
-            )
-
-        if not section:
-            current_app.logger.error(f"No section found with id {section_id}")
-            abort(404)
-
-        all_instructors = (
-            session.query(db_models.User)
-                .filter(db_models.User.instructor == True)
+    # verify there is a section with the given ID
+    section = (
+        db_models.Section.query
+            .filter(db_models.Section.section_id == section_id)
+            .first()
         )
 
-        section_instructors = [user for user in section.users if user.instructor == True]
+    if not section:
+        current_app.logger.error(f"No section found with id {section_id}")
+        abort(404)
+
+    all_instructors = db_models.User.query.filter(db_models.User.instructor == True)
+
+    section_instructors = [user for user in section.users if user.instructor == True]
 
     form = ModifySectionForm()
 
@@ -181,32 +172,35 @@ def modify_section():
 
     if form.validate_on_submit():
         current_app.logger.debug(f"selected instructors: {form.instructors.data}")
-        with current_app.Session() as session:
-            # add newly selected instructors to section
-            for instructor_id in form.instructors.data:
-                if instructor_id not in previous_instructors_ids:
-                    statement = (
-                        insert(db_models.section_enrollment)
-                            .values(user_id=instructor_id, section_id=section_id)
-                    )
-                    session.execute(statement)
-                    current_app.logger.debug(f"Added instructor {instructor_id}")
 
-            # remove old instructors who weren't selected this time
-            for instructor_id in previous_instructors_ids:
-                if instructor_id not in form.instructors.data:
-                    statement = (
-                        delete(db_models.section_enrollment)
-                            .where(db_models.section_enrollment.c.user_id == instructor_id,
-                                db_models.section_enrollment.c.section_id == section_id)
-                    )
-                    session.execute(statement)
-                    current_app.logger.debug(f"Removed instructor {instructor_id}")
+        # add newly selected instructors to section
+        for instructor_id in form.instructors.data:
+            if instructor_id not in previous_instructors_ids:
+                # FIXME: this is a silly way to do this adding to the
+                # section
+                statement = (
+                    db.insert(db_models.section_enrollment)
+                        .values(user_id=instructor_id, section_id=section_id)
+                )
+                db.session.execute(statement)
+                current_app.logger.debug(f"Added instructor {instructor_id}")
 
-            session.commit()
-            current_app.logger.info(f"Updated instructors for section {section_id}")
+        # remove old instructors who weren't selected this time
+        for instructor_id in previous_instructors_ids:
+            if instructor_id not in form.instructors.data:
+                # FIXME: do this in a sane way
+                statement = (
+                    db.delete(db_models.section_enrollment)
+                        .where(db_models.section_enrollment.c.user_id == instructor_id,
+                            db_models.section_enrollment.c.section_id == section_id)
+                )
+                db.session.execute(statement)
+                current_app.logger.debug(f"Removed instructor {instructor_id}")
 
-            return redirect(url_for('.modify_section', section_id=section_id))
+        db.session.commit()
+        current_app.logger.info(f"Updated instructors for section {section_id}")
+
+        return redirect(url_for('.modify_section', section_id=section_id))
 
     # pre-fill old instructors into selections
     form.instructors.data = previous_instructors_ids[:]
@@ -227,40 +221,35 @@ def admin_sections():
         
     form = NewSectionForm()
 
-    with current_app.Session() as session:
-        all_instructors = (
-            session.query(db_models.User)
-                .filter(db_models.User.instructor == True)
+    all_instructors = db_models.User.query.filter(db_models.User.instructor == True)
+
+    all_sections = db_models.Section.query.order_by(db_models.Section.course,
+                                                    db_models.Section.semester,
+                                                    db_models.Section.section_num)
+
+    # create a list of (section, instructors) tuples
+    section_info = []
+
+    for section in all_sections:
+        section_instructors = (
+            db_models.User.query
+                .join(db_models.section_enrollment)
+                .join(db_models.Section)
+                .filter(and_(db_models.Section.section_id == section.section_id, 
+                                db_models.User.instructor == True))
+                .order_by(db_models.User.last_name)
+                .all()
         )
-
-        all_sections = (
-            session.query(db_models.Section)
-                .order_by(db_models.Section.course, db_models.Section.semester, db_models.Section.section_num)
+        num_students = (
+            db_models.User.query
+                .join(db_models.section_enrollment)
+                .join(db_models.Section)
+                .filter(and_(db_models.Section.section_id == section.section_id, 
+                                db_models.User.instructor == False))
+                .count()
         )
-
-        # create a list of (section, instructors) tuples
-        section_info = []
-
-        for section in all_sections:
-            section_instructors = (
-                session.query(db_models.User)
-                    .join(db_models.section_enrollment)
-                    .join(db_models.Section)
-                    .filter(and_(db_models.Section.section_id == section.section_id, 
-                                    db_models.User.instructor == True))
-                    .order_by(db_models.User.last_name)
-                    .all()
-            )
-            num_students = (
-                session.query(db_models.User)
-                    .join(db_models.section_enrollment)
-                    .join(db_models.Section)
-                    .filter(and_(db_models.Section.section_id == section.section_id, 
-                                    db_models.User.instructor == False))
-                    .count()
-            )
-            current_app.logger.debug(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
-            section_info.append((section, section_instructors, num_students))
+        current_app.logger.debug(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
+        section_info.append((section, section_instructors, num_students))
 
     id_list = [i.user_id for i in all_instructors]
     name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
@@ -268,51 +257,51 @@ def admin_sections():
     form.instructors.choices = zip(id_list, name_list)
 
     if form.validate_on_submit():
-        with current_app.Session() as session:
-            # TODO: Turn this isn't a form validator so error shows up closer to
-            # where it matters (i.e. under the section field, not as a flash at
-            # the top of the page.
-            num_matching_sections = (
-                session.query(db_models.Section)
-                    .filter(db_models.Section.course == form.course.data)
-                    .filter(db_models.Section.semester == form.semester.data)
-                    .filter(db_models.Section.section_num == int(form.section_num.data))
-                    .count()
+        # TODO: Turn this isn't a form validator so error shows up closer to
+        # where it matters (i.e. under the section field, not as a flash at
+        # the top of the page.
+        num_matching_sections = (
+            db_models.Section.query
+                .filter(db_models.Section.course == form.course.data)
+                .filter(db_models.Section.semester == form.semester.data)
+                .filter(db_models.Section.section_num == int(form.section_num.data))
+                .count()
+        )
+
+        # make sure a section with given info doesn't already exist
+        if num_matching_sections != 0:
+            flash("A section with that information already exists!", "danger")
+            form.instructors.choices = zip(id_list, name_list)
+
+            return render_template("admin_sections.html",
+                                    page_title="Admin Sections: SAFE @ USD",
+                                    user=current_user,
+                                    form=form,
+                                    sections=section_info)
+
+        # create the new section and add it to the database
+        new_section = db_models.Section(course=form.course.data,
+                                        semester=form.semester.data,
+                                        section_num=int(form.section_num.data))
+
+
+        db.session.add(new_section)
+        db.session.commit() # causes DB to give the new_section a section_id
+
+        # add instructors to section
+        for instructor_id in form.instructors.data:
+            # FIXME: make this sane
+            statement = (
+                db.insert(db_models.section_enrollment)
+                  .values(user_id=instructor_id, section_id=new_section.section_id)
             )
+            db.session.execute(statement)
+            current_app.logger.debug(f"Added instructor {instructor_id} to section")
 
-            # make sure a section with given info doesn't already exist
-            if num_matching_sections != 0:
-                flash("A section with that information already exists!", "danger")
-                form.instructors.choices = zip(id_list, name_list)
+        db.session.commit()
 
-                return render_template("admin_sections.html",
-                                        page_title="Admin Sections: SAFE @ USD",
-                                        user=current_user,
-                                        form=form,
-                                        sections=section_info)
-
-            # create the new section and add it to the database
-            new_section = db_models.Section(course=form.course.data,
-                                            semester=form.semester.data,
-                                            section_num=int(form.section_num.data))
-
-
-            session.add(new_section)
-            session.flush() # causes DB to give the new_section a section_id
-
-            # add instructors to section
-            for instructor_id in form.instructors.data:
-                statement = (
-                    insert(db_models.section_enrollment)
-                        .values(user_id=instructor_id, section_id=new_section.section_id)
-                )
-                session.execute(statement)
-                current_app.logger.debug(f"Added instructor {instructor_id} to section")
-
-            session.commit()
-
-            current_app.logger.info(f"Added new section (ID: {new_section.section_id}): {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})")
-            flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
+        current_app.logger.info(f"Added new section (ID: {new_section.section_id}): {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})")
+        flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
 
         return redirect(url_for('.admin_sections'))
 
@@ -328,9 +317,9 @@ def admin_sections():
                             sections=section_info)
 
 
-def get_tester_file(assignment_id, filename, session):
+def get_tester_file(assignment_id, filename):
     return (
-        session.query(db_models.TesterFile)
+        db_models.TesterFile.query
             .join(db_models.BaseAssignment.tester_files)
             .filter(db_models.BaseAssignment.assignment_id == assignment_id)
             .filter(db_models.TesterFile.filename == filename)
@@ -350,67 +339,66 @@ def add_tester_files(assignment_id):
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    with current_app.Session() as session:
-        assignment = (
-            session.query(db_models.BaseAssignment)
-                .filter(db_models.BaseAssignment.assignment_id == assignment_id)
-                .first()
-        )
+    assignment = (
+        db_models.BaseAssignment.query
+            .filter(db_models.BaseAssignment.assignment_id == assignment_id)
+            .first()
+    )
 
-        if not assignment:
-            current_app.logger.warning(f"No assignment with id {assignment_id}")
-            abort(404)
+    if not assignment:
+        current_app.logger.warning(f"No assignment with id {assignment_id}")
+        abort(404)
 
-        add_files_form = AddTesterFilesForm()
+    add_files_form = AddTesterFilesForm()
 
-        if add_files_form.validate_on_submit():
-            # Create separate TesterFile entries for each uploaded tester
-            # file and save files to a directory for workers to access.
-            new_files = request.files.getlist(add_files_form.new_files.name)
+    if add_files_form.validate_on_submit():
+        # Create separate TesterFile entries for each uploaded tester
+        # file and save files to a directory for workers to access.
+        new_files = request.files.getlist(add_files_form.new_files.name)
 
-            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                            f"{assignment.assignment_id}")
+        tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                        f"{assignment.assignment_id}")
 
-            existing_tester_files = [tf.filename for tf in assignment.tester_files]
+        existing_tester_files = [tf.filename for tf in assignment.tester_files]
 
-            skipped_files = []
-            for tf in new_files:
-                if tf.filename in existing_tester_files:
-                    # if there is already a file with this name, skip it
-                    skipped_files.append(tf.filename)
-                    current_app.logger.debug(f"Skipped existing file: {tf.filename}")
-                    continue
+        skipped_files = []
+        for tf in new_files:
+            if tf.filename in existing_tester_files:
+                # if there is already a file with this name, skip it
+                skipped_files.append(tf.filename)
+                current_app.logger.debug(f"Skipped existing file: {tf.filename}")
+                continue
 
-                # TODO: store tf.content_type attribute in DB
-                new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                        data=tf.read(),
-                                                        base_assignment_id=assignment.assignment_id)
-                session.add(new_tester_file)
-                current_app.logger.info(f"Added {tf.filename} to assignment {assignment_id}")
+            # TODO: store tf.content_type attribute in DB
+            new_tester_file = db_models.TesterFile(filename=tf.filename,
+                                                    data=tf.read(),
+                                                    base_assignment_id=assignment.assignment_id)
+            db.session.add(new_tester_file)
+            current_app.logger.info(f"Added {tf.filename} to assignment {assignment_id}")
 
-                # save to the tester code directory
-                filename = secure_filename(tf.filename)
-                file_location = os.path.join(tester_code_dir, filename)
-                with open(file_location, 'wb') as new_file:
-                    new_file.write(new_tester_file.data)
+            # save to the tester code directory
+            filename = secure_filename(tf.filename)
+            file_location = os.path.join(tester_code_dir, filename)
+            with open(file_location, 'wb') as new_file:
+                new_file.write(new_tester_file.data)
 
-            session.commit()
+        db.session.commit()
 
-            if len(skipped_files) > 0:
-                flash(f"The following files already exist and were skipped: {' '.join(skipped_files)}",
-                        "warning")
+        if len(skipped_files) > 0:
+            flash(f"The following files already exist and were skipped: {' '.join(skipped_files)}",
+                    "warning")
 
-            if len(new_files) > len(skipped_files):
-                flash(f"Added {len(new_files) - len(skipped_files)} files to assignment '{assignment.title}'",
-                        "success")
+        if len(new_files) > len(skipped_files):
+            flash(f"Added {len(new_files) - len(skipped_files)} files to assignment '{assignment.title}'",
+                    "success")
 
-            return redirect(url_for('.admin_assignments'))
+        return redirect(url_for('.admin_assignments'))
 
 
-        return render_template("admin_add_tester_files.html",
-                                user=current_user,
-                                assignment=assignment,
-                                files_form=add_files_form)
+    return render_template("admin_add_tester_files.html",
+                            user=current_user,
+                            assignment=assignment,
+                            files_form=add_files_form)
 
 @admin.route("/assignments/<int:assignment_id>/tester_files/<filename>/delete")
 @login_required
@@ -419,27 +407,26 @@ def delete_tester_file(assignment_id, filename):
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    with current_app.Session() as session:
-        tester_file = get_tester_file(assignment_id, filename, session)
+    tester_file = get_tester_file(assignment_id, filename)
 
-        if not tester_file:
-            current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
-            abort(404)
+    if not tester_file:
+        current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
+        abort(404)
 
-        # remove the file from the tester code directory
-        tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                        f"{assignment_id}")
+    # remove the file from the tester code directory
+    tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                    f"{assignment_id}")
 
-        tester_file_loc = os.path.join(tester_code_dir, filename)
-        os.remove(tester_file_loc)
+    tester_file_loc = os.path.join(tester_code_dir, filename)
+    os.remove(tester_file_loc)
 
-        # delete from our database
-        session.delete(tester_file)
-        session.commit()
+    # delete from our database
+    db.session.delete(tester_file)
+    db.session.commit()
 
-        current_app.logger.info(f"Removed {filename} from assignment {assignment_id} tester files")
+    current_app.logger.info(f"Removed {filename} from assignment {assignment_id} tester files")
 
-        return redirect(url_for('.admin_assignments'))
+    return redirect(url_for('.admin_assignments'))
 
 
 class UpdateTesterFileForm(FlaskForm):
@@ -454,49 +441,48 @@ def view_tester_file(assignment_id, filename):
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    with current_app.Session() as session:
-        tester_file = get_tester_file(assignment_id, filename, session)
+    tester_file = get_tester_file(assignment_id, filename)
 
-        if not tester_file:
-            current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
-            abort(404)
+    if not tester_file:
+        current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
+        abort(404)
 
-        update_file_form = UpdateTesterFileForm()
+    update_file_form = UpdateTesterFileForm()
 
-        if update_file_form.validate_on_submit():
-            # add users to database
-            uploaded_file = update_file_form.tester_file.data
-            sec_filename = secure_filename(uploaded_file.filename)
+    if update_file_form.validate_on_submit():
+        # add users to database
+        uploaded_file = update_file_form.tester_file.data
+        sec_filename = secure_filename(uploaded_file.filename)
 
-            if sec_filename == filename:
-                # update file contents in database
-                tester_file.data = uploaded_file.read()
-                session.commit()
+        if sec_filename == filename:
+            # update file contents in database
+            tester_file.data = uploaded_file.read()
+            db.session.commit()
 
-                # save uploaded file to tester code directory
-                tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                                f"{assignment_id}")
-                file_location = os.path.join(tester_code_dir, sec_filename)
+            # save uploaded file to tester code directory
+            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                            f"{assignment_id}")
+            file_location = os.path.join(tester_code_dir, sec_filename)
 
-                with open(file_location, 'wb+') as new_file:
-                    new_file.write(tester_file.data)
+            with open(file_location, 'wb+') as new_file:
+                new_file.write(tester_file.data)
 
-                flash("File has been updated!", "success")
-                current_app.logger.info(f"{filename} has been updated in assignment {assignment_id}")
-            else:
-                current_app.logger.debug(f"Uploaded file {sec_filename} does not match filename ({filename})")
-                flash(f"Uploaded filename ({sec_filename}) differs from this file.", "danger")
+            flash("File has been updated!", "success")
+            current_app.logger.info(f"{filename} has been updated in assignment {assignment_id}")
+        else:
+            current_app.logger.debug(f"Uploaded file {sec_filename} does not match filename ({filename})")
+            flash(f"Uploaded filename ({sec_filename}) differs from this file.", "danger")
 
 
-        formatted_file = get_formatted_file_contents(tester_file)
+    formatted_file = get_formatted_file_contents(tester_file)
 
-        # TODO: send md5sum and creation date to template
+    # TODO: send md5sum and creation date to template
 
-        return render_template("file_viewer.html", 
-                                user=current_user,
-                                filename=tester_file.filename,
-                                file_contents=formatted_file,
-                                update_file_form=update_file_form)
+    return render_template("file_viewer.html", 
+                            user=current_user,
+                            filename=tester_file.filename,
+                            file_contents=formatted_file,
+                            update_file_form=update_file_form)
 
 @admin.route("/users/delete")
 @login_required
@@ -512,17 +498,16 @@ def admin_delete_user():
         current_app.logger.error("Failed: Missing user id")
         flash("Could not delete user. ID missing.", "danger")
     else:
-        with current_app.Session() as session:
-            user = session.query(db_models.User).filter(db_models.User.user_id == int(user_id)).first()
+        user = db_models.User.query.filter(db_models.User.user_id == int(user_id)).first()
 
-            if not user:
-                current_app.logger.error(f"Failed: Invalid user ID ({user_id})")
-                flash("Could not delete user. Invalid ID.", "danger")
-            else:
-                current_app.logger.info(f"Deleted user {user.username}")
-                flash(f"Successfully deleted user {user.username}", "success")
-                session.delete(user)
-                session.commit()
+        if not user:
+            current_app.logger.error(f"Failed: Invalid user ID ({user_id})")
+            flash("Could not delete user. Invalid ID.", "danger")
+        else:
+            current_app.logger.info(f"Deleted user {user.username}")
+            flash(f"Successfully deleted user {user.username}", "success")
+            db.session.delete(user)
+            db.session.commit()
 
     return redirect(url_for('.admin_users'))
 
@@ -538,9 +523,8 @@ class NewAssignmentForm(FlaskForm):
 
     def validate_title(form, field):
         """ Validate that title isn't already used by an assignment. """
-        with current_app.Session() as session:
-            if session.query(db_models.BaseAssignment).filter(db_models.BaseAssignment.title == field.data).count() != 0:
-                raise ValidationError("An assignment with that title already exists")
+        if db_models.BaseAssignment.query.filter(db_models.BaseAssignment.title == field.data).count() != 0:
+            raise ValidationError("An assignment with that title already exists")
 
     def validate_files(form, field):
         """
@@ -570,67 +554,65 @@ def admin_assignments():
     new_assignment_form = NewAssignmentForm()
 
     if new_assignment_form.validate_on_submit():
-        with current_app.Session() as session:
-            # create new assignment for DB
-            new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
-                                                            tester_run_command=new_assignment_form.tester_run_command.data,
-                                                            max_runtime=new_assignment_form.max_runtime.data)
+        # create new assignment for DB
+        new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
+                                                        tester_run_command=new_assignment_form.tester_run_command.data,
+                                                        max_runtime=new_assignment_form.max_runtime.data)
 
-            session.add(new_base_assignment)
-            session.flush()
+        db.session.add(new_base_assignment)
+        db.session.commit()
 
-            current_app.logger.info(f"Created new base assignment with ID {new_base_assignment.assignment_id}")
+        current_app.logger.info(f"Created new base assignment with ID {new_base_assignment.assignment_id}")
 
-            # create separate SourceFile entries for each source file
-            assignment_files = new_assignment_form.files.data.split()
-            
-            # TODO: check for duplicate filenames
-            for af in assignment_files:
-                new_file = db_models.SourceFile(filename=af,
-                                                base_assignment_id=new_base_assignment.assignment_id)
-                session.add(new_file)
-                current_app.logger.info(f"Added source file {af} to base assignment")
+        # create separate SourceFile entries for each source file
+        assignment_files = new_assignment_form.files.data.split()
+        
+        # TODO: check for duplicate filenames
+        for af in assignment_files:
+            new_file = db_models.SourceFile(filename=af,
+                                            base_assignment_id=new_base_assignment.assignment_id)
+            db.session.add(new_file)
+            current_app.logger.info(f"Added source file {af} to base assignment")
 
-            session.flush()
+        db.session.commit()
 
-            # Create separate TesterFile entries for each uploaded tester
-            # file and save files to a directory for workers to access.
-            tester_files = request.files.getlist(new_assignment_form.tester_files.name)
+        # Create separate TesterFile entries for each uploaded tester
+        # file and save files to a directory for workers to access.
+        tester_files = request.files.getlist(new_assignment_form.tester_files.name)
 
-            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                            f"{new_base_assignment.assignment_id}")
-            os.makedirs(tester_code_dir, exist_ok=True)
-            current_app.logger.debug(f"Set assignment tester code dir: {tester_code_dir}")
+        tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                        f"{new_base_assignment.assignment_id}")
+        os.makedirs(tester_code_dir, exist_ok=True)
+        current_app.logger.debug(f"Set assignment tester code dir: {tester_code_dir}")
 
-            for tf in tester_files:
-                # TODO: store tf.content_type attribute in DB
-                new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                        data=tf.read(),
-                                                        base_assignment_id=new_base_assignment.assignment_id)
-                session.add(new_tester_file)
+        for tf in tester_files:
+            # TODO: store tf.content_type attribute in DB
+            new_tester_file = db_models.TesterFile(filename=tf.filename,
+                                                    data=tf.read(),
+                                                    base_assignment_id=new_base_assignment.assignment_id)
+            db.session.add(new_tester_file)
 
-                # save to the tester code directory
-                filename = secure_filename(tf.filename)
-                file_location = os.path.join(tester_code_dir, filename)
-                with open(file_location, 'wb') as new_file:
-                    new_file.write(new_tester_file.data)
+            # save to the tester code directory
+            filename = secure_filename(tf.filename)
+            file_location = os.path.join(tester_code_dir, filename)
+            with open(file_location, 'wb') as new_file:
+                new_file.write(new_tester_file.data)
 
-                current_app.logger.info(f"Added tester file {tf.filename} to base assignment")
+            current_app.logger.info(f"Added tester file {tf.filename} to base assignment")
 
-            session.commit()
+        db.session.commit()
 
         flash(f"Assignment named '{new_assignment_form.title.data}' added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
 
         return redirect(url_for(f'.admin_assignments'))
 
-    with current_app.Session() as session:
-        all_assignments = session.query(db_models.BaseAssignment)
+    all_assignments = db_models.BaseAssignment.query
 
-        return render_template("admin_assignments.html",
-                                page_title="Admin Assignments: SAFE @ USD",
-                                user=current_user,
-                                assignment_form=new_assignment_form,
-                                assignments=all_assignments)
+    return render_template("admin_assignments.html",
+                            page_title="Admin Assignments: SAFE @ USD",
+                            user=current_user,
+                            assignment_form=new_assignment_form,
+                            assignments=all_assignments)
 
 @admin.route("/gitolite/assignment/<int:assignment_id>")
 @login_required
@@ -640,37 +622,36 @@ def get_gitolite_conf(assignment_id):
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    with current_app.Session() as session:
-        assignment = (
-            session.query(db_models.Assignment)
-                .filter(db_models.Assignment.assignment_id == assignment_id)
-                .first()
-        )
+    assignment = (
+        db_models.Assignment.query
+            .filter(db_models.Assignment.assignment_id == assignment_id)
+            .first()
+    )
 
-        if not assignment:
-            abort(404)
-            current_app.logger.error(f"No assignment found with id {assignment_id}")
+    if not assignment:
+        abort(404)
+        current_app.logger.error(f"No assignment found with id {assignment_id}")
 
-        section = assignment.section
+    section = assignment.section
 
-        response = ""
+    response = ""
 
-        for group in assignment.teams:
-            repo_name = f"comp110-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
-            response += f"repo {repo_name}\n"
+    for group in assignment.teams:
+        repo_name = f"comp110-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
+        response += f"repo {repo_name}\n"
 
-            # set up git hook to send notification to SAFE app
-            response += "\toption hook.post-receive = notify-safe\n"
+        # set up git hook to send notification to SAFE app
+        response += "\toption hook.post-receive = notify-safe\n"
 
-            # add read/write permissions to course staff (i.e. instructors)
-            response += f"\tRW+ = @comp110-{section.semester}-s{section.section_num:02}-staff\n"
+        # add read/write permissions to course staff (i.e. instructors)
+        response += f"\tRW+ = @comp110-{section.semester}-s{section.section_num:02}-staff\n"
 
-            # add read/write permissions to group members
-            group_usernames = " ".join([member.username for member in group.members])
-            response += f"\tRW+ = {group_usernames}\n"
+        # add read/write permissions to group members
+        group_usernames = " ".join([member.username for member in group.members])
+        response += f"\tRW+ = {group_usernames}\n"
 
-            # give read-only permission to the safe_app
-            response += f"\tR   = safe_app\n\n"
+        # give read-only permission to the safe_app
+        response += f"\tR   = safe_app\n\n"
 
 
     return response, 200, {'Content-Type': 'text/plain'}

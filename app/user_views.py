@@ -40,25 +40,24 @@ def user_profile(username):
             current_user.username == username):
         abort(403)
 
-    with current_app.Session() as session:
-        selected_user = (
-            session.query(db_models.User)
-                .filter(db_models.User.username == username)
-                .first()
-        )
+    selected_user = (
+        db_models.User.query
+            .filter(db_models.User.username == username)
+            .first()
+    )
 
-        if selected_user:
-            return render_template("user_profile.html",
-                                    page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
-                                    user=current_user,
-                                    selected_user=selected_user)
-        else:
-            # the user doesn't exist so 404 'em
-            abort(404)
+    if selected_user:
+        return render_template("user_profile.html",
+                                page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
+                                user=current_user,
+                                selected_user=selected_user)
+    else:
+        # the user doesn't exist so 404 'em
+        abort(404)
 
 @user_views.route('/')
 def root():
-    return render_template("home.html", 
+    return render_template("home.html",
                             page_title="Home: SAFE @ USD",
                             user=current_user)
 

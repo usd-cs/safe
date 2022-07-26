@@ -1,14 +1,13 @@
-import sqlite3
-
 import click
 from flask import current_app
 from flask.cli import with_appcontext
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db_models import User, Base
+from app import db
+from app.db_models import User
 
-
+"""
 def init_db(app):
     engine = create_engine(app.config['DATABASE_URI'],
                             echo=app.config['DATABASE_VERBOSE'])
@@ -16,6 +15,7 @@ def init_db(app):
     Base.metadata.create_all(engine)
 
     return engine
+"""
 
 
 @click.command('add-admin')
@@ -26,18 +26,20 @@ def init_db(app):
 def add_admin_user(username, first_name, last_name):
     """Adds a new admin user to the database."""
 
-    with current_app.Session() as session:
-        admin_user = User(username=username,
-                            first_name=first_name,
-                            last_name=last_name,
-                            admin=True,
-                            instructor=True)
-        session.add(admin_user)
-        session.commit()
+    admin_user = User(username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        admin=True,
+                        instructor=True)
+    db.session.add(admin_user)
+    db.session.commit()
 
     click.echo(f"Added new admin user: {first_name} {last_name} ({username}).")
 
 
 
 def init_app(app):
+    db.init_app(app)
     app.cli.add_command(add_admin_user)
+
+

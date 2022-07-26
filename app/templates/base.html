@@ -31,7 +31,7 @@
                     </a>
                 </div>
 
-                {% if user and user.is_authenticated and user.sections|length > 0 %}
+                {% if user and user.is_authenticated and user.sections.count() > 0 %}
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarCoursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Courses

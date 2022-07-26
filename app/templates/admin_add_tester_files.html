@@ -23,7 +23,7 @@
 
 <div class="container pt-2">
     <h3>Assignment: {{assignment.title}}</h3>
-    {% if assignment.tester_files|length > 0 %}
+    {% if assignment.tester_files.count() > 0 %}
     <div class="container pt-2">
         <h5>Existing Tester Files:</h5> 
         <ol>

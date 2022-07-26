@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from cas import CASClient
 
 from . import db_models
+from app import db
 
 auth = Blueprint('auth', __name__)
 
@@ -35,12 +36,9 @@ def init_auth(app):
 def load_user(user_id):
     current_app.logger.debug(f"loading user: {user_id}")
 
-    with current_app.Session() as session:
-        matching_users = (
-            session.query(db_models.User)
-                .options(joinedload(db_models.User.sections))
-                .filter(db_models.User.user_id == int(user_id))
-        )
+    matching_users = (
+        db_models.User.query.filter(db_models.User.user_id == int(user_id))
+    )
 
     if matching_users.count() == 1:
         return matching_users.first()
@@ -81,7 +79,7 @@ def verify_ticket():
         current_app.logger.error("Missing ticket for verify_ticket")
         flash("Login process failed: missing authentication ticket!", "danger")
         return redirect(url_for('user_views.root'))
-                
+
     # validate ticket and get username by calling verify_ticket
     username, attributes, pgtiou = current_app.cas_client.verify_ticket(ticket)
 
