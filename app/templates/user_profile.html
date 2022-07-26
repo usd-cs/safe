@@ -8,7 +8,7 @@
         <li class="list-group-item"><strong>Email:</strong> {{selected_user.username}}@sandiego.edu</li>
     </ul>
 </div>
-{% if selected_user.sections|length > 0 %}
+{% if selected_user.sections.count() > 0 %}
 <div class="container pt-3">
 	<h1>Courses</h1>
     <ul class="list-group">

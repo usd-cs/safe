@@ -18,7 +18,6 @@ from wtforms.widgets import ListWidget, CheckboxInput
 from flask_login import (
     LoginManager, current_user, login_required
 )
-from sqlalchemy import insert, delete, and_
 from werkzeug.utils import secure_filename
 from . import db_models
 
@@ -235,7 +234,7 @@ def admin_sections():
             db_models.User.query
                 .join(db_models.section_enrollment)
                 .join(db_models.Section)
-                .filter(and_(db_models.Section.section_id == section.section_id, 
+                .filter(db.and_(db_models.Section.section_id == section.section_id,
                                 db_models.User.instructor == True))
                 .order_by(db_models.User.last_name)
                 .all()
@@ -244,7 +243,7 @@ def admin_sections():
             db_models.User.query
                 .join(db_models.section_enrollment)
                 .join(db_models.Section)
-                .filter(and_(db_models.Section.section_id == section.section_id, 
+                .filter(db.and_(db_models.Section.section_id == section.section_id,
                                 db_models.User.instructor == False))
                 .count()
         )

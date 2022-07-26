@@ -54,8 +54,8 @@
 <div class="container pt-3">
     <h2>Groups</h2>
     <ul class="list-group">
-        {% if teams|length > 0 %}
-            {% for team in teams %}
+        {% if assignment.teams.count() > 0 %}
+            {% for team in assignment.teams %}
             <li class="list-group-item border-0">
                 <h5>
                     <i class="bi-people"></i>
@@ -78,7 +78,7 @@
                         </p>
                     </dd>
 
-                    {% if team.results|length > 0 and team.results[0].finished %}
+                    {% if team.results.count() > 0 and team.results[0].finished %}
                      {% set latest_results = team.results[0] %}
                         <dt class="col-lg-2">Submission Info</dt>
                         <dd class="col-lg-10">
@@ -150,7 +150,7 @@
         <form method="POST" action="">
             {{ copy_groups_form.csrf_token() }}
             {{ forms.input(copy_groups_form.assignment_num, "", "form-select") }}
-            {% if teams|length == 0 %}
+            {% if assignment.teams.count() == 0 %}
             {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm") }}
             {% else %}
             {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm disabled") }}

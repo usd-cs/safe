@@ -5,8 +5,6 @@ import json
 import csv
 import datetime
 
-from sqlalchemy import insert, delete, and_
-
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
     flash, Markup
@@ -29,6 +27,7 @@ from werkzeug.utils import secure_filename
 from . import db_models
 from . import admin
 
+from app import db
 from app.helper import get_formatted_file_contents
 
 user_views = Blueprint('user_views', __name__)
@@ -85,16 +84,15 @@ class NewAssignmentForm(FlaskForm):
     submit = SubmitField("Create Assignment")
 
     def validate_assignment_num(form, field):
-        with current_app.Session() as session:
-            num_matches = (
-                    session.query(db_models.Assignment)
-                        .filter(db_models.Assignment.section_id == form.section_id.data)
-                        .filter(db_models.Assignment.num == form.assignment_num.data)
-                        .count()
-            )
+        num_matches = (
+                db_models.Assignment.query
+                    .filter(db_models.Assignment.section_id == form.section_id.data)
+                    .filter(db_models.Assignment.num == form.assignment_num.data)
+                    .count()
+        )
 
-            if num_matches != 0:
-                raise ValidationError("Number already in use")
+        if num_matches != 0:
+            raise ValidationError("Number already in use")
 
 
 class RosterUploadForm(FlaskForm):
@@ -105,7 +103,7 @@ class RosterUploadForm(FlaskForm):
     submit = SubmitField('Upload Roster')
 
 
-def add_students_from_roster(section, file_location, session, add_drop=False):
+def add_students_from_roster(section, file_location, add_drop=False):
     """
     Adds students in a given roster file (CSV format) to the specified section.
 
@@ -135,7 +133,7 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                 students_in_file = []
 
                 initial_roster = (
-                    session.query(db_models.User)
+                    db_models.User.query
                         .join(db_models.Section.users)
                         .filter(db_models.Section.section_id == section.section_id)
                         .filter(db_models.User.instructor == False)
@@ -151,10 +149,7 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                     first_name = line[first_name_col]
 
                     # look for an existing user with that username
-                    student_to_add = (
-                        session.query(db_models.User)
-                            .filter(db_models.User.username == username).first()
-                    )
+                    student_to_add = db_models.User.query.filter(db_models.User.username == username).first()
 
                     if student_to_add:
                         # found the student already so no need to create a
@@ -167,8 +162,8 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                                                         last_name=last_name,
                                                         instructor=False,
                                                         admin=False)
-                        session.add(student_to_add)
-                        session.flush()
+                        db.session.add(student_to_add)
+                        db.session.commit()
 
                         current_app.logger.info(f"Created student user with username {username}")
 
@@ -180,17 +175,18 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                         duplicate_students.append(student_to_add.username)
                     else:
                         # Add user to this section
+                        # FIXME: make this sane
                         new_students.append(student_to_add.username)
                         statement = (
-                            insert(db_models.section_enrollment)
+                            db.insert(db_models.section_enrollment)
                                 .values(user_id=student_to_add.user_id, section_id=section.section_id)
                         )
-                        session.execute(statement)
+                        db.session.execute(statement)
 
                     current_app.logger.debug(f"Skipped (Already enrolled): {duplicate_students}")
                     current_app.logger.info(f"Enrolled: {new_students}")
 
-                    session.commit()
+                    db.session.commit()
 
                 if add_drop:
                     # Find and remove students who were in the roster before but
@@ -217,7 +213,7 @@ def add_students_from_roster(section, file_location, session, add_drop=False):
                             team.members.remove(student)
                             current_app.logger.debug(f"Removed from team {team.team_id}")
 
-                    session.commit()
+                    db.session.commit()
 
                     if len(students_to_remove) > 0:
                         flash(f"Removed {len(students_to_remove)} students from section.", "warning")
@@ -247,320 +243,305 @@ def section_overview(semester, section_num):
 
     # TODO: split this function into two separate functions, which will be
     # called based on whether the user is a student or an instructor/admin
-    with current_app.Session() as session:
-        section = (
-            session.query(db_models.Section)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .first()
-        )
+    section = (
+        db_models.Section.query
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .first()
+    )
 
-        if not section:
-            # section doesn't exist!
-            abort(404)
-        elif not (current_user.admin 
-                    or (current_user in section.users)):
-            # only admins and seciton instructor(s) can view this page.
-            abort(403)
+    if not section:
+        # section doesn't exist!
+        abort(404)
+    elif not (current_user.admin 
+                or (current_user in section.users)):
+        # only admins and seciton instructor(s) can view this page.
+        abort(403)
 
-        if not (current_user.admin or current_user.instructor):
-            # Construct the student's view of this page
-            instructors = (
-                session.query(db_models.User)
-                    .join(db_models.Section.users)
-                    .filter(db_models.Section.section_id == section.section_id)
-                    .filter(db_models.User.instructor)
-                    .all()
-            )
-
-            instructor_info = ", ".join([f"{u.first_name} {u.last_name} ({u.username}@sandiego.edu)" for u in instructors])
-
-            # get intersection of section's assignments and user's teams
-            # assignments
-            teams_in_section = (
-                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
-                    .join(db_models.Section.assignments)
-                    .join(db_models.Assignment.teams)
-                    .filter(db_models.Section.section_id == section.section_id)
-            )
-
-            teams_with_user = (
-                session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
-                    .select_from(db_models.Team)
-                    .join(db_models.User.teams)
-                    .join(db_models.Assignment)
-                    .filter(db_models.User.username == current_user.username)
-            )
-
-            assignment_info = teams_in_section.intersect(teams_with_user).all()
-
-            # render view for a student user
-            return render_template("section_overview_student.html", 
-                                    page_title="Section Overview: SAFE @ USD",
-                                    user=current_user,
-                                    section=section,
-                                    instructors=instructor_info,
-                                    assignments=assignment_info
-                                    )
-
-        new_assignment_form = NewAssignmentForm(section_id=section.section_id)
-        new_assignment_failed = False
-
-        base_choices = [(ba.assignment_id, ba.title) 
-                            for ba in session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
-        new_assignment_form.base_assignment_id.choices = base_choices
-
-        if new_assignment_form.validate_on_submit():
-            # combine due date and time into single datetime
-            deadline = datetime.datetime.combine(new_assignment_form.due_date.data,
-                                                    new_assignment_form.due_time.data)
-
-            # create new assignment based on the selected base assignment
-            # and add it to our database
-            new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
-                                                    section_id=section.section_id,
-                                                    base_assignment_id=new_assignment_form.base_assignment_id.data,
-                                                    deadline=deadline)
-
-            session.add(new_assignment)
-            session.commit()
-
-            flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
-                    "info")
-
-            return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
-
-        elif request.method == 'POST' and request.form['submit'] == "Create Assignment":
-            # form was submitted but validation failed so tell template so it
-            # can pop the modal up again
-            new_assignment_failed = True
-
-
-        remove_students_form = RemoveStudentsForm()
-
-        enrolled_students = (
-            session.query(db_models.User)
+    if not (current_user.admin or current_user.instructor):
+        # Construct the student's view of this page
+        instructors = (
+            db_models.User.query
                 .join(db_models.Section.users)
                 .filter(db_models.Section.section_id == section.section_id)
-                .filter(db_models.User.instructor == False)
+                .filter(db_models.User.instructor)
                 .all()
         )
 
-        all_enrolled_students = [(s.user_id, s.username) for s in enrolled_students]
-        remove_students_form.students_to_remove.choices = all_enrolled_students
+        instructor_info = ", ".join([f"{u.first_name} {u.last_name} ({u.username}@sandiego.edu)" for u in instructors])
 
-        roster_upload_failed = False
+        # get intersection of section's assignments and user's teams
+        # assignments
+        teams_in_section = (
+            db.session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
+                .join(db_models.Section.assignments)
+                .join(db_models.Assignment.teams)
+                .filter(db_models.Section.section_id == section.section_id)
+        )
 
-        if remove_students_form.validate_on_submit():
-            for student_id in remove_students_form.students_to_remove.data:
+        teams_with_user = (
+            db.session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
+                .select_from(db_models.Team)
+                .join(db_models.User.teams)
+                .join(db_models.Assignment)
+                .filter(db_models.User.username == current_user.username)
+        )
 
-                student = (
-                    session.query(db_models.User)
-                        .filter(db_models.User.user_id == student_id)
-                        .first()
-                )
+        assignment_info = teams_in_section.intersect(teams_with_user).all()
 
-                if not student:
-                    # if we don't find that student, something bad happened so
-                    # send 500 response
-                    current_app.logger.error(f"Student with ID {student_id} not found")
-                    abort(500)
-
-                current_app.logger.info(f"Removing {student.username} from section")
-
-                # TODO: Use section.users.remove for simplicity
-                s = delete(db_models.section_enrollment).where(and_(
-                        db_models.section_enrollment.c.section_id == section.section_id,
-                        db_models.section_enrollment.c.user_id == student_id))
-                session.execute(s)
-
-                # TODO: change this to return teams that the student is a member of
-                student_team_enrollments = (
-                    session.query(db_models.team_enrollment)
-                        .join(db_models.Team)
-                        .join(db_models.Assignment)
-                        .join(db_models.Section)
-                        .filter(db_models.Section.section_id == section.section_id)
-                        .filter(db_models.team_enrollment.c.user_id == student_id)
-                )
-
-                # TODO: Use team.members.remove for simplicity
-                for t in student_team_enrollments:
-                    s = delete(db_models.team_enrollment).where(and_(
-                            db_models.team_enrollment.c.team_id == t.team_id,
-                            db_models.team_enrollment.c.user_id == t.user_id))
-                    session.execute(s)
-                    current_app.logger.debug(f"Removed from team {t.team_id}")
-
-                    # TODO: remove teams that no longer have any members after
-                    # removing this student???
-
-                session.commit()
-
-
-            return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
-
-        elif request.method == 'POST' and request.form['submit'] == "Upload Roster":
-            # form was submitted but validation failed so tell template so it
-            # can pop the modal up again
-            roster_upload_failed = True
-
-        remove_students_form.students_to_remove.choices = all_enrolled_students
-
-        roster_upload_form = RosterUploadForm()
-
-        if roster_upload_form.validate_on_submit():
-            # add users to database
-            uploaded_file = roster_upload_form.roster_file.data
-
-            # save uploaded file to temporary file
-            filename = secure_filename(uploaded_file.filename)
-
-            temp_dir = file_location = os.path.join(current_app.instance_path, 'tmp')
-            os.makedirs(temp_dir, exist_ok=True)
-
-            file_location = os.path.join(temp_dir, filename)
-            uploaded_file.save(file_location)
-
-            add_students_from_roster(section, file_location, session,
-                                        add_drop=roster_upload_form.add_drop.data)
-
-            os.remove(file_location)
-            return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
-
-        return render_template("section_overview.html", 
+        # render view for a student user
+        return render_template("section_overview_student.html", 
                                 page_title="Section Overview: SAFE @ USD",
                                 user=current_user,
                                 section=section,
-                                assignment_form=new_assignment_form,
-                                remove_students_form=remove_students_form,
-                                roster_form=roster_upload_form,
-                                new_assignment_failed=new_assignment_failed,
-                                roster_upload_failed=roster_upload_failed
+                                instructors=instructor_info,
+                                assignments=assignment_info
                                 )
+
+    new_assignment_form = NewAssignmentForm(section_id=section.section_id)
+    new_assignment_failed = False
+
+    base_choices = [(ba.assignment_id, ba.title) 
+                        for ba in db.session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
+    new_assignment_form.base_assignment_id.choices = base_choices
+
+    if new_assignment_form.validate_on_submit():
+        # combine due date and time into single datetime
+        deadline = datetime.datetime.combine(new_assignment_form.due_date.data,
+                                                new_assignment_form.due_time.data)
+
+        # create new assignment based on the selected base assignment
+        # and add it to our database
+        new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
+                                                section_id=section.section_id,
+                                                base_assignment_id=new_assignment_form.base_assignment_id.data,
+                                                deadline=deadline)
+
+        db.session.add(new_assignment)
+        db.session.commit()
+
+        flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
+                "info")
+
+        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+    elif request.method == 'POST' and request.form['submit'] == "Create Assignment":
+        # form was submitted but validation failed so tell template so it
+        # can pop the modal up again
+        new_assignment_failed = True
+
+
+    remove_students_form = RemoveStudentsForm()
+
+    enrolled_students = (
+        db_models.User.query
+            .join(db_models.Section.users)
+            .filter(db_models.Section.section_id == section.section_id)
+            .filter(db_models.User.instructor == False)
+            .all()
+    )
+
+    all_enrolled_students = [(s.user_id, s.username) for s in enrolled_students]
+    remove_students_form.students_to_remove.choices = all_enrolled_students
+
+    roster_upload_failed = False
+
+    if remove_students_form.validate_on_submit():
+        for student_id in remove_students_form.students_to_remove.data:
+
+            student = db_models.User.query.filter(db_models.User.user_id == student_id).first()
+
+            if not student:
+                # if we don't find that student, something bad happened so
+                # send 500 response
+                current_app.logger.error(f"Student with ID {student_id} not found")
+                abort(500)
+
+            current_app.logger.info(f"Removing {student.username} from section")
+
+            # FIXME: Use section.users.remove for simplicity
+            s = db.delete(db_models.section_enrollment).where(db.and_(
+                    db_models.section_enrollment.c.section_id == section.section_id,
+                    db_models.section_enrollment.c.user_id == student_id))
+            db.session.execute(s)
+
+            # TODO: change this to return teams that the student is a member of
+            student_team_enrollments = (
+                db.session.query(db_models.team_enrollment)
+                    .join(db_models.Team)
+                    .join(db_models.Assignment)
+                    .join(db_models.Section)
+                    .filter(db_models.Section.section_id == section.section_id)
+                    .filter(db_models.team_enrollment.c.user_id == student_id)
+            )
+
+            # FIXME: Use team.members.remove for simplicity
+            for t in student_team_enrollments:
+                s = db.delete(db_models.team_enrollment).where(db.and_(
+                        db_models.team_enrollment.c.team_id == t.team_id,
+                        db_models.team_enrollment.c.user_id == t.user_id))
+                db.session.execute(s)
+                current_app.logger.debug(f"Removed from team {t.team_id}")
+
+                # TODO: remove teams that no longer have any members after
+                # removing this student???
+
+            db.session.commit()
+
+
+        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+    elif request.method == 'POST' and request.form['submit'] == "Upload Roster":
+        # form was submitted but validation failed so tell template so it
+        # can pop the modal up again
+        roster_upload_failed = True
+
+    remove_students_form.students_to_remove.choices = all_enrolled_students
+
+    roster_upload_form = RosterUploadForm()
+
+    if roster_upload_form.validate_on_submit():
+        # add users to database
+        uploaded_file = roster_upload_form.roster_file.data
+
+        # save uploaded file to temporary file
+        filename = secure_filename(uploaded_file.filename)
+
+        temp_dir = file_location = os.path.join(current_app.instance_path, 'tmp')
+        os.makedirs(temp_dir, exist_ok=True)
+
+        file_location = os.path.join(temp_dir, filename)
+        uploaded_file.save(file_location)
+
+        add_students_from_roster(section, file_location,
+                                    add_drop=roster_upload_form.add_drop.data)
+
+        os.remove(file_location)
+        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+
+    return render_template("section_overview.html", 
+                            page_title="Section Overview: SAFE @ USD",
+                            user=current_user,
+                            section=section,
+                            assignment_form=new_assignment_form,
+                            remove_students_form=remove_students_form,
+                            roster_form=roster_upload_form,
+                            new_assignment_failed=new_assignment_failed,
+                            roster_upload_failed=roster_upload_failed
+                            )
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/modify", methods=['get', 'post'])
 @login_required
 def modify_group(semester, section_num, psa_num, group_num):
     # TODO: remove repeated code between this and delete_group
-    with current_app.Session() as session:
-        query_result = (
-            session.query(db_models.Section, db_models.Team)
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .filter(db_models.Assignment.num == psa_num)
-                .filter(db_models.Team.team_num == group_num)
-                .first()
-        )
+    query_result = (
+        db.session.query(db_models.Section, db_models.Team)
+            .join(db_models.Section.assignments)
+            .join(db_models.Assignment.teams)
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .filter(db_models.Assignment.num == psa_num)
+            .filter(db_models.Team.team_num == group_num)
+            .first()
+    )
 
-        if query_result:
-            section, team = query_result
-        else:
-            abort(404)
+    if query_result:
+        section, team = query_result
+    else:
+        abort(404)
 
-        # only instructors for this section may delete a group
-        if not (current_user.instructor and current_user in section.users):
-            abort(403)
+    # only instructors for this section may delete a group
+    if not (current_user.instructor and current_user in section.users):
+        abort(403)
 
-        students_without_groups = get_students_without_groups(section.section_id, 
-                                                                team.assignment.assignment_id)
+    students_without_groups = get_students_without_groups(section.section_id, 
+                                                            team.assignment.assignment_id)
 
-        available_students_ids = [s.user_id for s in students_without_groups]
-        available_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
-                                    for s in students_without_groups]
+    available_students_ids = [s.user_id for s in students_without_groups]
+    available_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
+                                for s in students_without_groups]
 
-        existing_members_ids = [member.user_id for member in team.members]
-        existing_members_names = [f"{member.last_name}, {member.first_name} ({member.username})" 
-                                    for member in team.members]
-        
-        all_form_ids = existing_members_ids + available_students_ids
-        all_form_names = existing_members_names + available_students_names
+    existing_members_ids = [member.user_id for member in team.members]
+    existing_members_names = [f"{member.last_name}, {member.first_name} ({member.username})" 
+                                for member in team.members]
+    
+    all_form_ids = existing_members_ids + available_students_ids
+    all_form_names = existing_members_names + available_students_names
 
-        # create list of (id, name) pairs, sorted by name
-        all_options = sorted(zip(all_form_ids, all_form_names), key=lambda x: x[1])
+    # create list of (id, name) pairs, sorted by name
+    all_options = sorted(zip(all_form_ids, all_form_names), key=lambda x: x[1])
 
-        update_members_form = UpdateGroupMembersForm()
-        update_members_form.members.choices = all_options
+    update_members_form = UpdateGroupMembersForm()
+    update_members_form.members.choices = all_options
 
-        if update_members_form.validate_on_submit():
-            # add members that weren't previously selected
-            for student_user_id in update_members_form.members.data:
-                if student_user_id not in existing_members_ids:
-                    new_member = (
-                        session.query(db_models.User)
-                            .filter(db_models.User.user_id == student_user_id)
-                            .first()
-                    )
-                    team.members.append(new_member)
+    if update_members_form.validate_on_submit():
+        # add members that weren't previously selected
+        for student_user_id in update_members_form.members.data:
+            if student_user_id not in existing_members_ids:
+                new_member = db_models.User.query.filter(db_models.User.user_id == student_user_id).first()
+                team.members.append(new_member)
 
-            # remove members that were selected previously but aren't now
-            for student_user_id in existing_members_ids:
-                if student_user_id not in update_members_form.members.data:
-                    ex_member = (
-                        session.query(db_models.User)
-                            .filter(db_models.User.user_id == student_user_id)
-                            .first()
-                    )
-                    team.members.remove(ex_member)
+        # remove members that were selected previously but aren't now
+        for student_user_id in existing_members_ids:
+            if student_user_id not in update_members_form.members.data:
+                ex_member = db_models.User.query.filter(db_models.User.user_id == student_user_id).first()
+                team.members.remove(ex_member)
 
-            session.commit()
+        db.session.commit()
 
-            return redirect(url_for('.psa_overview', 
-                                    semester=semester,
-                                    section_num=section_num,
-                                    psa_num=psa_num,
-                                    group_num=group_num))
+        return redirect(url_for('.psa_overview', 
+                                semester=semester,
+                                section_num=section_num,
+                                psa_num=psa_num,
+                                group_num=group_num))
 
 
-        #update_members_form.members.choices = zip(all_form_ids, available_students_names)
-        update_members_form.members.choices = all_options
-        update_members_form.members.data = [u.user_id for u in team.members]
+    #update_members_form.members.choices = zip(all_form_ids, available_students_names)
+    update_members_form.members.choices = all_options
+    update_members_form.members.data = [u.user_id for u in team.members]
 
-        return render_template("modify_group_members.html",
-                                page_title=f"Modify Group : SAFE @ USD",
-                                user=current_user,
-                                team=team,
-                                form=update_members_form)
+    return render_template("modify_group_members.html",
+                            page_title=f"Modify Group : SAFE @ USD",
+                            user=current_user,
+                            team=team,
+                            form=update_members_form)
 
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
 @login_required
 def delete_group(semester, section_num, psa_num, group_num):
-    with current_app.Session() as session:
-        query_result = (
-            session.query(db_models.Section, db_models.Team)
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .filter(db_models.Assignment.num == psa_num)
-                .filter(db_models.Team.team_num == group_num)
-                .first()
-        )
+    query_result = (
+        db.session.query(db_models.Section, db_models.Team)
+            .join(db_models.Section.assignments)
+            .join(db_models.Assignment.teams)
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .filter(db_models.Assignment.num == psa_num)
+            .filter(db_models.Team.team_num == group_num)
+            .first()
+    )
 
-        if query_result:
-            section, team = query_result
-        else:
-            abort(404)
+    if query_result:
+        section, team = query_result
+    else:
+        abort(404)
 
-        # only instructors for this section may delete a group
-        if not (current_user.instructor and current_user in section.users):
-            abort(403)
+    # only instructors for this section may delete a group
+    if not (current_user.instructor and current_user in section.users):
+        abort(403)
 
-        # delete this group from the database
-        session.delete(team)
-        session.commit()
+    # delete this group from the database
+    db.session.delete(team)
+    db.session.commit()
 
-        flash(f"Removed group {group_num} from PSA {psa_num}", "info")
-        return redirect(url_for('.psa_overview',
-                                semester=semester,
-                                section_num=section_num,
-                                psa_num=psa_num))
+    flash(f"Removed group {group_num} from PSA {psa_num}", "info")
+    return redirect(url_for('.psa_overview',
+                            semester=semester,
+                            section_num=section_num,
+                            psa_num=psa_num))
 
 
 
@@ -579,66 +560,64 @@ class UpdateGroupMembersForm(FlaskForm):
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
 @login_required
 def view_tester_file(semester, section_num, psa_num, filename):
-    with current_app.Session() as session:
-        file_query = (
-            session.query(db_models.Section, db_models.TesterFile)
-                .join(db_models.Section.assignments)
-                .join(db_models.BaseAssignment)
-                .join(db_models.TesterFile)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .filter(db_models.Assignment.num == psa_num)
-                .filter(db_models.TesterFile.filename == filename)
-        )
+    file_query = (
+        db.session.query(db_models.Section, db_models.TesterFile)
+            .join(db_models.Section.assignments)
+            .join(db_models.BaseAssignment)
+            .join(db_models.TesterFile)
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .filter(db_models.Assignment.num == psa_num)
+            .filter(db_models.TesterFile.filename == filename)
+    )
 
 
-        if file_query.count() == 0:
-            # Couldn't find the requested file
-            abort(404)
+    if file_query.count() == 0:
+        # Couldn't find the requested file
+        abort(404)
 
-        section, tester_file = file_query.first()
+    section, tester_file = file_query.first()
 
-        if not (current_user.admin or 
-                (current_user.instructor and current_user in section.users)):
-            # Only admin's and this section's instructors can view
-            # Note: we 404 rather than 403 here to hide filenames from peekers
-            abort(404)
+    if not (current_user.admin or 
+            (current_user.instructor and current_user in section.users)):
+        # Only admin's and this section's instructors can view
+        # Note: we 404 rather than 403 here to hide filenames from peekers
+        abort(404)
 
-        formatted_file = get_formatted_file_contents(tester_file)
+    formatted_file = get_formatted_file_contents(tester_file)
 
-        # TODO: send md5sum and creation date to template
+    # TODO: send md5sum and creation date to template
 
-        return render_template("file_viewer.html", 
-                                user=current_user,
-                                filename=tester_file.filename,
-                                file_contents=formatted_file)
+    return render_template("file_viewer.html", 
+                            user=current_user,
+                            filename=tester_file.filename,
+                            file_contents=formatted_file)
 
 def get_students_without_groups(section_id, assignment_id):
-    with current_app.Session() as session:
-        enrolled_students = (
-            session.query(db_models.User)
-                .join(db_models.section_enrollment)
-                .join(db_models.Section)
-                .filter(and_(db_models.Section.section_id == section_id, 
-                                db_models.User.instructor == False))
-        )
+    enrolled_students = (
+        db_models.User.query
+            .join(db_models.section_enrollment)
+            .join(db_models.Section)
+            .filter(db.and_(db_models.Section.section_id == section_id, 
+                            db_models.User.instructor == False))
+    )
 
-        students_in_groups = (
-            session.query(db_models.User)
-                .join(db_models.team_enrollment)
-                .join(db_models.Team)
-                .filter(db_models.Team.assignment_id == assignment_id)
-        )
+    students_in_groups = (
+        db_models.User.query
+            .join(db_models.team_enrollment)
+            .join(db_models.Team)
+            .filter(db_models.Team.assignment_id == assignment_id)
+    )
 
-        students_without_groups = (
-                enrolled_students
-                    .except_(students_in_groups)
-                    .order_by(db_models.User.last_name)
-                    .all()
-        )
+    students_without_groups = (
+            enrolled_students
+                .except_(students_in_groups)
+                .order_by(db_models.User.last_name)
+                .all()
+    )
 
-        return students_without_groups
+    return students_without_groups
 
 class CopyGroupsForm(FlaskForm):
     assignment_num = SelectField('Assignment', coerce=int)
@@ -648,33 +627,32 @@ class CopyGroupsForm(FlaskForm):
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/delete")
 @login_required
 def delete_assignment(semester, section_num, psa_num):
-    with current_app.Session() as session:
-        query_results = (
-            session.query(db_models.Section, db_models.Assignment)
-                .join(db_models.Section.assignments)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .filter(db_models.Assignment.num == psa_num)
-                .first()
-        )
+    query_results = (
+        db.session.query(db_models.Section, db_models.Assignment)
+            .join(db_models.Section.assignments)
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .filter(db_models.Assignment.num == psa_num)
+            .first()
+    )
 
-        if not query_results:
-            # couldn't find assignment
-            abort(404)
+    if not query_results:
+        # couldn't find assignment
+        abort(404)
 
-        section, assignment = query_results
+    section, assignment = query_results
 
-        if (not current_user.instructor) or (current_user not in section.users):
-            # only permit instructors for this section
-            abort(403)
+    if (not current_user.instructor) or (current_user not in section.users):
+        # only permit instructors for this section
+        abort(403)
 
-        session.delete(assignment)
-        session.commit()
+    db.session.delete(assignment)
+    db.session.commit()
 
-        flash(f"Successfully deleted PSA {psa_num}", "info")
+    flash(f"Successfully deleted PSA {psa_num}", "info")
 
-        return redirect(url_for('.section_overview', semester=semester, section_num=section_num))
+    return redirect(url_for('.section_overview', semester=semester, section_num=section_num))
 
 
 
@@ -683,127 +661,126 @@ def delete_assignment(semester, section_num, psa_num):
 @login_required
 def psa_overview(semester, section_num, psa_num):
 
-    with current_app.Session() as session:
-        section = (
-            session.query(db_models.Section)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
+    section = (
+        db_models.Section.query
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .first()
+    )
+
+    if not section:
+        abort(404)
+    elif not (current_user.admin 
+                or (current_user.instructor and current_user in section.users)):
+        # only admins and section instructor(s) can view this page.
+        abort(403)
+
+    assignment = (
+            db_models.Assignment.query
+                .filter(db_models.Assignment.section_id == section.section_id)
+                .filter(db_models.Assignment.num == psa_num)
                 .first()
-        )
+    )
 
-        if not section:
-            abort(404)
-        elif not (current_user.admin 
-                    or (current_user.instructor and current_user in section.users)):
-            # only admins and section instructor(s) can view this page.
-            abort(403)
-
-        assignment = (
-                session.query(db_models.Assignment)
-                    .filter(db_models.Assignment.section_id == section.section_id)
-                    .filter(db_models.Assignment.num == psa_num)
-                    .first()
-        )
-
-        if not assignment:
-            # assignment doesn't exist!
-            abort(404)
+    if not assignment:
+        # assignment doesn't exist!
+        abort(404)
 
 
-        students_without_groups = get_students_without_groups(section.section_id, 
-                                                                assignment.assignment_id)
+    students_without_groups = get_students_without_groups(section.section_id, 
+                                                            assignment.assignment_id)
 
-        unassigned_students_ids = [s.user_id for s in students_without_groups]
-        unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
-                        for s in students_without_groups]
+    unassigned_students_ids = [s.user_id for s in students_without_groups]
+    unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
+                    for s in students_without_groups]
 
-        new_group_form = NewGroupForm()
-        new_group_form.members.choices = zip(unassigned_students_ids,
-                                                unassigned_students_names)
+    new_group_form = NewGroupForm()
+    new_group_form.members.choices = zip(unassigned_students_ids,
+                                            unassigned_students_names)
 
-        if new_group_form.validate_on_submit():
-            if new_group_form.group_num.data in [t.team_num for t in assignment.teams]:
-                flash("That group number is already taken. Please select another.",
-                        "danger")
+    if new_group_form.validate_on_submit():
+        if new_group_form.group_num.data in [t.team_num for t in assignment.teams]:
+            flash("That group number is already taken. Please select another.",
+                    "danger")
 
-            else:
-                new_group = db_models.Team(team_num=new_group_form.group_num.data,
-                                                assignment_id=assignment.assignment_id)
+        else:
+            new_group = db_models.Team(team_num=new_group_form.group_num.data,
+                                            assignment_id=assignment.assignment_id)
 
-                session.add(new_group)
-                session.flush() # causes DB to give the new_group a team_id
+            db.session.add(new_group)
+            db.session.commit() # causes DB to give the new_group a team_id
 
-                # add selected students to team
-                for student_id in new_group_form.members.data:
-                    statement = (
-                        insert(db_models.team_enrollment)
-                            .values(user_id=student_id, team_id=new_group.team_id)
-                    )
-                    session.execute(statement)
+            # add selected students to team
+            for student_id in new_group_form.members.data:
+                # FIXME: make this sane
+                statement = (
+                    db.insert(db_models.team_enrollment)
+                        .values(user_id=student_id, team_id=new_group.team_id)
+                )
+                db.session.execute(statement)
 
-                session.commit()
+            db.session.commit()
 
-                return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+            return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
 
-        copy_groups_form = CopyGroupsForm()
+    copy_groups_form = CopyGroupsForm()
 
-        other_assignments = (
-            session.query(db_models.Assignment)
+    other_assignments = (
+        db_models.Assignment.query
+            .join(db_models.Section.assignments)
+            .filter(db_models.Section.section_id == section.section_id)
+            .filter(db_models.Assignment.assignment_id != assignment.assignment_id)
+            .order_by(db_models.Assignment.num.desc())
+            .all()
+    )
+
+    copy_choices = [(a.num, f"PSA{a.num}: {a.base_assignment.title}") 
+                        for a in other_assignments]
+
+    copy_groups_form.assignment_num.choices = copy_choices
+
+    if copy_groups_form.validate_on_submit():
+        # Check that there aren't any existing teams in this assignment.
+        # Note: The template should disable this form if there are existing
+        # groups but want to be safe here.
+        if len(assignment.teams) != 0:
+            abort(500)
+
+        groups = (
+            db_models.Team.query
                 .join(db_models.Section.assignments)
+                .join(db_models.Assignment.teams)
                 .filter(db_models.Section.section_id == section.section_id)
-                .filter(db_models.Assignment.assignment_id != assignment.assignment_id)
-                .order_by(db_models.Assignment.num.desc())
+                .filter(db_models.Assignment.num == copy_groups_form.assignment_num.data)
                 .all()
         )
 
-        copy_choices = [(a.num, f"PSA{a.num}: {a.base_assignment.title}") 
-                            for a in other_assignments]
+        for g in groups:
+            new_team = db_models.Team(team_num=g.team_num,
+                                        assignment_id=assignment.assignment_id)
 
-        copy_groups_form.assignment_num.choices = copy_choices
+            for member in g.members:
+                new_team.members.append(member)
 
-        if copy_groups_form.validate_on_submit():
-            # Check that there aren't any existing teams in this assignment.
-            # Note: The template should disable this form if there are existing
-            # groups but want to be safe here.
-            if len(assignment.teams) != 0:
-                abort(500)
+            db.session.add(new_team)
 
-            groups = (
-                session.query(db_models.Team)
-                    .join(db_models.Section.assignments)
-                    .join(db_models.Assignment.teams)
-                    .filter(db_models.Section.section_id == section.section_id)
-                    .filter(db_models.Assignment.num == copy_groups_form.assignment_num.data)
-                    .all()
-            )
+        db.session.commit()
+        return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
 
-            for g in groups:
-                new_team = db_models.Team(team_num=g.team_num,
-                                            assignment_id=assignment.assignment_id)
+    # TRICKY: validating form seems to clear out choices so have to
+    # reset them here
+    new_group_form.members.choices = zip(unassigned_students_ids,
+            unassigned_students_names)
 
-                for member in g.members:
-                    new_team.members.append(member)
+    copy_groups_form.assignment_num.choices = copy_choices
 
-                session.add(new_team)
-
-            session.commit()
-            return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
-
-        # TRICKY: validating form seems to clear out choices so have to
-        # reset them here
-        new_group_form.members.choices = zip(unassigned_students_ids,
-                unassigned_students_names)
-
-        copy_groups_form.assignment_num.choices = copy_choices
-
-        return render_template("assignment_overview.html", 
-                                user=current_user,
-                                section=section,
-                                assignment=assignment,
-                                teams=assignment.teams,
-                                group_form=new_group_form,
-                                copy_groups_form=copy_groups_form)
+    return render_template("assignment_overview.html", 
+                            user=current_user,
+                            section=section,
+                            assignment=assignment,
+                            group_form=new_group_form,
+                            copy_groups_form=copy_groups_form)
 
 
 @user_views.route("/comp110/psa<int:psa_num>/")
@@ -814,170 +791,168 @@ def psa_results_shortcut(psa_num):
         flash("Assignment shortcut link only available to students!", "warning")
         return redirect(url_for('.root'))
 
-    with current_app.Session() as session:
-        target_user = current_user
+    target_user = current_user
 
-        # find any teams for the given course and psa
-        matched_psa_info = (
-            session.query(db_models.Section.semester, db_models.Section.section_num, db_models.Team.team_num)
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .join(db_models.Team.members)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Assignment.num == psa_num)
-                .filter(db_models.User.username == target_user.username)
-        )
+    # find any teams for the given course and psa
+    matched_psa_info = (
+        db.session.query(db_models.Section.semester, db_models.Section.section_num, db_models.Team.team_num)
+            .join(db_models.Section.assignments)
+            .join(db_models.Assignment.teams)
+            .join(db_models.Team.members)
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Assignment.num == psa_num)
+            .filter(db_models.User.username == target_user.username)
+    )
 
-        if matched_psa_info.count() == 0:
-            # no teams found for this user
-            flash(f"Could not find your group for COMP110 PSA {psa_num}. Check that you have a group listed when going to the section page.",
-                    "danger")
-            return redirect(url_for('.root'))
+    if matched_psa_info.count() == 0:
+        # no teams found for this user
+        flash(f"Could not find your group for COMP110 PSA {psa_num}. Check that you have a group listed when going to the section page.",
+                "danger")
+        return redirect(url_for('.root'))
 
-        elif matched_psa_info.count() > 1:
-            # multiple teams found so redirect home but give them helpful direct
-            # links
-            section_links = ", ".join([f'<a href="{url_for(".psa_results", semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
-                for semester, section_num, group_num in matched_psa_info])
+    elif matched_psa_info.count() > 1:
+        # multiple teams found so redirect home but give them helpful direct
+        # links
+        section_links = ", ".join([f'<a href="{url_for(".psa_results", semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
+            for semester, section_num, group_num in matched_psa_info])
 
-            message = Markup(f"You are enrolled in multiple groups for COMP110 PSA {psa_num}. Select among the following: {section_links}")
-            flash(message, "warning")
-            return redirect(url_for('.root'))
+        message = Markup(f"You are enrolled in multiple groups for COMP110 PSA {psa_num}. Select among the following: {section_links}")
+        flash(message, "warning")
+        return redirect(url_for('.root'))
 
-        else:
-            # got a unique team so redirect to the correct results page
-            semester, section_num, group_num = matched_psa_info.first()
-        
-            return redirect(url_for('.psa_results', 
-                                    semester=semester,
-                                    section_num=section_num,
-                                    psa_num=psa_num,
-                                    group_num=group_num))
+    else:
+        # got a unique team so redirect to the correct results page
+        semester, section_num, group_num = matched_psa_info.first()
+    
+        return redirect(url_for('.psa_results', 
+                                semester=semester,
+                                section_num=section_num,
+                                psa_num=psa_num,
+                                group_num=group_num))
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
 @login_required
 def psa_results(semester, section_num, psa_num, group_num):
-    with current_app.Session() as session:
-        # TODO: combine the following queries into one!
-        section = (
-            session.query(db_models.Section)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
+    # TODO: combine the following queries into one!
+    section = (
+        db_models.Section.query
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .first()
+    )
+
+    if not section:
+        abort(404)
+
+    assignment = (
+            db_models.Assignment.query
+                .filter(db_models.Assignment.section_id == section.section_id)
+                .filter(db_models.Assignment.num == psa_num)
                 .first()
-        )
+    )
 
-        if not section:
-            abort(404)
+    if not assignment:
+        abort(404)
 
-        assignment = (
-                session.query(db_models.Assignment)
-                    .filter(db_models.Assignment.section_id == section.section_id)
-                    .filter(db_models.Assignment.num == psa_num)
-                    .first()
-        )
-
-        if not assignment:
-            abort(404)
-
-        group = (
-                session.query(db_models.Team)
-                    .filter(db_models.Team.assignment_id == assignment.assignment_id)
-                    .filter(db_models.Team.team_num == group_num)
-                    .first()
-        )
-
-        if not group:
-            abort(404)
-        elif not (current_user.admin 
-                    or (current_user.instructor and current_user in section.users)
-                    or (current_user in group.members)):
-            # only admins, section instructor(s), and students in this group
-            # can view this page.
-            abort(403)
-        
-        # Read results from JSON file, filling them in a dictionary that is
-        # organized by section.
-
-        latest_test_results = (
-            session.query(db_models.TestResults)
-                .filter(db_models.TestResults.team_id == group.team_id)
-                .filter(db_models.TestResults.finished)
-                .order_by(db_models.TestResults.commit_time.desc())
-                .order_by(db_models.TestResults.completed_at.desc())
+    group = (
+            db_models.Team.query
+                .filter(db_models.Team.assignment_id == assignment.assignment_id)
+                .filter(db_models.Team.team_num == group_num)
                 .first()
-        )
+    )
 
-        if not latest_test_results:
-            # no test results available
-            return render_template("assignment_results.html",
-                                    user=current_user,
-                                    assignment=assignment,
-                                    group_num=group_num)
+    if not group:
+        abort(404)
+    elif not (current_user.admin 
+                or (current_user.instructor and current_user in section.users)
+                or (current_user in group.members)):
+        # only admins, section instructor(s), and students in this group
+        # can view this page.
+        abort(403)
+    
+    # Read results from JSON file, filling them in a dictionary that is
+    # organized by section.
 
-        raw_results = json.loads(latest_test_results.results)
+    latest_test_results = (
+        db_models.TestResults.query
+            .filter(db_models.TestResults.team_id == group.team_id)
+            .filter(db_models.TestResults.finished)
+            .order_by(db_models.TestResults.commit_time.desc())
+            .order_by(db_models.TestResults.completed_at.desc())
+            .first()
+    )
 
-        processed_results = {}
-        for result in raw_results:
-            category_results = processed_results.get(result["category_name"])
-
-            if not category_results:
-                # Haven't seen this category before so set basic structure up
-                # for us (a dictionary with a few items) and add it to our
-                # processed results
-                category_results = {
-                    "category_num": result["category_num"],
-                    "category_name": result["category_name"],
-                    "metrics": {}
-                }
-
-                processed_results[result["category_name"]] = category_results
-
-            # added code to fix errors not showing
-            metric_results = category_results["metrics"].get(result["test_num"])
-
-            #if we don't have results or the result it a pass, can rewrite it
-            if not metric_results or metric_results['outcome'] == 'pass':
-
-                new_metric = {
-                    "description": result["metric"],
-                    "outcome": result["outcome"]
-                }
-
-                if "message" in result:
-                    new_metric["message"] = Markup(result["message"]+"<br>")
-
-                category_results["metrics"][result["test_num"]] = new_metric
-            
-            # otherwise we add error messages 
-            # (commented out code to just show one error at a time)
-            # else:
-            #    if "message" in result:
-            #        metric_results["message"] += Markup(result["message"]+"<br>")
-
-
-
-        categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
-
-        commit_time = f"{latest_test_results.commit_time: %b %d, %Y @ %I:%M:%S %p}"
-
-        # add a late notice to time string
-        if latest_test_results.commit_time > assignment.deadline:
-            commit_time += " (<span class=\"text-danger\"><strong>LATE</strong></span>)"
-
-        commit_time = Markup(commit_time)
-
-        results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
-
+    if not latest_test_results:
+        # no test results available
         return render_template("assignment_results.html",
                                 user=current_user,
                                 assignment=assignment,
-                                group_num=group_num,
-                                submit_time=commit_time,
-                                results=latest_test_results,
-                                results_time=results_time,
-                                categories=categories)
+                                group_num=group_num)
+
+    raw_results = json.loads(latest_test_results.results)
+
+    processed_results = {}
+    for result in raw_results:
+        category_results = processed_results.get(result["category_name"])
+
+        if not category_results:
+            # Haven't seen this category before so set basic structure up
+            # for us (a dictionary with a few items) and add it to our
+            # processed results
+            category_results = {
+                "category_num": result["category_num"],
+                "category_name": result["category_name"],
+                "metrics": {}
+            }
+
+            processed_results[result["category_name"]] = category_results
+
+        # added code to fix errors not showing
+        metric_results = category_results["metrics"].get(result["test_num"])
+
+        #if we don't have results or the result it a pass, can rewrite it
+        if not metric_results or metric_results['outcome'] == 'pass':
+
+            new_metric = {
+                "description": result["metric"],
+                "outcome": result["outcome"]
+            }
+
+            if "message" in result:
+                new_metric["message"] = Markup(result["message"]+"<br>")
+
+            category_results["metrics"][result["test_num"]] = new_metric
+        
+        # otherwise we add error messages 
+        # (commented out code to just show one error at a time)
+        # else:
+        #    if "message" in result:
+        #        metric_results["message"] += Markup(result["message"]+"<br>")
+
+
+
+    categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
+
+    commit_time = f"{latest_test_results.commit_time: %b %d, %Y @ %I:%M:%S %p}"
+
+    # add a late notice to time string
+    if latest_test_results.commit_time > assignment.deadline:
+        commit_time += " (<span class=\"text-danger\"><strong>LATE</strong></span>)"
+
+    commit_time = Markup(commit_time)
+
+    results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
+
+    return render_template("assignment_results.html",
+                            user=current_user,
+                            assignment=assignment,
+                            group_num=group_num,
+                            submit_time=commit_time,
+                            results=latest_test_results,
+                            results_time=results_time,
+                            categories=categories)
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")
@@ -987,44 +962,44 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
     if not job_id:
         abort(404)
 
-    with current_app.Session() as session:
-        submitted_file = (
-            session.query(db_models.SubmittedFile)
-                .join(db_models.TestResults.submitted_files)
-                .filter(db_models.TestResults.job_id == job_id)
-                .filter(db_models.SubmittedFile.filename == filename)
-                .first()
-        )
+    submitted_file = (
+        db_models.SubmittedFile.query
+            .join(db_models.TestResults.submitted_files)
+            .filter(db_models.TestResults.job_id == job_id)
+            .filter(db_models.SubmittedFile.filename == filename)
+            .first()
+    )
 
-        if not submitted_file:
-            abort(404)
+    if not submitted_file:
+        abort(404)
 
-        section, team = (
-            session.query(db_models.Section, db_models.Team)
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .filter(db_models.Section.course == "comp110")
-                .filter(db_models.Section.semester == semester)
-                .filter(db_models.Section.section_num == section_num)
-                .filter(db_models.Assignment.num == psa_num)
-                .filter(db_models.Team.team_num == group_num)
-                .first()
-        )
+    section, team = (
+        db.session.query(db_models.Section, db_models.Team)
+            .join(db_models.Section.assignments)
+            .join(db_models.Assignment.teams)
+            .filter(db_models.Section.course == "comp110")
+            .filter(db_models.Section.semester == semester)
+            .filter(db_models.Section.section_num == section_num)
+            .filter(db_models.Assignment.num == psa_num)
+            .filter(db_models.Team.team_num == group_num)
+            .first()
+    )
 
 
-        if not (current_user.admin or 
-                current_user in team.members or
-                (current_user.instructor and current_user in section.users)):
-            # Only admins, this section's instructors, and this group's members
-            # may view the file.
-            # Note: we 404 rather than 403 here to hide filenames from peekers
-            abort(404)
+    if not (current_user.admin or 
+            current_user in team.members or
+            (current_user.instructor and current_user in section.users)):
+        # Only admins, this section's instructors, and this group's members
+        # may view the file.
+        # Note: we 404 rather than 403 here to hide filenames from peekers
+        abort(404)
 
-        formatted_data = get_formatted_file_contents(submitted_file)
+    formatted_data = get_formatted_file_contents(submitted_file)
 
-        # TODO: send md5sum and creation date to template
+    # TODO: send md5sum and creation date to template
 
-        return render_template("file_viewer.html", 
-                                user=current_user,
-                                filename=filename,
-                                file_contents=formatted_data)
+    return render_template("file_viewer.html", 
+                            user=current_user,
+                            filename=filename,
+                            file_contents=formatted_data)
+

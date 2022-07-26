@@ -13,7 +13,7 @@
 <div class="container pt-3">
     <h3><i class="bi-list"></i> Assignments:</h3>
     <ul class="list-group">
-        {% if section.assignments|length > 0 %}
+        {% if section.assignments.count() > 0 %}
             {% for assignment in section.assignments %}
             <li class="list-group-item border-0 fs-5">
                 <i class="bi-caret-right"></i>
