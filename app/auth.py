@@ -4,7 +4,6 @@ from flask import (
 )
 from flask_login import current_user, login_user, logout_user, LoginManager
 
-from sqlalchemy.orm import joinedload
 from cas import CASClient
 
 from . import db_models
@@ -93,28 +92,23 @@ def verify_ticket():
 
     username = username.lower()
 
-    with current_app.Session() as session:
-        # try to find the username in our database
-        matching_user = (
-            session.query(db_models.User)
-                .filter(db_models.User.username == username)
-                .first()
-        )
+    # try to find the username in our database
+    matching_user = db_models.User.query.filter(db_models.User.username == username).first()
 
-        if not matching_user:
-            # couldn't find this user in our database
-            current_app.logger.warning(f"Unauthorized login attempt: {username}")
-            flash("Login process failed: unauthorized user!", "danger")
+    if not matching_user:
+        # couldn't find this user in our database
+        current_app.logger.warning(f"Unauthorized login attempt: {username}")
+        flash("Login process failed: unauthorized user!", "danger")
+        return redirect(url_for('user_views.root'))
+    else:
+        # login process complete!
+        login_user(matching_user)
+        current_app.logger.info(f"Successful login: {username}")
+        flash(f"You have successfully signed in as {username}!", "success")
+        if next_url is None:
             return redirect(url_for('user_views.root'))
         else:
-            # login process complete!
-            login_user(matching_user)
-            current_app.logger.info(f"Successful login: {username}")
-            flash(f"You have successfully signed in as {username}!", "success")
-            if next_url is None:
-                return redirect(url_for('user_views.root'))
-            else:
-                return redirect(next_url)
+            return redirect(next_url)
 
 
 @auth.route('/logout')
