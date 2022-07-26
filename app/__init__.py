@@ -38,10 +38,6 @@ def create_app(test_config=None):
 
     from app.database import init_app as init_app_db
     init_app_db(app)
-    #db.init_app(app)
-
-    #db_engine = db.init_db(app)
-    #app.Session = sessionmaker(db_engine)
 
     app.redis = Redis.from_url(app.config['REDIS_URL'])
     app.test_queue = rq.Queue('safe-tests', connection=app.redis)

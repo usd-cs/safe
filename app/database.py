@@ -7,17 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from app import db
 from app.db_models import User
 
-"""
-def init_db(app):
-    engine = create_engine(app.config['DATABASE_URI'],
-                            echo=app.config['DATABASE_VERBOSE'])
-
-    Base.metadata.create_all(engine)
-
-    return engine
-"""
-
-
 @click.command('add-admin')
 @click.argument('username')
 @click.argument('first_name')
@@ -37,9 +26,7 @@ def add_admin_user(username, first_name, last_name):
     click.echo(f"Added new admin user: {first_name} {last_name} ({username}).")
 
 
-
 def init_app(app):
     db.init_app(app)
     app.cli.add_command(add_admin_user)
-
 

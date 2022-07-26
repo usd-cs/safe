@@ -46,13 +46,6 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String, nullable=False)
 
     # setting up many-to-many relationships
-    #sections = db.relationship(
-    #    "Section", secondary=section_enrollment, back_populates="users"
-    #)
-    #teams = db.relationship(
-    #    "Team", secondary=team_enrollment, back_populates="members"
-    #)
-
     sections = db.relationship('Section',
                                secondary=section_enrollment,
                                primaryjoin=('section_enrollment.c.user_id == User.user_id'),
@@ -78,14 +71,7 @@ class Section(db.Model):
     semester = db.Column(db.String, nullable=False)
     section_num = db.Column(db.Integer, nullable=False)
 
-    # many-to-many relationship
-    #users = relationship(
-    #    "User", secondary=section_enrollment, order_by="User.last_name", back_populates="sections"
-    #)
-
-    # one section to many assignments
-    #assignments = db.relationship("Assignment", order_by="Assignment.num", backref=backref("section"))
-
+    # one section may have many assignments
     assignments = db.relationship('Assignment',
                                     foreign_keys='Assignment.section_id',
                                     backref='section', lazy='dynamic',
@@ -98,10 +84,7 @@ class BaseAssignment(db.Model):
     tester_run_command = db.Column(db.String, nullable=False)
     max_runtime = db.Column(db.Integer, nullable=False)
 
-    # one assignment potentially has many files (source and tester)
-    #files = relationship("SourceFile", backref=backref("base_assignment"))
-    #tester_files = relationship("TesterFile", backref=backref("base_assignment"))
-
+    # one assignment may have many files (source and tester)
     files = db.relationship('SourceFile',
                             foreign_keys='SourceFile.base_assignment_id',
                             backref='base_assignment',
@@ -112,7 +95,6 @@ class BaseAssignment(db.Model):
                                    lazy='dynamic')
 
     # each assignment can be used by many actual assignments
-    #assignments = relationship("Assignment", backref=backref("base_assignment"))
     assignments = db.relationship('Assignment',
                                   foreign_keys='Assignment.base_assignment_id',
                                   backref='base_assignment',
@@ -128,13 +110,6 @@ class Assignment(db.Model):
     base_assignment_id = db.Column(db.Integer, db.ForeignKey("base_assignment.assignment_id"))
 
     # one assignment can have many teams
-    """
-    teams = relationship("Team", 
-                            order_by="Team.team_num",
-                            cascade="all, delete-orphan",
-                            backref=backref("assignment"))
-    """
-
     teams = db.relationship('Team',
                             foreign_keys='Team.assignment_id',
                             backref='assignment',
@@ -149,26 +124,12 @@ class Team(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.assignment_id"))
 
     # one team may have many test results
-    """
-    results = relationship("TestResults",
-                            order_by="desc(TestResults.completed_at)",
-                            cascade="all, delete-orphan",
-                            backref=backref("team"))
-    """
-
     results = db.relationship('TestResults',
                               foreign_keys='TestResults.team_id',
                               backref='team',
                               order_by="TestResults.completed_at.desc()",
                               cascade="all, delete-orphan",
                               lazy='dynamic')
-
-    # many-to-many relationship between teams and users
-    """
-    members = relationship(
-        "User", secondary=team_enrollment, order_by="User.last_name", back_populates="teams"
-    )
-    """
 
     def __repr__(self):
         return f"Team(team_id={self.team_id}, team_num={self.team_num}, assignment_id={self.assignment_id})"
@@ -186,12 +147,6 @@ class TestResults(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey("team.team_id"))
 
     # one set of results can have many submitted files
-    """
-    submitted_files = relationship("SubmittedFile",
-                                    order_by="SubmittedFile.filename",
-                                    backref=backref("test_results"))
-    """
-
     submitted_files = db.relationship('SubmittedFile',
                                       foreign_keys='SubmittedFile.job_id',
                                       backref='test_results',
