@@ -6,6 +6,7 @@ from flask_login import current_user, login_user, logout_user, LoginManager
 
 from sqlalchemy.orm import joinedload
 from cas import CASClient
+from unittest.mock import Mock
 
 from . import db_models
 
@@ -19,14 +20,23 @@ def init_auth(app):
     login_manager.login_view = 'auth.login'
     login_manager.login_message = None
 
-    assert app.config['CAS_SERVER_URL'] is not None, "CAS_SERVER_URL not set in config"
 
     with app.app_context():
+        if app.config.get("MOCK_CAS") == True:
+            server_url = url_for('cas.mock_cas_home')
+        else:
+            assert app.config.get('CAS_SERVER_URL') is not None, "CAS_SERVER_URL not set in config"
+            server_url = app.config.get('CAS_SERVER_URL')
+
         app.cas_client = CASClient(
             version=3,
-            service_url=f"{url_for('auth.verify_ticket', next=url_for('user_views.root', _external=False))}",
-            server_url=app.config['CAS_SERVER_URL']
+            service_url=url_for('auth.verify_ticket', next=url_for('user_views.root', _external=False)),
+            server_url=server_url
         )
+
+        if app.config.get("MOCK_CAS") == True:
+            from app.cas import verify_mock_ticket
+            app.cas_client.verify_ticket = Mock(side_effect=verify_mock_ticket)
 
     app.logger.debug(f'Initial CAS service_url: {app.cas_client.service_url}')
 

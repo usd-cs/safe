@@ -12,6 +12,7 @@ from . import admin
 from . import auth
 from . import notify
 from . import db
+from . import cas
 
 
 def create_app(test_config=None):
@@ -39,6 +40,17 @@ def create_app(test_config=None):
     # ensure that the instance folder exists (creating if necessary)
     os.makedirs(app.instance_path, exist_ok=True)
 
+    if app.config.get("MOCK_CAS") == True:
+        if app.config.get("CAS_SERVER_URL") is not None:
+            app.logger.error("CAS_SERVER_URL must be None when MOCK_CAS is set.")
+            return None
+
+        app.register_blueprint(cas.cas, url_prefix="/cas")
+    
+    if app.config.get("MOCK_CAS") and app.config.get("CAS_SERVER_URL") is not None:
+        app.logger.error("CAS_SERVER_URL must be None when MOCK_CAS is set.")
+        return None
+
     db_engine = db.init_db(app)
     app.Session = sessionmaker(db_engine)
     
@@ -49,7 +61,7 @@ def create_app(test_config=None):
     app.register_blueprint(auth.auth, url_prefix="/auth")
     app.register_blueprint(notify.notify, url_prefix="/notify")
     app.register_blueprint(user_views.user_views)
-    
+
     auth.init_auth(app)
     db.init_app(app)
 
