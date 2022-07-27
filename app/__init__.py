@@ -39,6 +39,18 @@ def create_app(test_config=None):
     from app.database import init_app as init_app_db
     init_app_db(app)
 
+    if app.config.get("MOCK_CAS") == True:
+        if app.config.get("CAS_SERVER_URL") is not None:
+            app.logger.error("CAS_SERVER_URL must be None when MOCK_CAS is set.")
+            return None
+
+        from app import cas
+        app.register_blueprint(cas.cas, url_prefix="/cas")
+    
+    if app.config.get("MOCK_CAS") and app.config.get("CAS_SERVER_URL") is not None:
+        app.logger.error("CAS_SERVER_URL must be None when MOCK_CAS is set.")
+        return None
+
     app.redis = Redis.from_url(app.config['REDIS_URL'])
     app.test_queue = rq.Queue('safe-tests', connection=app.redis)
 
