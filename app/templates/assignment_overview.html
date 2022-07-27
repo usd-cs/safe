@@ -28,7 +28,8 @@
             <ul>
                 {% for tf in assignment.base_assignment.tester_files %}
                 <li>
-                    <a class="text-decoration-none" href="{{url_for('user_views.view_tester_file', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
+                    <a class="text-decoration-none"
+                        href="{{url_for('user_views.view_tester_file', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num, filename=tf.filename)}}">
                         {{tf.filename}}
                     </a>
                 </li>
@@ -72,7 +73,7 @@
                         </ul>
                         <p>
                         <i class="bi-arrow-left-right"></i>
-                        <a class="text-decoration-none" href="{{ url_for('user_views.modify_group', semester=section.semester, section_num=section.section_num, psa_num=assignment.num, group_num=team.team_num) }}">
+                        <a class="text-decoration-none" href="{{ url_for('user_views.modify_group', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num, group_num=team.team_num) }}">
                                                           Add/Remove Members
                             </a>
                         </p>
@@ -103,6 +104,7 @@
                                 <i class="bi-binoculars"></i>
                                 <a class="text-decoration-none" href="{{ 
                                          url_for('user_views.psa_results',
+                                             course_name=section.course,
                                              semester=section.semester,
                                              section_num=section.section_num,
                                              psa_num=assignment.num,group_num=team.team_num)
@@ -125,6 +127,7 @@
                                 <i class="bi-trash"></i>
                                 <a class="text-decoration-none link-danger" href="{{ 
                                           url_for('user_views.delete_group',
+                                              course_name=section.course,
                                               semester=section.semester,
                                               section_num=section.section_num,
                                               psa_num=assignment.num,group_num=team.team_num) 

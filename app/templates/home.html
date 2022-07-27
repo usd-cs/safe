@@ -17,7 +17,7 @@
         <ul class="list-group">
             {% for section in user.sections %}
             <li class="list-group-item">
-                <a href="{{ url_for('user_views.section_overview', semester=section.semester, section_num=section.section_num) }}">
+                <a href="{{ url_for('user_views.section_overview', course_name=section.course, semester=section.semester, section_num=section.section_num) }}">
                 {{section.course|upper}} ({{section.semester|upper}}, Section {{section.section_num}})
                 </a>
             </li>

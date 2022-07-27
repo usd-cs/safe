@@ -19,7 +19,7 @@
             {% for (assignment_num, assignment_title, group_num) in assignments %}
             <li class="list-group-item border-0">
                 <strong>PSA {{assignment_num}}:</strong> {{assignment_title}}
-                (<a href="{{ url_for('user_views.psa_results', semester=section.semester, section_num=section.section_num, psa_num=assignment_num, group_num=group_num) }}">Group {{ group_num }}</a>)
+                (<a href="{{ url_for('user_views.psa_results', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment_num, group_num=group_num) }}">Group {{ group_num }}</a>)
             </li>
             {% endfor %}
         {% else %}
