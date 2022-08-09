@@ -9,7 +9,7 @@
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.css') }}">
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/pygments.css') }}">
 
-    <title>{{ page_title }}</title>
+    <title>{{ page_title }} | SAFE @ USD</title>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -31,13 +31,13 @@
                     </a>
                 </div>
 
-                {% if user and user.is_authenticated and user.sections.count() > 0 %}
+                {% if current_user.is_authenticated and current_user.sections.count() > 0 %}
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarCoursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Courses
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarCoursesDropdown">
-                        {% for section in user.sections %}
+                        {% for section in current_user.sections %}
                         <li><a class="dropdown-item" href="{{ url_for('user_views.section_overview', semester=section.semester, section_num=section.section_num) }}">
                                 {{section.course|upper}} ({{section.semester|upper}},
                                 Section {{section.section_num}})
@@ -47,7 +47,7 @@
                 </div>
                 {% endif %}
 
-                {% if user and user.is_authenticated and user.admin %}
+                {% if current_user.is_authenticated and current_user.admin %}
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Admin
@@ -61,10 +61,10 @@
                 </div>
                 {% endif %}
 
-                {% if user and user.is_authenticated %}
+                {% if current_user.is_authenticated %}
                 <div class="container d-flex flex-row-reverse">
                     <a class="btn btn-danger btn-sm nav-link text-white" href="{{ url_for('auth.logout') }}" role="button">Log Out</a>
-                    <a class="nav-link link-secondary" href="{{ url_for('user_views.user_profile', username=user.username) }}">Profile
+                    <a class="nav-link link-secondary" href="{{ url_for('user_views.user_profile', username=current_user.username) }}">Profile
                         <i class="bi-person-circle"></i></a>
                 </div>
                 {% else %}

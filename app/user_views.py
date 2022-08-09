@@ -47,30 +47,28 @@ def user_profile(username):
 
     if selected_user:
         return render_template("user_profile.html",
-                                page_title=f"User Profile ({selected_user.username}) : SAFE @ USD",
-                                user=current_user,
+                                page_title=f"({selected_user.username}) Profile",
                                 selected_user=selected_user)
     else:
         # the user doesn't exist so 404 'em
         abort(404)
 
+
 @user_views.route('/')
 def root():
     return render_template("home.html",
-                            page_title="Home: SAFE @ USD",
-                            user=current_user)
+                            page_title="Home")
+
 
 @user_views.app_errorhandler(404)
 def page_not_found(error):
-    return render_template("not_found.html", 
-                            page_title="404: SAFE @ USD",
-                            user=current_user), 404
+    return render_template("not_found.html",
+                            page_title="Page Not Found"), 404
 
 @user_views.app_errorhandler(403)
 def permission_denied(error):
     return render_template("forbidden.html",
-                            page_title="403: SAFE @ USD",
-                            user=current_user), 403
+                            page_title="Access Forbidden"), 403
 
 
 class NewAssignmentForm(FlaskForm):
@@ -291,13 +289,12 @@ def section_overview(semester, section_num):
         assignment_info = teams_in_section.intersect(teams_with_user).all()
 
         # render view for a student user
-        return render_template("section_overview_student.html", 
-                                page_title="Section Overview: SAFE @ USD",
-                                user=current_user,
+        return render_template("section_overview_student.html",
+                                page_title="Section Overview",
                                 section=section,
                                 instructors=instructor_info,
-                                assignments=assignment_info
-                                )
+                                assignments=assignment_info)
+
 
     new_assignment_form = NewAssignmentForm(section_id=section.section_id)
     new_assignment_failed = False
@@ -420,16 +417,14 @@ def section_overview(semester, section_num):
         os.remove(file_location)
         return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
 
-    return render_template("section_overview.html", 
-                            page_title="Section Overview: SAFE @ USD",
-                            user=current_user,
+    return render_template("section_overview.html",
+                            page_title="Section Overview",
                             section=section,
                             assignment_form=new_assignment_form,
                             remove_students_form=remove_students_form,
                             roster_form=roster_upload_form,
                             new_assignment_failed=new_assignment_failed,
-                            roster_upload_failed=roster_upload_failed
-                            )
+                            roster_upload_failed=roster_upload_failed)
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/modify", methods=['get', 'post'])
@@ -503,8 +498,7 @@ def modify_group(semester, section_num, psa_num, group_num):
     update_members_form.members.data = [u.user_id for u in team.members]
 
     return render_template("modify_group_members.html",
-                            page_title=f"Modify Group : SAFE @ USD",
-                            user=current_user,
+                            page_title="Modify Group",
                             team=team,
                             form=update_members_form)
 
@@ -589,10 +583,11 @@ def view_tester_file(semester, section_num, psa_num, filename):
 
     # TODO: send md5sum and creation date to template
 
-    return render_template("file_viewer.html", 
-                            user=current_user,
+    return render_template("file_viewer.html",
+                            page_title=tester_file.filename,
                             filename=tester_file.filename,
                             file_contents=formatted_file)
+
 
 def get_students_without_groups(section_id, assignment_id):
     enrolled_students = (
@@ -775,12 +770,12 @@ def psa_overview(semester, section_num, psa_num):
 
     copy_groups_form.assignment_num.choices = copy_choices
 
-    return render_template("assignment_overview.html", 
-                            user=current_user,
-                            section=section,
-                            assignment=assignment,
-                            group_form=new_group_form,
-                            copy_groups_form=copy_groups_form)
+    return render_template("assignment_overview.html",
+                           page_title="Assignment Overview",
+                           section=section,
+                           assignment=assignment,
+                           group_form=new_group_form,
+                           copy_groups_form=copy_groups_form)
 
 
 @user_views.route("/comp110/psa<int:psa_num>/")
@@ -871,7 +866,7 @@ def psa_results(semester, section_num, psa_num, group_num):
         # only admins, section instructor(s), and students in this group
         # can view this page.
         abort(403)
-    
+
     # Read results from JSON file, filling them in a dictionary that is
     # organized by section.
 
@@ -887,9 +882,9 @@ def psa_results(semester, section_num, psa_num, group_num):
     if not latest_test_results:
         # no test results available
         return render_template("assignment_results.html",
-                                user=current_user,
-                                assignment=assignment,
-                                group_num=group_num)
+                               page_title="Assignment Results",
+                               assignment=assignment,
+                               group_num=group_num)
 
     raw_results = json.loads(latest_test_results.results)
 
@@ -946,13 +941,13 @@ def psa_results(semester, section_num, psa_num, group_num):
     results_time = f"{latest_test_results.completed_at: %b %d, %Y @ %I:%M:%S %p}"
 
     return render_template("assignment_results.html",
-                            user=current_user,
-                            assignment=assignment,
-                            group_num=group_num,
-                            submit_time=commit_time,
-                            results=latest_test_results,
-                            results_time=results_time,
-                            categories=categories)
+                           page_title="Assignment Results",
+                           assignment=assignment,
+                           group_num=group_num,
+                           submit_time=commit_time,
+                           results=latest_test_results,
+                           results_time=results_time,
+                           categories=categories)
 
 
 @user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")
@@ -986,7 +981,7 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
     )
 
 
-    if not (current_user.admin or 
+    if not (current_user.admin or
             current_user in team.members or
             (current_user.instructor and current_user in section.users)):
         # Only admins, this section's instructors, and this group's members
@@ -998,8 +993,8 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
 
     # TODO: send md5sum and creation date to template
 
-    return render_template("file_viewer.html", 
-                            user=current_user,
-                            filename=filename,
-                            file_contents=formatted_data)
+    return render_template("file_viewer.html",
+                           page_title=filename,
+                           filename=filename,
+                           file_contents=formatted_data)
 

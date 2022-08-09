@@ -3,19 +3,19 @@
     <div class="container pt-3">
         <h2>Welcome!</h2>
         Welcome to the Simplified Automatic Feedback Environment (SAFE)
-        website{% if user.is_authenticated %}, {{ user.first_name }}{% endif %}.
+        website{% if current_user.is_authenticated %}, {{ current_user.first_name }}{% endif %}.
         Here you will be able to view feedback from some automated tests for your
         course assignments.
 
-        {% if not user.is_authenticated %}
+        {% if not current_user.is_authenticated %}
         <p class="pt-2">To get started, <a href="{{ url_for('auth.login') }}">sign in</a>.</p>
         {% endif %}
     </div>
-    {% if user.is_authenticated and user.sections.count() > 0 %}
+    {% if current_user.is_authenticated and current_user.sections.count() > 0 %}
     <div class="container pt-3">
         <h2>Courses</h2>
         <ul class="list-group">
-            {% for section in user.sections %}
+            {% for section in current_user.sections %}
             <li class="list-group-item">
                 <a href="{{ url_for('user_views.section_overview', semester=section.semester, section_num=section.section_num) }}">
                 {{section.course|upper}} ({{section.semester|upper}}, Section {{section.section_num}})

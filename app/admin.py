@@ -45,10 +45,9 @@ def admin_home():
     if not current_user.admin:
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
-        
-    return render_template("admin.html", 
-            page_title="Admin Home: SAFE @ USD",
-            user=current_user)
+
+    return render_template("admin.html",
+            page_title="Admin Home")
 
 
 @admin.route('/users')
@@ -60,11 +59,10 @@ def admin_users():
 
     all_users = db_models.User.query.order_by(db_models.User.last_name).all()
 
-    return render_template("admin_users.html", 
-                            page_title="Admin Users: SAFE @ USD", 
-                            user=current_user,
+    return render_template("admin_users.html",
+                            page_title="Admin Users",
                             users=all_users)
-        
+
 
 @admin.route('/instructors', methods=['get', 'post'])
 @login_required
@@ -97,11 +95,10 @@ def admin_instructors():
             .order_by(db_models.User.last_name)
     )
 
-    return render_template("admin_instructors.html", 
-                            page_title="Admin Instructors: SAFE @ USD", 
-                            user=current_user,
+    return render_template("admin_instructors.html",
+                            page_title="Admin Instructors",
                             form=form,
-                            instructors=instructors) 
+                            instructors=instructors)
 
 
 # TODO: This is a generic form element so don't bury this in here
@@ -205,8 +202,7 @@ def modify_section():
     form.instructors.data = previous_instructors_ids[:]
 
     return render_template("modify_section.html",
-                            page_title="Modify Section: SAFE @ USD",
-                            user=current_user,
+                            page_title="Modify Section",
                             section=section,
                             form=form)
 
@@ -273,8 +269,7 @@ def admin_sections():
             form.instructors.choices = zip(id_list, name_list)
 
             return render_template("admin_sections.html",
-                                    page_title="Admin Sections: SAFE @ USD",
-                                    user=current_user,
+                                    page_title="Admin Sections",
                                     form=form,
                                     sections=section_info)
 
@@ -310,8 +305,7 @@ def admin_sections():
     form.instructors.choices = zip(id_list, name_list)
 
     return render_template("admin_sections.html",
-                            page_title="Admin Sections: SAFE @ USD",
-                            user=current_user,
+                            page_title="Admin Sections",
                             form=form,
                             sections=section_info)
 
@@ -395,9 +389,10 @@ def add_tester_files(assignment_id):
 
 
     return render_template("admin_add_tester_files.html",
-                            user=current_user,
+                            page_title="Add Tester Files",
                             assignment=assignment,
                             files_form=add_files_form)
+
 
 @admin.route("/assignments/<int:assignment_id>/tester_files/<filename>/delete")
 @login_required
@@ -477,11 +472,12 @@ def view_tester_file(assignment_id, filename):
 
     # TODO: send md5sum and creation date to template
 
-    return render_template("file_viewer.html", 
-                            user=current_user,
-                            filename=tester_file.filename,
-                            file_contents=formatted_file,
-                            update_file_form=update_file_form)
+    return render_template("file_viewer.html",
+                           page_title=tester_file.filename,
+                           filename=tester_file.filename,
+                           file_contents=formatted_file,
+                           update_file_form=update_file_form)
+
 
 @admin.route("/users/delete")
 @login_required
@@ -608,10 +604,10 @@ def admin_assignments():
     all_assignments = db_models.BaseAssignment.query
 
     return render_template("admin_assignments.html",
-                            page_title="Admin Assignments: SAFE @ USD",
-                            user=current_user,
+                            page_title="Admin Assignments",
                             assignment_form=new_assignment_form,
                             assignments=all_assignments)
+
 
 @admin.route("/gitolite/assignment/<int:assignment_id>")
 @login_required
