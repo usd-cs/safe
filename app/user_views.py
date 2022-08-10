@@ -20,8 +20,7 @@ from wtforms.validators import (
     DataRequired, Regexp, NumberRange, ValidationError
 )
 from wtforms.fields import DateField, TimeField
-from wtforms.widgets import CheckboxInput, HiddenInput
-from wtforms.widgets.html5 import DateInput, TimeInput
+from wtforms.widgets import CheckboxInput, HiddenInput, DateInput, TimeInput
 from werkzeug.utils import secure_filename
 
 from . import db_models
