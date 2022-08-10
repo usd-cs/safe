@@ -62,8 +62,9 @@ def create_app(test_config=None):
     from app import user_views
     app.register_blueprint(user_views.user_views)
 
-    #from app import tests
-    #app.register_blueprint(tests.tests, url_prefix="/tests") # FIXME: only in testing mode
+    if app.config.get('ENABLE_TEST_ROUTES', False) == True:
+        from app import tests
+        app.register_blueprint(tests.tests, url_prefix="/test")
 
     auth.init_auth(app)
 

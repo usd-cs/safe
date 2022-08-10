@@ -14,3 +14,4 @@ TESTER_CODE_BASE_DIR = os.path.join(os.getcwd(), 'tester_code')
 REPOSITORY_BASE_DIR = os.path.join(os.getcwd(), 'repositories')
 LOGGING_LEVEL=logging.INFO
 EMAIL_ERRORS = False
+ENABLE_TEST_ROUTES = False
