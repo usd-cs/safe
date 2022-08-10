@@ -5,7 +5,7 @@
     <div class="container pt-3 pb-3">
         <h3>PSA {{team.assignment.num}}, Group {{team.team_num}}: Modify Members</h3>
         <form method="POST" action="">
-            {{ form.csrf_token() }}
+            {{ form.csrf_token }}
             {{ forms.checkbox_input(form.members) }}
             {{ form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>

@@ -36,7 +36,7 @@
 
     <div class="container pt-1">
         <form method="POST" action="" enctype="multipart/form-data">
-            {{ files_form.csrf_token() }}
+            {{ files_form.csrf_token }}
             {{ forms.input(files_form.new_files, "", "form-control") }}
             <div class="container pt-2 ps-0">
                 <button type="button" class="btn btn-danger"

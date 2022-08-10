@@ -148,7 +148,7 @@
         <p>Select an assignment to copy groups from. Note that this option is
         only available if this assignment doesn't have any groups.</p>
         <form method="POST" action="">
-            {{ copy_groups_form.csrf_token() }}
+            {{ copy_groups_form.csrf_token }}
             {{ forms.input(copy_groups_form.assignment_num, "", "form-select") }}
             {% if assignment.teams.count() == 0 %}
             {{ copy_groups_form.submit(class_="btn btn-outline-primary btn-sm") }}
@@ -162,7 +162,7 @@
     <div class="container pt-2 pb-2">
         <h2>Create New Group</h2>
         <form method="POST" action="">
-            {{ group_form.csrf_token() }}
+            {{ group_form.csrf_token }}
             {{ forms.input(group_form.group_num, "Enter group number (e.g. 3)") }}
             <div class="form-group pt-2 pb-2">
                 <strong>{{ group_form.members.label }}</strong>

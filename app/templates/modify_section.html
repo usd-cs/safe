@@ -25,7 +25,7 @@
         <h4>Course: {{section.course|upper}},
             Section {{section.section_num}} ({{section.semester|upper}})</h4>
         <form method="POST" action="">
-            {{ form.csrf_token() }}
+            {{ form.csrf_token }}
             {{ forms.checkbox_input(form.instructors) }}
             <button type="button" class="btn btn-danger"
                                   onclick="window.location.href='{{ url_for('admin.admin_sections') }}';">

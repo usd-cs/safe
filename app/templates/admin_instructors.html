@@ -51,7 +51,7 @@
     <div class="container pt-2">
         <h3>Add New Instructor</h3>
         <form method="POST" action="">
-            {{ form.csrf_token() }}
+            {{ form.csrf_token }}
             {{ forms.input(form.first_name, "Enter Instructor's First Name") }}
             {{ forms.input(form.last_name, "Enter Instructor's Last Name") }}
             <div class="form-group">

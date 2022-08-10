@@ -12,7 +12,7 @@
 <div class="container pt-3">
     <h3>Upload New Version</h3>
     <form method="POST" action="" enctype="multipart/form-data">
-        {{ update_file_form.csrf_token() }}
+        {{ update_file_form.csrf_token }}
         <div class="container">
             {{ update_file_form.tester_file(class_="form-control-file") }}
             <p class="pt-2">{{ update_file_form.submit(class_="btn btn-primary btn-sm")

@@ -5,7 +5,7 @@
     <body>
         <h1>Mock CAS Login</h1>
         <form method="POST" action="">
-            {{ form.csrf_token() }}
+            {{ form.csrf_token }}
             <p>{{ form.username.label }}: {{ form.username }}</p>
 
             <p>{{ form.password.label }}: {{ form.password }}</p>

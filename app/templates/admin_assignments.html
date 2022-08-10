@@ -63,7 +63,7 @@
     <div class="container pt-2">
         <h3>Add Assignment</h3>
         <form method="POST" action="" enctype="multipart/form-data">
-            {{ assignment_form.csrf_token() }}
+            {{ assignment_form.csrf_token }}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
             <div class="row">

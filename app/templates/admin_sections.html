@@ -47,7 +47,7 @@
     <div class="container pt-2">
         <h3>Add New Section</h3>
         <form method="POST" action="">
-            {{ form.csrf_token() }}
+            {{ form.csrf_token }}
             <div class="row">
                 <div class="col">
                     {{ forms.input(form.course, "", "form-select") }}
