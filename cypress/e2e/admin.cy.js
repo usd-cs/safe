@@ -132,8 +132,52 @@ describe('Administrative Actions', function() {
       cy.get('input[name=roster_file]').selectFile('cypress/fixtures/text_files/roster1.csv')
       cy.get('#uploadRosterModal').find('input[name=submit]').click()
 
+      cy.contains("Added 9 new students")
       cy.get('tr').should('have.length', 11)
 
+    })
+
+    it('Create New Assignment', function () {
+      cy.visit('/admin/assignments')
+      cy.get('tr').should('have.length', 1)
+
+      // fill in new assignment form
+      cy.get('input[name=title]').type("Fun project")
+      cy.get('input[name=files]').type("foo.py  bar.py something.txt")
+      cy.get('input[name=tester_run_command]').type("python3 my_tester.py")
+      cy.get('input[name=max_runtime]').type("3")
+      cy.get('input[name=tester_files]').selectFile(['cypress/fixtures/text_files/tester1.py',
+                                                      'cypress/fixtures/text_files/test_file2.py'])
+      cy.get('input[type=submit]').click()
+
+      cy.location('pathname').should('eq', '/admin/assignments')
+
+      // check for confirmation text and that table of assignments has one
+      // more entry now
+      cy.contains("Assignment named 'Fun project' added")
+      cy.get('tr').should('have.length', 2)
+
+      // Add a third test file
+      cy.contains("Add Tester Files").click()
+      cy.location('pathname').should('eq', '/admin/assignments/1/tester_files/add')
+
+      cy.get('input[name=new_files]').selectFile('cypress/fixtures/text_files/tester3.c')
+      cy.get('input[type=submit]').click()
+
+      cy.location('pathname').should('eq', '/admin/assignments')
+      cy.contains("Added 1 files to assignment")
+
+      // delete one of the tester files
+      cy.contains("tester1.py").next().click()
+      cy.location('pathname').should('eq', '/admin/assignments')
+      cy.get('table').should('not.contain', 'tester1.py')
+
+      // update (a.k.a. replace) one of the tester files
+      cy.contains("test_file2.py").click()
+      cy.get('input[name=tester_file]').selectFile('cypress/fixtures/text_files/v2/test_file2.py')
+      cy.get('input[type=submit]').click()
+
+      cy.contains("UPDATED version")
     })
   })
 })
