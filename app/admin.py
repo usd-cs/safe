@@ -163,7 +163,7 @@ def modify_section():
     id_list = [i.user_id for i in all_instructors]
     name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
 
-    form.instructors.choices = zip(id_list, name_list)
+    form.instructors.choices = list(zip(id_list, name_list))
     previous_instructors_ids = [i.user_id for i in section_instructors]
 
     if form.validate_on_submit():
@@ -249,7 +249,7 @@ def admin_sections():
     id_list = [i.user_id for i in all_instructors]
     name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
 
-    form.instructors.choices = zip(id_list, name_list)
+    form.instructors.choices = list(zip(id_list, name_list))
 
     if form.validate_on_submit():
         # TODO: Turn this isn't a form validator so error shows up closer to
@@ -266,7 +266,7 @@ def admin_sections():
         # make sure a section with given info doesn't already exist
         if num_matching_sections != 0:
             flash("A section with that information already exists!", "danger")
-            form.instructors.choices = zip(id_list, name_list)
+            form.instructors.choices = list(zip(id_list, name_list))
 
             return render_template("admin_sections.html",
                                     page_title="Admin Sections",
@@ -302,7 +302,7 @@ def admin_sections():
     if form.errors:
         current_app.logger.debug(f"form errors: {form.errors}")
 
-    form.instructors.choices = zip(id_list, name_list)
+    form.instructors.choices = list(zip(id_list, name_list))
 
     return render_template("admin_sections.html",
                             page_title="Admin Sections",
