@@ -21,7 +21,7 @@
         <div class="container">
             {% for choice in form_field %}
             <div class="form-check">
-                {{ choice(class_="form-check-input") }}
+                {{ choice(class_="form-check-input", required=False) }}
                 {{ choice.label(class_="form-check-label") }}
             </div>
             {% endfor %}
