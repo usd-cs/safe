@@ -5,9 +5,11 @@ describe('Administrative Actions', function() {
 
     // seed a user in the DB that we can control from our tests
     cy.request('POST', '/test/seed/user', { 
+      username: 'adminUser',
+      first_name: 'Jane',
+      last_name: 'Addy',
       instructor: true,
       admin: true,
-      username: 'adminUser'
     }).its('body')
       .as('currentUser')
 
@@ -20,12 +22,13 @@ describe('Administrative Actions', function() {
     })
     */
 
-    it('Add Instructors', function () {
+    it('Create New Instructor', function () {
       cy.visit('/')
       cy.contains("Admin").click()
       cy.contains("Instructors").click()
 
       cy.location('pathname').should('eq', '/admin/instructors')
+      cy.get('tr').should('have.length', 2)
       cy.get('table').contains('adminuser')
 
       // add a new instructor using the form
@@ -36,24 +39,11 @@ describe('Administrative Actions', function() {
 
       cy.location('pathname').should('eq', '/admin/instructors')
       cy.contains("Added new instructor: Smarty Pants")
+      cy.get('tr').should('have.length', 3)
       cy.get('table').contains("Smarty")
       cy.get('table').contains("Pants")
       cy.get('table').contains("spants")
 
-
-      // Create a new instructor, but with dupicate username
-      cy.get('input[name=first_name]').type("Bobby")
-      cy.get('input[name=last_name]').type("Bananas")
-      cy.get('input[name=username]').type("spants")
-      cy.contains("Create Instructor").click()
-
-      cy.location('pathname').should('eq', '/admin/instructors')
-      cy.contains("An instructor with that username already exists")
-      cy.get('input[name=username]').clear().type("bbananas")
-      cy.contains("Create Instructor").click()
-
-      cy.location('pathname').should('eq', '/admin/instructors')
-      cy.contains("Added new instructor: Bobby Bananas")
 
       /*
       cy.get('input[name=title]').type("Intro to Narwhals")
@@ -96,6 +86,54 @@ describe('Administrative Actions', function() {
 
       cy.location('pathname').should('eq', `/c/test-course1`)
       */
+    })
+
+    it('Create New Section', function () {
+      cy.request('POST', '/test/seed/user', { 
+        username: 'instructor1',
+        first_name: 'Joe',
+        last_name: 'Instructor',
+        instructor: true,
+      })
+
+      cy.visit('/admin/sections')
+      cy.get('tr').should('have.length', 1)
+
+      // create a new section with the two existing instructors
+      cy.get('input[name=section_num]').type("1")
+      cy.contains('Addy, Jane').click()
+      cy.contains('Instructor, Joe').click()
+      cy.contains('Create Section').click()
+
+      cy.location('pathname').should('eq', '/admin/sections')
+      cy.get('tr').should('have.length', 2)
+      cy.get('table').contains("Jane Addy")
+      cy.get('table').contains("Joe Instructor")
+
+      // remove one of the instructors from the section
+      cy.contains('Modify').click()
+      cy.location('pathname').should('eq', '/admin/sections/modify')
+
+      cy.contains('Instructor, Joe').click()
+      cy.contains('Update Instructors').click()
+      cy.location('pathname').should('eq', '/admin/sections/modify')
+
+      cy.contains('Cancel').click()
+      cy.location('pathname').should('eq', '/admin/sections')
+      cy.get('table').should('not.contain', 'Joe Instructor')
+
+      cy.get('nav').contains('Courses').click()
+      cy.get('nav').contains('Section 1').click()
+
+      cy.location('pathname').should('eq', '/comp110/sp21/s1/')
+      cy.get('tr').should('have.length', 2)
+
+      cy.contains('Upload Roster File').click()
+      cy.get('input[name=roster_file]').selectFile('cypress/fixtures/text_files/roster1.csv')
+      cy.get('#uploadRosterModal').find('input[name=submit]').click()
+
+      cy.get('tr').should('have.length', 11)
+
     })
   })
 })
