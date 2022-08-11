@@ -47,8 +47,8 @@ def seed_user():
         return jsonify(message="Missing username"), 400
 
     user_data['username'] = username.lower()
-    user_data['first_name'] = fake.first_name()
-    user_data['last_name'] = fake.last_name()
+    user_data['first_name'] = json_data.get("first_name", fake.first_name())
+    user_data['last_name'] = json_data.get("last_name", fake.first_name())
 
     user_data['admin'] = json_data.get('admin', False)
     user_data['instructor'] = json_data.get('instructor', False)
