@@ -1,4 +1,6 @@
-from flask import jsonify, request
+import os
+
+from flask import jsonify, request, current_app
 from faker import Faker
 from random import randint
 
@@ -133,10 +135,17 @@ def seed_base_assignment():
     new_assignment.files.append(SourceFile(filename=f"{assignment_data['title']}_src1.py"))
     new_assignment.files.append(SourceFile(filename=f"{assignment_data['title']}_src2.py"))
 
+    db.session.commit()
+
+    tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
+                                    f"{new_assignment.assignment_id}")
+    os.makedirs(tester_code_dir, exist_ok=True)
+
     for i in range(2):
         tester_file = TesterFile(filename=f"{assignment_data['title']}_tester{i}.py",
                                  data=bytes(fake.paragraph(), 'utf-8'))
         new_assignment.tester_files.append(tester_file)
+        tester_file.write_to_file(current_app.config['TESTER_CODE_BASE_DIR'])
 
     db.session.commit()
 

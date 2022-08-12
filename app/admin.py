@@ -349,9 +349,6 @@ def add_tester_files(assignment_id):
         # file and save files to a directory for workers to access.
         new_files = request.files.getlist(add_files_form.new_files.name)
 
-        tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                        f"{assignment.assignment_id}")
-
         existing_tester_files = [tf.filename for tf in assignment.tester_files]
 
         skipped_files = []
@@ -364,16 +361,13 @@ def add_tester_files(assignment_id):
 
             # TODO: store tf.content_type attribute in DB
             new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                    data=tf.read(),
-                                                    base_assignment_id=assignment.assignment_id)
+                                                   data=tf.read(),
+                                                   base_assignment=assignment)
             db.session.add(new_tester_file)
             current_app.logger.info(f"Added {tf.filename} to assignment {assignment_id}")
 
             # save to the tester code directory
-            filename = secure_filename(tf.filename)
-            file_location = os.path.join(tester_code_dir, filename)
-            with open(file_location, 'wb') as new_file:
-                new_file.write(new_tester_file.data)
+            new_tester_file.write_to_file(current_app.config['TESTER_CODE_BASE_DIR'])
 
         db.session.commit()
 
@@ -407,16 +401,7 @@ def delete_tester_file(assignment_id, filename):
         current_app.logger.warning(f"{filename} is not a assignment {assignment_id} tester file")
         abort(404)
 
-    # remove the file from the tester code directory
-    tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                    f"{assignment_id}")
-
-    tester_file_loc = os.path.join(tester_code_dir, filename)
-    os.remove(tester_file_loc)
-
-    # delete from our database
-    db.session.delete(tester_file)
-    db.session.commit()
+    tester_file.delete(current_app.config['TESTER_CODE_BASE_DIR'])
 
     current_app.logger.info(f"Removed {filename} from assignment {assignment_id} tester files")
 
@@ -454,15 +439,11 @@ def view_tester_file(assignment_id, filename):
             db.session.commit()
 
             # save uploaded file to tester code directory
-            tester_code_dir = os.path.join(current_app.config['TESTER_CODE_BASE_DIR'],
-                                            f"{assignment_id}")
-            file_location = os.path.join(tester_code_dir, sec_filename)
-
-            with open(file_location, 'wb+') as new_file:
-                new_file.write(tester_file.data)
+            tester_file.write_to_file(current_app.config['TESTER_CODE_BASE_DIR'])
 
             flash("File has been updated!", "success")
             current_app.logger.info(f"{filename} has been updated in assignment {assignment_id}")
+
         else:
             current_app.logger.debug(f"Uploaded file {sec_filename} does not match filename ({filename})")
             flash(f"Uploaded filename ({sec_filename}) differs from this file.", "danger")
@@ -545,7 +526,7 @@ def admin_assignments():
     if not current_user.admin:
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
-        
+
     new_assignment_form = NewAssignmentForm()
 
     if new_assignment_form.validate_on_submit():
@@ -561,7 +542,7 @@ def admin_assignments():
 
         # create separate SourceFile entries for each source file
         assignment_files = new_assignment_form.files.data.split()
-        
+
         # TODO: check for duplicate filenames
         for af in assignment_files:
             new_file = db_models.SourceFile(filename=af,
@@ -583,15 +564,11 @@ def admin_assignments():
         for tf in tester_files:
             # TODO: store tf.content_type attribute in DB
             new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                    data=tf.read(),
-                                                    base_assignment_id=new_base_assignment.assignment_id)
+                                                   data=tf.read(),
+                                                   base_assignment=new_base_assignment)
             db.session.add(new_tester_file)
 
-            # save to the tester code directory
-            filename = secure_filename(tf.filename)
-            file_location = os.path.join(tester_code_dir, filename)
-            with open(file_location, 'wb') as new_file:
-                new_file.write(new_tester_file.data)
+            new_tester_file.write_to_file(current_app.config['TESTER_CODE_BASE_DIR'])
 
             current_app.logger.info(f"Added tester file {tf.filename} to base assignment")
 
@@ -600,6 +577,7 @@ def admin_assignments():
         flash(f"Assignment named '{new_assignment_form.title.data}' added with {len(assignment_files)} assignment files and {len(tester_files)} tester files!", "info")
 
         return redirect(url_for(f'.admin_assignments'))
+
 
     all_assignments = db_models.BaseAssignment.query
 

@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import (
         Column, Integer, String, Boolean, ForeignKey, Table, TIMESTAMP,
         LargeBinary
@@ -7,6 +9,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 from flask_login import UserMixin
 import datetime
+from werkzeug.utils import secure_filename
 
 from app import db
 
@@ -167,10 +170,40 @@ class SourceFile(db.Model):
     base_assignment_id = db.Column(db.Integer, db.ForeignKey("base_assignment.assignment_id"))
 
 
-# TODO: add content_type column
 class TesterFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+
     filename = db.Column(db.String, nullable=False)
     data = db.Column(db.LargeBinary, nullable=False)
+    # TODO: add content_type column
+
     base_assignment_id = db.Column(db.Integer, db.ForeignKey("base_assignment.assignment_id"))
+
+    def write_to_file(self, base_dir):
+        """ Writes this tester file's data to a file. The file will be located
+        in a directory located within the base_dir directory. """
+        file_location = os.path.join(base_dir,
+                                     f"{self.base_assignment.assignment_id}",
+                                     secure_filename(self.filename))
+
+        with open(file_location, 'wb') as new_file:
+            new_file.write(self.data)
+
+    def delete(self, base_dir):
+        """ Deletes this tester file from the database and from the file
+        system (if its data has been written to a file). """
+
+        # remove the file from the tester code directory
+        file_path = os.path.join(base_dir,
+                                 f"{self.base_assignment.assignment_id}",
+                                 secure_filename(self.filename))
+
+        try:
+            os.remove(file_path)
+        except:
+            pass
+
+        # delete from our database
+        db.session.delete(self)
+        db.session.commit()
 
