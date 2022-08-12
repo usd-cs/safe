@@ -5,7 +5,7 @@ describe('Administrative Actions', function() {
 
     // seed a user in the DB that we can control from our tests
     cy.request('POST', '/test/seed/user', { 
-      username: 'adminUser',
+      username: 'admin_user',
       first_name: 'Jane',
       last_name: 'Addy',
       instructor: true,
@@ -13,7 +13,7 @@ describe('Administrative Actions', function() {
     }).its('body')
       .as('currentUser')
 
-    cy.login('adminUser', 'testing')
+    cy.login('admin_user', 'testing')
   })
 
   describe('Instructors', function() {
@@ -29,7 +29,7 @@ describe('Administrative Actions', function() {
 
       cy.location('pathname').should('eq', '/admin/instructors')
       cy.get('tr').should('have.length', 2)
-      cy.get('table').contains('adminuser')
+      cy.get('table').contains('admin_user')
 
       // add a new instructor using the form
       cy.get('input[name=first_name]').type("Smarty")
@@ -137,7 +137,7 @@ describe('Administrative Actions', function() {
 
     })
 
-    it('Create New Assignment', function () {
+    it('Create New Base Assignment', function () {
       cy.visit('/admin/assignments')
       cy.get('tr').should('have.length', 1)
 
@@ -178,6 +178,94 @@ describe('Administrative Actions', function() {
       cy.get('input[type=submit]').click()
 
       cy.contains("UPDATED version")
+    })
+
+    it('Create New Course Assignment', function () {
+      cy.request('POST', '/test/seed/section', { 
+        course: 'comp110',
+        semester: 'sp99',
+        section_num: 83,
+        instructor_username: 'admin_user',
+      })
+
+      cy.request('POST', '/test/seed/base_assignment', { 
+        title: 'Amazingly Fun Project',
+      })
+
+      cy.request('POST', '/test/seed/base_assignment', { 
+        title: 'Super Cool Homework',
+      })
+
+      cy.visit('/comp110/sp99/s83')
+      cy.contains('No assignments found')
+
+      // create a new assignment based on "Amazingly Fun Project"
+      cy.contains('Add New Assignment').click()
+
+      cy.wait(500)
+
+      cy.get('input[name=assignment_num]').type("6")
+      cy.get('select[name=base_assignment_id]').select("Amazingly Fun Project")
+      cy.get('input[name=due_date]').type("2027-02-19")
+      cy.get('input[name=due_time]').type("10:08")
+
+      cy.contains('Create Assignment').click()
+
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/')
+      cy.contains('PSA 6: Amazingly Fun Project')
+      cy.contains('View').click()
+
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa6/')
+
+      // add a couple groups
+      cy.get('input[name=group_num]').type('1')
+      cy.contains('student3').click()
+      cy.contains('student7').click()
+      cy.contains("Create Group").click()
+
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa6/')
+      cy.contains("Group 1")
+
+      cy.contains("Add/Remove Members").click()
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa6/group1/modify')
+      cy.contains('student9').click()
+      cy.get('input[type=submit]').click()
+
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa6/')
+
+      cy.get('input[name=group_num]').type('4')
+      cy.contains('student2').click()
+      cy.contains('student5').click()
+      cy.contains("Create Group").click()
+
+      cy.contains("Group 4")
+
+      cy.visit('/comp110/sp99/s83')
+
+      // create a new assignment based on "Super Cool Homework"
+      cy.contains('Add New Assignment').click()
+
+      cy.wait(500)
+
+      cy.get('input[name=assignment_num]').type("3")
+      cy.get('select[name=base_assignment_id]').select("Super Cool Homework")
+      cy.get('input[name=due_date]').type("2027-01-20")
+      cy.get('input[name=due_time]').type("22:13")
+
+      cy.contains('Create Assignment').click()
+
+      cy.contains("View").click()
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa3/')
+
+      cy.contains("Copy Groups").click()
+
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa3/')
+      cy.contains("Group 1")
+      cy.contains("Group 4")
+
+      cy.contains("Delete Group").click()
+      cy.location('pathname').should('eq', '/comp110/sp99/s83/psa3/')
+      cy.contains("Removed group 1 from PSA 3")
     })
   })
 })
