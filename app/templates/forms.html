@@ -18,6 +18,16 @@
 {% macro checkbox_input(form_field) -%}
     <div class="form-group pt-2 pb-2">
         <strong>{{ form_field.label }}:</strong>
+        {% if form_field.errors %} 
+        <div class="ms-1">
+            <small class="text-danger">
+                {% for error in form_field.errors %}
+                {{ error }}.
+                {% endfor %}
+            </small>
+        </div>
+        {% endif %}
+
         <div class="container">
             {% for choice in form_field %}
             <div class="form-check">
