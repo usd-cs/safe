@@ -21,21 +21,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% for (section, instructors, num_students) in sections %}
+                {% for section in sections %}
                 <tr>
                     <td>{{ section.course }}</td>
                     <td>{{ section.semester }}</td>
                     <td>{{ section.section_num }}</td>
-                    {% if instructors|length > 0 %}
+                    {% if section.num_instructors() > 0 %}
                     <td>
-                        {% for instructor in instructors %}
+                        {% for instructor in section.instructors() %}
                         {{ instructor.first_name }} {{ instructor.last_name }}<br/>
                         {% endfor %}
                     </td>
                     {% else %}
                     <td>-</td>
                     {% endif %}
-                    <td>{{ num_students }}</td>
+                    <td>{{ section.num_students() }}</td>
                     <td>
                         <a class="text-decoration-none" href="{{ url_for('admin.modify_section', section_id=section.section_id) }}">Modify</a>
                     </td>

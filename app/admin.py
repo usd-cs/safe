@@ -144,54 +144,22 @@ def modify_section():
             return redirect(url_for('.admin_sections'))
 
     # verify there is a section with the given ID
-    section = (
-        db_models.Section.query
-            .filter(db_models.Section.section_id == section_id)
-            .first()
-        )
+    section = db_models.Section.query.filter_by(section_id=section_id).first()
 
     if not section:
         current_app.logger.error(f"No section found with id {section_id}")
         abort(404)
 
-    all_instructors = db_models.User.query.filter(db_models.User.instructor == True)
-
-    section_instructors = [user for user in section.users if user.instructor == True]
-
     form = ModifySectionForm()
 
-    id_list = [i.user_id for i in all_instructors]
-    name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
-
-    form.instructors.choices = list(zip(id_list, name_list))
-    previous_instructors_ids = [i.user_id for i in section_instructors]
+    form.instructors.choices = get_instructor_choices()
+    previous_instructors_ids = [i.user_id for i in section.instructors()]
 
     if form.validate_on_submit():
         current_app.logger.debug(f"selected instructors: {form.instructors.data}")
 
-        # add newly selected instructors to section
-        for instructor_id in form.instructors.data:
-            if instructor_id not in previous_instructors_ids:
-                # FIXME: this is a silly way to do this adding to the
-                # section
-                statement = (
-                    db.insert(db_models.section_enrollment)
-                        .values(user_id=instructor_id, section_id=section_id)
-                )
-                db.session.execute(statement)
-                current_app.logger.debug(f"Added instructor {instructor_id}")
-
-        # remove old instructors who weren't selected this time
-        for instructor_id in previous_instructors_ids:
-            if instructor_id not in form.instructors.data:
-                # FIXME: do this in a sane way
-                statement = (
-                    db.delete(db_models.section_enrollment)
-                        .where(db_models.section_enrollment.c.user_id == instructor_id,
-                            db_models.section_enrollment.c.section_id == section_id)
-                )
-                db.session.execute(statement)
-                current_app.logger.debug(f"Removed instructor {instructor_id}")
+        selected_instructors = db_models.User.query.filter(db_models.User.user_id.in_(form.instructors.data))
+        section.users = selected_instructors.all() + section.students()
 
         db.session.commit()
         current_app.logger.info(f"Updated instructors for section {section_id}")
@@ -207,49 +175,29 @@ def modify_section():
                             form=form)
 
 
+def get_instructor_choices():
+    """ Returns list of tuples of (id, formatted name string) for all
+    instructors. """
+    all_instructors = db_models.User.query.filter_by(instructor=True)
+    return [(i.user_id, f"{i.last_name}, {i.first_name} ({i.username})")
+            for i in all_instructors]
+
+
 @admin.route('/sections', methods=['get', 'post'])
 @login_required
 def admin_sections():
     if not current_user.admin:
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
-        
-    form = NewSectionForm()
 
-    all_instructors = db_models.User.query.filter(db_models.User.instructor == True)
+    form = NewSectionForm()
 
     all_sections = db_models.Section.query.order_by(db_models.Section.course,
                                                     db_models.Section.semester,
                                                     db_models.Section.section_num)
 
-    # create a list of (section, instructors) tuples
-    section_info = []
-
-    for section in all_sections:
-        section_instructors = (
-            db_models.User.query
-                .join(db_models.section_enrollment)
-                .join(db_models.Section)
-                .filter(db.and_(db_models.Section.section_id == section.section_id,
-                                db_models.User.instructor == True))
-                .order_by(db_models.User.last_name)
-                .all()
-        )
-        num_students = (
-            db_models.User.query
-                .join(db_models.section_enrollment)
-                .join(db_models.Section)
-                .filter(db.and_(db_models.Section.section_id == section.section_id,
-                                db_models.User.instructor == False))
-                .count()
-        )
-        current_app.logger.debug(f"section {section.section_id}: {len(section_instructors)} instructors, {num_students} students")
-        section_info.append((section, section_instructors, num_students))
-
-    id_list = [i.user_id for i in all_instructors]
-    name_list = [f"{i.last_name}, {i.first_name} ({i.username})" for i in all_instructors]
-
-    form.instructors.choices = list(zip(id_list, name_list))
+    instructor_choices = get_instructor_choices()
+    form.instructors.choices = instructor_choices
 
     if form.validate_on_submit():
         # TODO: Turn this isn't a form validator so error shows up closer to
@@ -266,12 +214,12 @@ def admin_sections():
         # make sure a section with given info doesn't already exist
         if num_matching_sections != 0:
             flash("A section with that information already exists!", "danger")
-            form.instructors.choices = list(zip(id_list, name_list))
+            form.instructors.choices = instructor_choices
 
             return render_template("admin_sections.html",
                                     page_title="Admin Sections",
                                     form=form,
-                                    sections=section_info)
+                                    sections=all_sections)
 
         # create the new section and add it to the database
         new_section = db_models.Section(course=form.course.data,
@@ -302,12 +250,12 @@ def admin_sections():
     if form.errors:
         current_app.logger.debug(f"form errors: {form.errors}")
 
-    form.instructors.choices = list(zip(id_list, name_list))
+    form.instructors.choices = instructor_choices
 
     return render_template("admin_sections.html",
                             page_title="Admin Sections",
                             form=form,
-                            sections=section_info)
+                            sections=all_sections)
 
 
 def get_tester_file(assignment_id, filename):
