@@ -23,6 +23,9 @@ from . import db_models
 
 from app import db
 from app.helper import get_formatted_file_contents
+from app.db_models import (
+    User, Section, BaseAssignment, Assignment, TesterFile, SourceFile
+)
 
 admin = Blueprint('admin', __name__)
 
@@ -35,7 +38,7 @@ class NewInstructorForm(FlaskForm):
     submit = SubmitField('Create Instructor')
 
     def validate_username(form, field):
-        if db_models.User.query.filter(db_models.User.username == field.data).count() != 0:
+        if User.query.filter(User.username == field.data).count() != 0:
             raise ValidationError("An instructor with that username already exists")
 
 
@@ -57,7 +60,7 @@ def admin_users():
         current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
         abort(403)
 
-    all_users = db_models.User.query.order_by(db_models.User.last_name).all()
+    all_users = User.query.order_by(User.last_name).all()
 
     return render_template("admin_users.html",
                             page_title="Admin Users",
@@ -75,7 +78,7 @@ def admin_instructors():
 
     if form.validate_on_submit():
         # add user to database
-        new_instructor = db_models.User(username=form.username.data,
+        new_instructor = User(username=form.username.data,
                                             first_name=form.first_name.data,
                                             last_name=form.last_name.data,
                                             admin=form.admin.data,
@@ -90,9 +93,9 @@ def admin_instructors():
 
     # form wasn't valid so re-render the page
     instructors = (
-        db_models.User.query
-            .filter(db_models.User.instructor == True)
-            .order_by(db_models.User.last_name)
+        User.query
+            .filter(User.instructor == True)
+            .order_by(User.last_name)
     )
 
     return render_template("admin_instructors.html",
@@ -144,7 +147,7 @@ def modify_section():
             return redirect(url_for('.admin_sections'))
 
     # verify there is a section with the given ID
-    section = db_models.Section.query.filter_by(section_id=section_id).first()
+    section = Section.query.filter_by(section_id=section_id).first()
 
     if not section:
         current_app.logger.error(f"No section found with id {section_id}")
@@ -158,7 +161,7 @@ def modify_section():
     if form.validate_on_submit():
         current_app.logger.debug(f"selected instructors: {form.instructors.data}")
 
-        selected_instructors = db_models.User.query.filter(db_models.User.user_id.in_(form.instructors.data))
+        selected_instructors = User.query.filter(User.user_id.in_(form.instructors.data))
         section.users = selected_instructors.all() + section.students()
 
         db.session.commit()
@@ -178,7 +181,7 @@ def modify_section():
 def get_instructor_choices():
     """ Returns list of tuples of (id, formatted name string) for all
     instructors. """
-    all_instructors = db_models.User.query.filter_by(instructor=True)
+    all_instructors = User.query.filter_by(instructor=True)
     return [(i.user_id, f"{i.last_name}, {i.first_name} ({i.username})")
             for i in all_instructors]
 
@@ -192,9 +195,9 @@ def admin_sections():
 
     form = NewSectionForm()
 
-    all_sections = db_models.Section.query.order_by(db_models.Section.course,
-                                                    db_models.Section.semester,
-                                                    db_models.Section.section_num)
+    all_sections = Section.query.order_by(Section.course,
+                                                    Section.semester,
+                                                    Section.section_num)
 
     instructor_choices = get_instructor_choices()
     form.instructors.choices = instructor_choices
@@ -204,10 +207,10 @@ def admin_sections():
         # where it matters (i.e. under the section field, not as a flash at
         # the top of the page.
         num_matching_sections = (
-            db_models.Section.query
-                .filter(db_models.Section.course == form.course.data)
-                .filter(db_models.Section.semester == form.semester.data)
-                .filter(db_models.Section.section_num == int(form.section_num.data))
+            Section.query
+                .filter(Section.course == form.course.data)
+                .filter(Section.semester == form.semester.data)
+                .filter(Section.section_num == int(form.section_num.data))
                 .count()
         )
 
@@ -222,7 +225,7 @@ def admin_sections():
                                     sections=all_sections)
 
         # create the new section and add it to the database
-        new_section = db_models.Section(course=form.course.data,
+        new_section = Section(course=form.course.data,
                                         semester=form.semester.data,
                                         section_num=int(form.section_num.data))
 
@@ -260,10 +263,10 @@ def admin_sections():
 
 def get_tester_file(assignment_id, filename):
     return (
-        db_models.TesterFile.query
-            .join(db_models.BaseAssignment.tester_files)
-            .filter(db_models.BaseAssignment.assignment_id == assignment_id)
-            .filter(db_models.TesterFile.filename == filename)
+        TesterFile.query
+            .join(BaseAssignment.tester_files)
+            .filter(BaseAssignment.assignment_id == assignment_id)
+            .filter(TesterFile.filename == filename)
             .first()
     )
 
@@ -281,8 +284,8 @@ def add_tester_files(assignment_id):
         abort(403)
 
     assignment = (
-        db_models.BaseAssignment.query
-            .filter(db_models.BaseAssignment.assignment_id == assignment_id)
+        BaseAssignment.query
+            .filter(BaseAssignment.assignment_id == assignment_id)
             .first()
     )
 
@@ -308,7 +311,7 @@ def add_tester_files(assignment_id):
                 continue
 
             # TODO: store tf.content_type attribute in DB
-            new_tester_file = db_models.TesterFile(filename=tf.filename,
+            new_tester_file = TesterFile(filename=tf.filename,
                                                    data=tf.read(),
                                                    base_assignment=assignment)
             db.session.add(new_tester_file)
@@ -422,7 +425,7 @@ def admin_delete_user():
         current_app.logger.error("Failed: Missing user id")
         flash("Could not delete user. ID missing.", "danger")
     else:
-        user = db_models.User.query.filter(db_models.User.user_id == int(user_id)).first()
+        user = User.query.filter(User.user_id == int(user_id)).first()
 
         if not user:
             current_app.logger.error(f"Failed: Invalid user ID ({user_id})")
@@ -447,7 +450,7 @@ class NewAssignmentForm(FlaskForm):
 
     def validate_title(form, field):
         """ Validate that title isn't already used by an assignment. """
-        if db_models.BaseAssignment.query.filter(db_models.BaseAssignment.title == field.data).count() != 0:
+        if BaseAssignment.query.filter(BaseAssignment.title == field.data).count() != 0:
             raise ValidationError("An assignment with that title already exists")
 
     def validate_files(form, field):
@@ -479,7 +482,7 @@ def admin_assignments():
 
     if new_assignment_form.validate_on_submit():
         # create new assignment for DB
-        new_base_assignment = db_models.BaseAssignment(title=new_assignment_form.title.data,
+        new_base_assignment = BaseAssignment(title=new_assignment_form.title.data,
                                                         tester_run_command=new_assignment_form.tester_run_command.data,
                                                         max_runtime=new_assignment_form.max_runtime.data)
 
@@ -493,8 +496,8 @@ def admin_assignments():
 
         # TODO: check for duplicate filenames
         for af in assignment_files:
-            new_file = db_models.SourceFile(filename=af,
-                                            base_assignment_id=new_base_assignment.assignment_id)
+            new_file = SourceFile(filename=af,
+                                  base_assignment_id=new_base_assignment.assignment_id)
             db.session.add(new_file)
             current_app.logger.info(f"Added source file {af} to base assignment")
 
@@ -511,9 +514,9 @@ def admin_assignments():
 
         for tf in tester_files:
             # TODO: store tf.content_type attribute in DB
-            new_tester_file = db_models.TesterFile(filename=tf.filename,
-                                                   data=tf.read(),
-                                                   base_assignment=new_base_assignment)
+            new_tester_file = TesterFile(filename=tf.filename,
+                                         data=tf.read(),
+                                         base_assignment=new_base_assignment)
             db.session.add(new_tester_file)
 
             new_tester_file.write_to_file(current_app.config['TESTER_CODE_BASE_DIR'])
@@ -527,7 +530,7 @@ def admin_assignments():
         return redirect(url_for(f'.admin_assignments'))
 
 
-    all_assignments = db_models.BaseAssignment.query
+    all_assignments = BaseAssignment.query
 
     return render_template("admin_assignments.html",
                             page_title="Admin Assignments",
@@ -544,8 +547,8 @@ def get_gitolite_conf(assignment_id):
         abort(403)
 
     assignment = (
-        db_models.Assignment.query
-            .filter(db_models.Assignment.assignment_id == assignment_id)
+        Assignment.query
+            .filter(Assignment.assignment_id == assignment_id)
             .first()
     )
 
