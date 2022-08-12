@@ -738,7 +738,7 @@ def psa_overview(semester, section_num, psa_num):
         # Check that there aren't any existing teams in this assignment.
         # Note: The template should disable this form if there are existing
         # groups but want to be safe here.
-        if len(assignment.teams) != 0:
+        if assignment.teams.count() != 0:
             abort(500)
 
         groups = (
