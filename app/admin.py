@@ -226,24 +226,13 @@ def admin_sections():
 
         # create the new section and add it to the database
         new_section = Section(course=form.course.data,
-                                        semester=form.semester.data,
-                                        section_num=int(form.section_num.data))
+                              semester=form.semester.data,
+                              section_num=int(form.section_num.data),
+                              users=User.query.filter(User.user_id.in_(form.instructors.data)))
 
 
         db.session.add(new_section)
         db.session.commit() # causes DB to give the new_section a section_id
-
-        # add instructors to section
-        for instructor_id in form.instructors.data:
-            # FIXME: make this sane
-            statement = (
-                db.insert(db_models.section_enrollment)
-                  .values(user_id=instructor_id, section_id=new_section.section_id)
-            )
-            db.session.execute(statement)
-            current_app.logger.debug(f"Added instructor {instructor_id} to section")
-
-        db.session.commit()
 
         current_app.logger.info(f"Added new section (ID: {new_section.section_id}): {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})")
         flash(f"Succesfully added new section: {new_section.course.upper()}, Section {new_section.section_num} ({new_section.semester.upper()})", "success")
