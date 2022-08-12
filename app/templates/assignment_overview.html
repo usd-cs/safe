@@ -164,17 +164,7 @@
         <form method="POST" action="">
             {{ group_form.csrf_token }}
             {{ forms.input(group_form.group_num, "Enter group number (e.g. 3)") }}
-            <div class="form-group pt-2 pb-2">
-                <strong>{{ group_form.members.label }}</strong>
-                <div class="container">
-                    {% for choice in group_form.members %}
-                    <div class="form-check">
-                        {{ choice(class_="form-check-input") }}
-                        {{ choice.label(class_="form-check-label") }}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            {{ forms.checkbox_input(group_form.members) }}
             {{ group_form.submit(class_="btn btn-outline-primary btn-sm") }}
         </form>
     </div>
