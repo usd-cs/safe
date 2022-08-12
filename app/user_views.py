@@ -28,6 +28,10 @@ from . import admin
 
 from app import db
 from app.helper import get_formatted_file_contents
+from app.db_models import (
+    User, Section, BaseAssignment, Assignment, TesterFile, Team, TestResults,
+    SubmittedFile
+)
 
 user_views = Blueprint('user_views', __name__)
 
@@ -39,8 +43,8 @@ def user_profile(username):
         abort(403)
 
     selected_user = (
-        db_models.User.query
-            .filter(db_models.User.username == username)
+        User.query
+            .filter(User.username == username)
             .first()
     )
 
@@ -82,9 +86,9 @@ class NewAssignmentForm(FlaskForm):
 
     def validate_assignment_num(form, field):
         num_matches = (
-                db_models.Assignment.query
-                    .filter(db_models.Assignment.section_id == form.section_id.data)
-                    .filter(db_models.Assignment.num == form.assignment_num.data)
+                Assignment.query
+                    .filter(Assignment.section_id == form.section_id.data)
+                    .filter(Assignment.num == form.assignment_num.data)
                     .count()
         )
 
@@ -130,10 +134,10 @@ def add_students_from_roster(section, file_location, add_drop=False):
                 students_in_file = []
 
                 initial_roster = (
-                    db_models.User.query
-                        .join(db_models.Section.users)
-                        .filter(db_models.Section.section_id == section.section_id)
-                        .filter(db_models.User.instructor == False)
+                    User.query
+                        .join(Section.users)
+                        .filter(Section.section_id == section.section_id)
+                        .filter(User.instructor == False)
                         .all()
                 )
 
@@ -146,7 +150,7 @@ def add_students_from_roster(section, file_location, add_drop=False):
                     first_name = line[first_name_col]
 
                     # look for an existing user with that username
-                    student_to_add = db_models.User.query.filter(db_models.User.username == username).first()
+                    student_to_add = User.query.filter(User.username == username).first()
 
                     if student_to_add:
                         # found the student already so no need to create a
@@ -154,7 +158,7 @@ def add_students_from_roster(section, file_location, add_drop=False):
                         current_app.logger.debug(f"User with {username} already exists. Skipping creation!")
                     else:
                         # Create new User and add to database
-                        student_to_add = db_models.User(username=username,
+                        student_to_add = User(username=username,
                                                         first_name=first_name,
                                                         last_name=last_name,
                                                         instructor=False,
@@ -198,12 +202,12 @@ def add_students_from_roster(section, file_location, add_drop=False):
 
                         # remove student from section teams they may be in
                         teams_with_student = (
-                            session.query(db_models.Team)
-                                .join(db_models.Section.assignments)
-                                .join(db_models.Assignment.teams)
-                                .join(db_models.Team.members)
-                                .filter(db_models.Section.section_id == section.section_id)
-                                .filter(db_models.User.user_id == student.user_id)
+                            session.query(Team)
+                                .join(Section.assignments)
+                                .join(Assignment.teams)
+                                .join(Team.members)
+                                .filter(Section.section_id == section.section_id)
+                                .filter(User.user_id == student.user_id)
                         )
 
                         for team in teams_with_student:
@@ -241,10 +245,10 @@ def section_overview(semester, section_num):
     # TODO: split this function into two separate functions, which will be
     # called based on whether the user is a student or an instructor/admin
     section = (
-        db_models.Section.query
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
+        Section.query
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
             .first()
     )
 
@@ -259,10 +263,10 @@ def section_overview(semester, section_num):
     if not (current_user.admin or current_user.instructor):
         # Construct the student's view of this page
         instructors = (
-            db_models.User.query
-                .join(db_models.Section.users)
-                .filter(db_models.Section.section_id == section.section_id)
-                .filter(db_models.User.instructor)
+            User.query
+                .join(Section.users)
+                .filter(Section.section_id == section.section_id)
+                .filter(User.instructor)
                 .all()
         )
 
@@ -271,18 +275,18 @@ def section_overview(semester, section_num):
         # get intersection of section's assignments and user's teams
         # assignments
         teams_in_section = (
-            db.session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .filter(db_models.Section.section_id == section.section_id)
+            db.session.query(Assignment.num, BaseAssignment.title, Team.team_num)
+                .join(Section.assignments)
+                .join(Assignment.teams)
+                .filter(Section.section_id == section.section_id)
         )
 
         teams_with_user = (
-            db.session.query(db_models.Assignment.num, db_models.BaseAssignment.title, db_models.Team.team_num)
-                .select_from(db_models.Team)
-                .join(db_models.User.teams)
-                .join(db_models.Assignment)
-                .filter(db_models.User.username == current_user.username)
+            db.session.query(Assignment.num, BaseAssignment.title, Team.team_num)
+                .select_from(Team)
+                .join(User.teams)
+                .join(Assignment)
+                .filter(User.username == current_user.username)
         )
 
         assignment_info = teams_in_section.intersect(teams_with_user).all()
@@ -299,7 +303,7 @@ def section_overview(semester, section_num):
     new_assignment_failed = False
 
     base_choices = [(ba.assignment_id, ba.title) 
-                        for ba in db.session.query(db_models.BaseAssignment.assignment_id, db_models.BaseAssignment.title)]
+                        for ba in db.session.query(BaseAssignment.assignment_id, BaseAssignment.title)]
     new_assignment_form.base_assignment_id.choices = base_choices
 
     if new_assignment_form.validate_on_submit():
@@ -309,7 +313,7 @@ def section_overview(semester, section_num):
 
         # create new assignment based on the selected base assignment
         # and add it to our database
-        new_assignment = db_models.Assignment(num=new_assignment_form.assignment_num.data,
+        new_assignment = Assignment(num=new_assignment_form.assignment_num.data,
                                                 section_id=section.section_id,
                                                 base_assignment_id=new_assignment_form.base_assignment_id.data,
                                                 deadline=deadline)
@@ -331,10 +335,10 @@ def section_overview(semester, section_num):
     remove_students_form = RemoveStudentsForm()
 
     enrolled_students = (
-        db_models.User.query
-            .join(db_models.Section.users)
-            .filter(db_models.Section.section_id == section.section_id)
-            .filter(db_models.User.instructor == False)
+        User.query
+            .join(Section.users)
+            .filter(Section.section_id == section.section_id)
+            .filter(User.instructor == False)
             .all()
     )
 
@@ -346,7 +350,7 @@ def section_overview(semester, section_num):
     if remove_students_form.validate_on_submit():
         for student_id in remove_students_form.students_to_remove.data:
 
-            student = db_models.User.query.filter(db_models.User.user_id == student_id).first()
+            student = User.query.filter(User.user_id == student_id).first()
 
             if not student:
                 # if we don't find that student, something bad happened so
@@ -365,10 +369,10 @@ def section_overview(semester, section_num):
             # TODO: change this to return teams that the student is a member of
             student_team_enrollments = (
                 db.session.query(db_models.team_enrollment)
-                    .join(db_models.Team)
-                    .join(db_models.Assignment)
-                    .join(db_models.Section)
-                    .filter(db_models.Section.section_id == section.section_id)
+                    .join(Team)
+                    .join(Assignment)
+                    .join(Section)
+                    .filter(Section.section_id == section.section_id)
                     .filter(db_models.team_enrollment.c.user_id == student_id)
             )
 
@@ -431,13 +435,13 @@ def section_overview(semester, section_num):
 def modify_group(semester, section_num, psa_num, group_num):
     # TODO: remove repeated code between this and delete_group
     query_result = (
-        db.session.query(db_models.Section, db_models.Team)
-            .join(db_models.Section.assignments)
-            .join(db_models.Assignment.teams)
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
-            .filter(db_models.Assignment.num == psa_num)
-            .filter(db_models.Team.team_num == group_num)
+        db.session.query(Section, Team)
+            .join(Section.assignments)
+            .join(Assignment.teams)
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .filter(Assignment.num == psa_num)
+            .filter(Team.team_num == group_num)
             .first()
     )
 
@@ -474,13 +478,13 @@ def modify_group(semester, section_num, psa_num, group_num):
         # add members that weren't previously selected
         for student_user_id in update_members_form.members.data:
             if student_user_id not in existing_members_ids:
-                new_member = db_models.User.query.filter(db_models.User.user_id == student_user_id).first()
+                new_member = User.query.filter(User.user_id == student_user_id).first()
                 team.members.append(new_member)
 
         # remove members that were selected previously but aren't now
         for student_user_id in existing_members_ids:
             if student_user_id not in update_members_form.members.data:
-                ex_member = db_models.User.query.filter(db_models.User.user_id == student_user_id).first()
+                ex_member = User.query.filter(User.user_id == student_user_id).first()
                 team.members.remove(ex_member)
 
         db.session.commit()
@@ -507,13 +511,13 @@ def modify_group(semester, section_num, psa_num, group_num):
 @login_required
 def delete_group(semester, section_num, psa_num, group_num):
     query_result = (
-        db.session.query(db_models.Section, db_models.Team)
-            .join(db_models.Section.assignments)
-            .join(db_models.Assignment.teams)
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
-            .filter(db_models.Assignment.num == psa_num)
-            .filter(db_models.Team.team_num == group_num)
+        db.session.query(Section, Team)
+            .join(Section.assignments)
+            .join(Assignment.teams)
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .filter(Assignment.num == psa_num)
+            .filter(Team.team_num == group_num)
             .first()
     )
 
@@ -554,15 +558,15 @@ class UpdateGroupMembersForm(FlaskForm):
 @login_required
 def view_tester_file(semester, section_num, psa_num, filename):
     file_query = (
-        db.session.query(db_models.Section, db_models.TesterFile)
-            .join(db_models.Section.assignments)
-            .join(db_models.BaseAssignment)
-            .join(db_models.TesterFile)
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
-            .filter(db_models.Assignment.num == psa_num)
-            .filter(db_models.TesterFile.filename == filename)
+        db.session.query(Section, TesterFile)
+            .join(Section.assignments)
+            .join(BaseAssignment)
+            .join(TesterFile)
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .filter(Assignment.num == psa_num)
+            .filter(TesterFile.filename == filename)
     )
 
 
@@ -590,24 +594,24 @@ def view_tester_file(semester, section_num, psa_num, filename):
 
 def get_students_without_groups(section_id, assignment_id):
     enrolled_students = (
-        db_models.User.query
+        User.query
             .join(db_models.section_enrollment)
-            .join(db_models.Section)
-            .filter(db.and_(db_models.Section.section_id == section_id, 
-                            db_models.User.instructor == False))
+            .join(Section)
+            .filter(db.and_(Section.section_id == section_id, 
+                            User.instructor == False))
     )
 
     students_in_groups = (
-        db_models.User.query
+        User.query
             .join(db_models.team_enrollment)
-            .join(db_models.Team)
-            .filter(db_models.Team.assignment_id == assignment_id)
+            .join(Team)
+            .filter(Team.assignment_id == assignment_id)
     )
 
     students_without_groups = (
             enrolled_students
                 .except_(students_in_groups)
-                .order_by(db_models.User.last_name)
+                .order_by(User.last_name)
                 .all()
     )
 
@@ -622,12 +626,12 @@ class CopyGroupsForm(FlaskForm):
 @login_required
 def delete_assignment(semester, section_num, psa_num):
     query_results = (
-        db.session.query(db_models.Section, db_models.Assignment)
-            .join(db_models.Section.assignments)
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
-            .filter(db_models.Assignment.num == psa_num)
+        db.session.query(Section, Assignment)
+            .join(Section.assignments)
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .filter(Assignment.num == psa_num)
             .first()
     )
 
@@ -656,10 +660,10 @@ def delete_assignment(semester, section_num, psa_num):
 def psa_overview(semester, section_num, psa_num):
 
     section = (
-        db_models.Section.query
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
+        Section.query
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
             .first()
     )
 
@@ -671,9 +675,9 @@ def psa_overview(semester, section_num, psa_num):
         abort(403)
 
     assignment = (
-            db_models.Assignment.query
-                .filter(db_models.Assignment.section_id == section.section_id)
-                .filter(db_models.Assignment.num == psa_num)
+            Assignment.query
+                .filter(Assignment.section_id == section.section_id)
+                .filter(Assignment.num == psa_num)
                 .first()
     )
 
@@ -699,7 +703,7 @@ def psa_overview(semester, section_num, psa_num):
                     "danger")
 
         else:
-            new_group = db_models.Team(team_num=new_group_form.group_num.data,
+            new_group = Team(team_num=new_group_form.group_num.data,
                                             assignment_id=assignment.assignment_id)
 
             db.session.add(new_group)
@@ -721,11 +725,11 @@ def psa_overview(semester, section_num, psa_num):
     copy_groups_form = CopyGroupsForm()
 
     other_assignments = (
-        db_models.Assignment.query
-            .join(db_models.Section.assignments)
-            .filter(db_models.Section.section_id == section.section_id)
-            .filter(db_models.Assignment.assignment_id != assignment.assignment_id)
-            .order_by(db_models.Assignment.num.desc())
+        Assignment.query
+            .join(Section.assignments)
+            .filter(Section.section_id == section.section_id)
+            .filter(Assignment.assignment_id != assignment.assignment_id)
+            .order_by(Assignment.num.desc())
             .all()
     )
 
@@ -742,16 +746,16 @@ def psa_overview(semester, section_num, psa_num):
             abort(500)
 
         groups = (
-            db_models.Team.query
-                .join(db_models.Section.assignments)
-                .join(db_models.Assignment.teams)
-                .filter(db_models.Section.section_id == section.section_id)
-                .filter(db_models.Assignment.num == copy_groups_form.assignment_num.data)
+            Team.query
+                .join(Section.assignments)
+                .join(Assignment.teams)
+                .filter(Section.section_id == section.section_id)
+                .filter(Assignment.num == copy_groups_form.assignment_num.data)
                 .all()
         )
 
         for g in groups:
-            new_team = db_models.Team(team_num=g.team_num,
+            new_team = Team(team_num=g.team_num,
                                         assignment_id=assignment.assignment_id)
 
             for member in g.members:
@@ -789,13 +793,13 @@ def psa_results_shortcut(psa_num):
 
     # find any teams for the given course and psa
     matched_psa_info = (
-        db.session.query(db_models.Section.semester, db_models.Section.section_num, db_models.Team.team_num)
-            .join(db_models.Section.assignments)
-            .join(db_models.Assignment.teams)
-            .join(db_models.Team.members)
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Assignment.num == psa_num)
-            .filter(db_models.User.username == target_user.username)
+        db.session.query(Section.semester, Section.section_num, Team.team_num)
+            .join(Section.assignments)
+            .join(Assignment.teams)
+            .join(Team.members)
+            .filter(Section.course == "comp110")
+            .filter(Assignment.num == psa_num)
+            .filter(User.username == target_user.username)
     )
 
     if matched_psa_info.count() == 0:
@@ -830,10 +834,10 @@ def psa_results_shortcut(psa_num):
 def psa_results(semester, section_num, psa_num, group_num):
     # TODO: combine the following queries into one!
     section = (
-        db_models.Section.query
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
+        Section.query
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
             .first()
     )
 
@@ -841,9 +845,9 @@ def psa_results(semester, section_num, psa_num, group_num):
         abort(404)
 
     assignment = (
-            db_models.Assignment.query
-                .filter(db_models.Assignment.section_id == section.section_id)
-                .filter(db_models.Assignment.num == psa_num)
+            Assignment.query
+                .filter(Assignment.section_id == section.section_id)
+                .filter(Assignment.num == psa_num)
                 .first()
     )
 
@@ -851,9 +855,9 @@ def psa_results(semester, section_num, psa_num, group_num):
         abort(404)
 
     group = (
-            db_models.Team.query
-                .filter(db_models.Team.assignment_id == assignment.assignment_id)
-                .filter(db_models.Team.team_num == group_num)
+            Team.query
+                .filter(Team.assignment_id == assignment.assignment_id)
+                .filter(Team.team_num == group_num)
                 .first()
     )
 
@@ -870,11 +874,11 @@ def psa_results(semester, section_num, psa_num, group_num):
     # organized by section.
 
     latest_test_results = (
-        db_models.TestResults.query
-            .filter(db_models.TestResults.team_id == group.team_id)
-            .filter(db_models.TestResults.finished)
-            .order_by(db_models.TestResults.commit_time.desc())
-            .order_by(db_models.TestResults.completed_at.desc())
+        TestResults.query
+            .filter(TestResults.team_id == group.team_id)
+            .filter(TestResults.finished)
+            .order_by(TestResults.commit_time.desc())
+            .order_by(TestResults.completed_at.desc())
             .first()
     )
 
@@ -957,10 +961,10 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
         abort(404)
 
     submitted_file = (
-        db_models.SubmittedFile.query
-            .join(db_models.TestResults.submitted_files)
-            .filter(db_models.TestResults.job_id == job_id)
-            .filter(db_models.SubmittedFile.filename == filename)
+        SubmittedFile.query
+            .join(TestResults.submitted_files)
+            .filter(TestResults.job_id == job_id)
+            .filter(SubmittedFile.filename == filename)
             .first()
     )
 
@@ -968,14 +972,14 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
         abort(404)
 
     section, team = (
-        db.session.query(db_models.Section, db_models.Team)
-            .join(db_models.Section.assignments)
-            .join(db_models.Assignment.teams)
-            .filter(db_models.Section.course == "comp110")
-            .filter(db_models.Section.semester == semester)
-            .filter(db_models.Section.section_num == section_num)
-            .filter(db_models.Assignment.num == psa_num)
-            .filter(db_models.Team.team_num == group_num)
+        db.session.query(Section, Team)
+            .join(Section.assignments)
+            .join(Assignment.teams)
+            .filter(Section.course == "comp110")
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .filter(Assignment.num == psa_num)
+            .filter(Team.team_num == group_num)
             .first()
     )
 
