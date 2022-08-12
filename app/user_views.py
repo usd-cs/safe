@@ -690,8 +690,8 @@ def psa_overview(semester, section_num, psa_num):
                     for s in students_without_groups]
 
     new_group_form = NewGroupForm()
-    new_group_form.members.choices = zip(unassigned_students_ids,
-                                            unassigned_students_names)
+    new_group_form.members.choices = list(zip(unassigned_students_ids,
+                                              unassigned_students_names))
 
     if new_group_form.validate_on_submit():
         if new_group_form.group_num.data in [t.team_num for t in assignment.teams]:
@@ -764,8 +764,8 @@ def psa_overview(semester, section_num, psa_num):
 
     # TRICKY: validating form seems to clear out choices so have to
     # reset them here
-    new_group_form.members.choices = zip(unassigned_students_ids,
-            unassigned_students_names)
+    new_group_form.members.choices = list(zip(unassigned_students_ids,
+                                              unassigned_students_names))
 
     copy_groups_form.assignment_num.choices = copy_choices
 
