@@ -80,6 +80,22 @@ class Section(db.Model):
                                     backref='section', lazy='dynamic',
                                     order_by='Assignment.num')
 
+    def instructors(self):
+        """ Returns all of the instructors for this section. """
+        return self.users.filter_by(instructor=True).all()
+
+    def students(self):
+        """ Returns all of the instructors for this section. """
+        return self.users.filter_by(instructor=False).all()
+
+    def num_students(self):
+        """ Returns the number of students enrolled in this section. """
+        return self.users.filter_by(instructor=False).count()
+
+    def num_instructors(self):
+        """ Returns the number of instructors for this section. """
+        return self.users.filter_by(instructor=True).count()
+
 
 class BaseAssignment(db.Model):
     assignment_id = db.Column(db.Integer, primary_key=True)
