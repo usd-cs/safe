@@ -38,7 +38,7 @@
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarCoursesDropdown">
                         {% for section in current_user.sections %}
-                        <li><a class="dropdown-item" href="{{ url_for('user_views.section_overview', semester=section.semester, section_num=section.section_num) }}">
+                        <li><a class="dropdown-item" href="{{ url_for('user_views.section_overview', course_name=section.course, semester=section.semester, section_num=section.section_num) }}">
                                 {{section.course|upper}} ({{section.semester|upper}},
                                 Section {{section.section_num}})
                         </a></li>

@@ -237,16 +237,15 @@ class RemoveStudentsForm(FlaskForm):
     submit = SubmitField("Remove Selected Students")
 
 
-# TODO: generalize for non-COMP110 courses
-@user_views.route('/comp110/<semester>/s<int:section_num>/', methods=['get', 'post'])
+@user_views.route('/<course_name>/<semester>/s<int:section_num>/', methods=['get', 'post'])
 @login_required
-def section_overview(semester, section_num):
+def section_overview(course_name, semester, section_num):
 
     # TODO: split this function into two separate functions, which will be
     # called based on whether the user is a student or an instructor/admin
     section = (
         Section.query
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .first()
@@ -324,7 +323,10 @@ def section_overview(semester, section_num):
         flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
                 "info")
 
-        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+        return redirect(url_for('.section_overview',
+                                course_name=course_name,
+                                semester=semester,
+                                section_num=section_num))
 
     elif request.method == 'POST' and request.form['submit'] == "Create Assignment":
         # form was submitted but validation failed so tell template so it
@@ -390,7 +392,10 @@ def section_overview(semester, section_num):
             db.session.commit()
 
 
-        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+        return redirect(url_for('.section_overview',
+                                course_name=course_name,
+                                semester=semester,
+                                section_num=section_num))
 
     elif request.method == 'POST' and request.form['submit'] == "Upload Roster":
         # form was submitted but validation failed so tell template so it
@@ -418,7 +423,10 @@ def section_overview(semester, section_num):
                                     add_drop=roster_upload_form.add_drop.data)
 
         os.remove(file_location)
-        return redirect(url_for(f'.section_overview', semester=semester, section_num=section_num))
+        return redirect(url_for('.section_overview',
+                                course_name=course_name,
+                                semester=semester,
+                                section_num=section_num))
 
     return render_template("section_overview.html",
                             page_title="Section Overview",
@@ -430,14 +438,15 @@ def section_overview(semester, section_num):
                             roster_upload_failed=roster_upload_failed)
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/modify", methods=['get', 'post'])
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/modify", methods=['get', 'post'])
 @login_required
-def modify_group(semester, section_num, psa_num, group_num):
+def modify_group(course_name, semester, section_num, psa_num, group_num):
     # TODO: remove repeated code between this and delete_group
     query_result = (
         db.session.query(Section, Team)
             .join(Section.assignments)
             .join(Assignment.teams)
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .filter(Assignment.num == psa_num)
@@ -490,6 +499,7 @@ def modify_group(semester, section_num, psa_num, group_num):
         db.session.commit()
 
         return redirect(url_for('.psa_overview', 
+                                course_name=course_name,
                                 semester=semester,
                                 section_num=section_num,
                                 psa_num=psa_num,
@@ -507,13 +517,14 @@ def modify_group(semester, section_num, psa_num, group_num):
 
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/delete")
 @login_required
-def delete_group(semester, section_num, psa_num, group_num):
+def delete_group(course_name, semester, section_num, psa_num, group_num):
     query_result = (
         db.session.query(Section, Team)
             .join(Section.assignments)
             .join(Assignment.teams)
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .filter(Assignment.num == psa_num)
@@ -536,6 +547,7 @@ def delete_group(semester, section_num, psa_num, group_num):
 
     flash(f"Removed group {group_num} from PSA {psa_num}", "info")
     return redirect(url_for('.psa_overview',
+                            course_name=course_name,
                             semester=semester,
                             section_num=section_num,
                             psa_num=psa_num))
@@ -554,15 +566,15 @@ class UpdateGroupMembersForm(FlaskForm):
     submit = SubmitField("Update Members")
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/tester_files/<filename>")
 @login_required
-def view_tester_file(semester, section_num, psa_num, filename):
+def view_tester_file(course_name, semester, section_num, psa_num, filename):
     file_query = (
         db.session.query(Section, TesterFile)
             .join(Section.assignments)
             .join(BaseAssignment)
             .join(TesterFile)
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .filter(Assignment.num == psa_num)
@@ -622,13 +634,13 @@ class CopyGroupsForm(FlaskForm):
     submit = SubmitField("Copy Groups")
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/delete")
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/delete")
 @login_required
-def delete_assignment(semester, section_num, psa_num):
+def delete_assignment(course_name, semester, section_num, psa_num):
     query_results = (
         db.session.query(Section, Assignment)
             .join(Section.assignments)
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .filter(Assignment.num == psa_num)
@@ -650,18 +662,19 @@ def delete_assignment(semester, section_num, psa_num):
 
     flash(f"Successfully deleted PSA {psa_num}", "info")
 
-    return redirect(url_for('.section_overview', semester=semester, section_num=section_num))
+    return redirect(url_for('.section_overview',
+                            course_name=course_name, semester=semester, section_num=section_num))
 
 
 
-# TODO: generalize for non comp110-courses
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
+# TODO: generalize endpoint name so assignment initials don't have to be "psa"
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
 @login_required
-def psa_overview(semester, section_num, psa_num):
+def psa_overview(course_name, semester, section_num, psa_num):
 
     section = (
         Section.query
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .first()
@@ -720,7 +733,7 @@ def psa_overview(semester, section_num, psa_num):
 
             db.session.commit()
 
-            return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+            return redirect(url_for('.psa_overview', course_name=course_name, semester=semester, section_num=section_num, psa_num=psa_num))
 
     copy_groups_form = CopyGroupsForm()
 
@@ -764,7 +777,7 @@ def psa_overview(semester, section_num, psa_num):
             db.session.add(new_team)
 
         db.session.commit()
-        return redirect(url_for('.psa_overview', semester=semester, section_num=section_num, psa_num=psa_num))
+        return redirect(url_for('.psa_overview', course_name=course_name, semester=semester, section_num=section_num, psa_num=psa_num))
 
     # TRICKY: validating form seems to clear out choices so have to
     # reset them here
@@ -781,9 +794,9 @@ def psa_overview(semester, section_num, psa_num):
                            copy_groups_form=copy_groups_form)
 
 
-@user_views.route("/comp110/psa<int:psa_num>/")
+@user_views.route("/<course_name>/psa<int:psa_num>/")
 @login_required
-def psa_results_shortcut(psa_num):
+def psa_results_shortcut(course_name, psa_num):
     # step 0: only for students (sorry and instructors and admins!)
     if current_user.admin or current_user.instructor:
         flash("Assignment shortcut link only available to students!", "warning")
@@ -797,7 +810,7 @@ def psa_results_shortcut(psa_num):
             .join(Section.assignments)
             .join(Assignment.teams)
             .join(Team.members)
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Assignment.num == psa_num)
             .filter(User.username == target_user.username)
     )
@@ -811,7 +824,7 @@ def psa_results_shortcut(psa_num):
     elif matched_psa_info.count() > 1:
         # multiple teams found so redirect home but give them helpful direct
         # links
-        section_links = ", ".join([f'<a href="{url_for(".psa_results", semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
+        section_links = ", ".join([f'<a href="{url_for(".psa_results", course_name=course_name, semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
             for semester, section_num, group_num in matched_psa_info])
 
         message = Markup(f"You are enrolled in multiple groups for COMP110 PSA {psa_num}. Select among the following: {section_links}")
@@ -823,19 +836,20 @@ def psa_results_shortcut(psa_num):
         semester, section_num, group_num = matched_psa_info.first()
     
         return redirect(url_for('.psa_results', 
+                                course_name=course_name,
                                 semester=semester,
                                 section_num=section_num,
                                 psa_num=psa_num,
                                 group_num=group_num))
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/")
 @login_required
-def psa_results(semester, section_num, psa_num, group_num):
+def psa_results(course_name, semester, section_num, psa_num, group_num):
     # TODO: combine the following queries into one!
     section = (
         Section.query
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .first()
@@ -953,9 +967,9 @@ def psa_results(semester, section_num, psa_num, group_num):
                            categories=categories)
 
 
-@user_views.route("/comp110/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/group<int:group_num>/files/<filename>")
 @login_required
-def view_submitted_file(semester, section_num, psa_num, group_num, filename):
+def view_submitted_file(course_name, semester, section_num, psa_num, group_num, filename):
     job_id = request.args.get('id')
     if not job_id:
         abort(404)
@@ -975,7 +989,7 @@ def view_submitted_file(semester, section_num, psa_num, group_num, filename):
         db.session.query(Section, Team)
             .join(Section.assignments)
             .join(Assignment.teams)
-            .filter(Section.course == "comp110")
+            .filter(Section.course == course_name)
             .filter(Section.semester == semester)
             .filter(Section.section_num == section_num)
             .filter(Assignment.num == psa_num)

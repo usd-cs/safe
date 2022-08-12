@@ -18,8 +18,8 @@
             <li class="list-group-item border-0 fs-5">
                 <i class="bi-caret-right"></i>
                 <strong>PSA {{assignment.num}}:</strong> {{assignment.base_assignment.title}}
-                (<a class="text-decoration-none" href="{{ url_for('user_views.psa_overview', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>, 
-                <a class="text-decoration-none text-danger" href="{{ url_for('user_views.delete_assignment', semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">Delete</a>)
+                (<a class="text-decoration-none" href="{{ url_for('user_views.psa_overview', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>, 
+                <a class="text-decoration-none text-danger" href="{{ url_for('user_views.delete_assignment', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">Delete</a>)
             </li>
             {% endfor %}
         {% else %}

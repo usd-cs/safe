@@ -36,7 +36,8 @@
                 <i class="bi-files"></i>
                 <strong>Submitted Files:</strong>
                 {% for sf in results.submitted_files %}
-                    <a class="text-decoration-none" href="{{ url_for('user_views.view_submitted_file', semester=assignment.section.semester, section_num=assignment.section.section_num, psa_num=assignment.num, group_num=group_num, filename=sf.filename, id=results.job_id) }}">
+                    <a class="text-decoration-none" href="{{
+                        url_for('user_views.view_submitted_file', course_name=assignment.section.course, semester=assignment.section.semester, section_num=assignment.section.section_num, psa_num=assignment.num, group_num=group_num, filename=sf.filename, id=results.job_id) }}">
                         {{sf.filename}}
                     </a>
                 {% endfor %}
