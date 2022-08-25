@@ -271,24 +271,16 @@ def section_overview(course_name, semester, section_num):
 
         instructor_info = ", ".join([f"{u.first_name} {u.last_name} ({u.username}@sandiego.edu)" for u in instructors])
 
-        # get intersection of section's assignments and user's teams
-        # assignments
-        teams_in_section = (
+        assignment_info = (
             db.session.query(Assignment.num, BaseAssignment.title, Team.team_num)
                 .join(Section.assignments)
                 .join(Assignment.teams)
+                .join(Team.members)
                 .filter(Section.section_id == section.section_id)
+                .filter(User.user_id == current_user.user_id)
+                .group_by(Assignment.num)
+                .all()
         )
-
-        teams_with_user = (
-            db.session.query(Assignment.num, BaseAssignment.title, Team.team_num)
-                .select_from(Team)
-                .join(User.teams)
-                .join(Assignment)
-                .filter(User.username == current_user.username)
-        )
-
-        assignment_info = teams_in_section.intersect(teams_with_user).all()
 
         # render view for a student user
         return render_template("section_overview_student.html",
