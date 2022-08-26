@@ -826,7 +826,7 @@ def psa_results_shortcut(course_name, psa_num):
     else:
         # got a unique team so redirect to the correct results page
         semester, section_num, group_num = matched_psa_info.first()
-    
+
         return redirect(url_for('.psa_results', 
                                 course_name=course_name,
                                 semester=semester,
@@ -850,43 +850,24 @@ def psa_results(course_name, semester, section_num, psa_num, group_num):
     if not section:
         abort(404)
 
-    assignment = (
-            Assignment.query
-                .filter(Assignment.section_id == section.section_id)
-                .filter(Assignment.num == psa_num)
-                .first()
-    )
+    assignment = section.assignments.filter_by(num=psa_num).first()
 
     if not assignment:
         abort(404)
 
-    group = (
-            Team.query
-                .filter(Team.assignment_id == assignment.assignment_id)
-                .filter(Team.team_num == group_num)
-                .first()
-    )
+    group = assignment.teams.filter_by(team_num=group_num).first()
 
     if not group:
         abort(404)
-    elif not (current_user.admin 
+
+    elif not (current_user.admin
                 or (current_user.instructor and current_user in section.users)
                 or (current_user in group.members)):
         # only admins, section instructor(s), and students in this group
         # can view this page.
         abort(403)
 
-    # Read results from JSON file, filling them in a dictionary that is
-    # organized by section.
-
-    latest_test_results = (
-        TestResults.query
-            .filter(TestResults.team_id == group.team_id)
-            .filter(TestResults.finished)
-            .order_by(TestResults.commit_time.desc())
-            .order_by(TestResults.completed_at.desc())
-            .first()
-    )
+    latest_test_results = group.get_latest_results()
 
     if not latest_test_results:
         # no test results available
@@ -895,47 +876,7 @@ def psa_results(course_name, semester, section_num, psa_num, group_num):
                                assignment=assignment,
                                group_num=group_num)
 
-    raw_results = json.loads(latest_test_results.results)
-
-    processed_results = {}
-    for result in raw_results:
-        category_results = processed_results.get(result["category_name"])
-
-        if not category_results:
-            # Haven't seen this category before so set basic structure up
-            # for us (a dictionary with a few items) and add it to our
-            # processed results
-            category_results = {
-                "category_num": result["category_num"],
-                "category_name": result["category_name"],
-                "metrics": {}
-            }
-
-            processed_results[result["category_name"]] = category_results
-
-        # added code to fix errors not showing
-        metric_results = category_results["metrics"].get(result["test_num"])
-
-        #if we don't have results or the result it a pass, can rewrite it
-        if not metric_results or metric_results['outcome'] == 'pass':
-
-            new_metric = {
-                "description": result["metric"],
-                "outcome": result["outcome"]
-            }
-
-            if "message" in result:
-                new_metric["message"] = Markup(result["message"]+"<br>")
-
-            category_results["metrics"][result["test_num"]] = new_metric
-        
-        # otherwise we add error messages 
-        # (commented out code to just show one error at a time)
-        # else:
-        #    if "message" in result:
-        #        metric_results["message"] += Markup(result["message"]+"<br>")
-
-
+    processed_results = latest_test_results.process_results()
 
     categories = sorted(processed_results.values(), key=lambda c: c['category_num'])
 
