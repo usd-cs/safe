@@ -1,4 +1,4 @@
-import os
+import os, json
 
 from sqlalchemy import (
         Column, Integer, String, Boolean, ForeignKey, Table, TIMESTAMP,
@@ -7,6 +7,7 @@ from sqlalchemy import (
 from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
+from flask import Markup
 from flask_login import UserMixin
 import datetime
 from werkzeug.utils import secure_filename
@@ -153,6 +154,23 @@ class Team(db.Model):
     def __repr__(self):
         return f"Team(team_id={self.team_id}, team_num={self.team_num}, assignment_id={self.assignment_id})"
 
+    def get_latest_results(self):
+        """
+        Returns the completed test results of the most recent commit. If there
+        are multiple results for the same commit, the results with the most
+        recent completed_at time will be returned.
+
+        Returns None if there are no completed test results for this team.
+        """
+
+        latest_results = (
+            self.results.filter_by(finished=True)
+                        .order_by(TestResults.commit_time.desc())
+                        .order_by(TestResults.completed_at.desc())
+                        .first()
+        )
+        return latest_results
+
 
 class TestResults(db.Model):
     job_id = db.Column(db.String, primary_key=True)
@@ -171,6 +189,89 @@ class TestResults(db.Model):
                                       backref='test_results',
                                       order_by="SubmittedFile.filename",
                                       lazy='dynamic')
+
+
+    def process_results(self):
+        """
+        Takes the raw results (JSON stored in the results column) and creates
+        a set of processed results. These processed results are a dictionary
+        that maps the category name (a string) to that that category's
+        results. A category's results is a dictionary that tracks:
+
+        - The category number
+        - The category name
+        - The metrics associated with the category. These are individual unit
+          test results, with a description of the metric, its outcome (pass,
+          fail, or error) and an optional message (in case of a failed test).
+        """
+
+        if not self.results:
+            # TODO: make this trigger an exception
+            return None
+
+        raw_results = json.loads(self.results)
+
+        processed_results = {}
+        for result in raw_results:
+            category_results = processed_results.get(result["category_name"])
+
+            if not category_results:
+                # Haven't seen this category before so set basic structure up
+                # for us (a dictionary with a few items) and add it to our
+                # processed results
+                category_results = {
+                    "category_num": result["category_num"],
+                    "category_name": result["category_name"],
+                    "metrics": {}
+                }
+
+                processed_results[result["category_name"]] = category_results
+
+            # added code to fix errors not showing
+            metric_results = category_results["metrics"].get(result["test_num"])
+
+            #if we don't have results or the result it a pass, can rewrite it
+            if not metric_results or metric_results['outcome'] == 'pass':
+
+                new_metric = {
+                    "description": result["metric"],
+                    "outcome": result["outcome"]
+                }
+
+                if "message" in result:
+                    new_metric["message"] = Markup(result["message"]+"<br>")
+
+                category_results["metrics"][result["test_num"]] = new_metric
+
+            # otherwise we add error messages 
+            # (commented out code to just show one error at a time)
+            # else:
+            #    if "message" in result:
+            #        metric_results["message"] += Markup(result["message"]+"<br>")
+
+        return processed_results
+
+
+    def breakdown_results(self):
+        """
+        Returns a tuple containing (num passed, num failed, num error) for the
+        metrics across all categories in this set of results.
+        """
+
+        processed_results = self.process_results()
+
+        num_passed, num_failed, num_error = (0, 0, 0)
+        for category_results in processed_results.values():
+            for metric_result in category_results.get('metrics', {}).values():
+                if metric_result['outcome'] == 'pass':
+                    num_passed += 1
+                elif metric_result['outcome'] == 'fail':
+                    num_failed += 1
+                elif metric_result['outcome'] == 'error':
+                    num_error += 1
+
+        return (num_passed, num_failed, num_error)
+
 
 
 class SubmittedFile(db.Model):

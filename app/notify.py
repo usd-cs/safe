@@ -92,7 +92,7 @@ def update_results(job_id):
 
         with open(file_path, 'rb') as source_file:
             file_contents = source_file.read()
-            
+
         submitted_file = db_models.SubmittedFile(filename=filename,
                                                     data=file_contents,
                                                     job_id=job_id)

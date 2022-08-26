@@ -79,8 +79,8 @@
                         </p>
                     </dd>
 
-                    {% if team.results.count() > 0 and team.results[0].finished %}
-                     {% set latest_results = team.results[0] %}
+                    {% set latest_results = team.get_latest_results() %}
+                    {% if latest_results %}
                         <dt class="col-lg-2">Submission Info</dt>
                         <dd class="col-lg-10">
                             <strong>Time:</strong> {{latest_results.commit_time.strftime('%b %d, %Y @ %I:%M:%S %p')}}
@@ -91,6 +91,14 @@
                         <dt class="col-lg-2">Feedback Time</dt>
                         <dd class="col-lg-10">
                             {{ latest_results.completed_at.strftime('%b %d, %Y @ %I:%M:%S %p')}}
+                        </dd>
+
+                        {% set num_passed, num_failed, num_error = latest_results.breakdown_results() %}
+                        <dt class="col-lg-2">Feedback Summary</dt>
+                        <dd class="col-lg-10">
+                            <i class="bi-check-circle-fill" style="color: green;"></i> {{ num_passed }} ,
+                            <i class="bi-x-circle-fill" style="color: red;"></i> {{ num_failed }} ,
+                            <i class="bi-exclamation-circle-fill" style="color: #fdd835;"></i> {{ num_error }}
                         </dd>
                     {% else %}
                         <dt class="col-lg-2">Submission Info</dt>
