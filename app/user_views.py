@@ -455,19 +455,18 @@ def modify_group(course_name, semester, section_num, psa_num, group_num):
     if not (current_user.instructor and current_user in section.users):
         abort(403)
 
-    students_without_groups = get_students_without_groups(section.section_id, 
-                                                            team.assignment.assignment_id)
+    users_without_groups = get_users_without_groups(team.assignment)
 
-    available_students_ids = [s.user_id for s in students_without_groups]
-    available_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
-                                for s in students_without_groups]
+    available_user_ids = [u.user_id for u in users_without_groups]
+    available_user_names = [f"{u.last_name}, {u.first_name} ({u.username})"
+                                for u in users_without_groups]
 
     existing_members_ids = [member.user_id for member in team.members]
-    existing_members_names = [f"{member.last_name}, {member.first_name} ({member.username})" 
+    existing_members_names = [f"{member.last_name}, {member.first_name} ({member.username})"
                                 for member in team.members]
-    
-    all_form_ids = existing_members_ids + available_students_ids
-    all_form_names = existing_members_names + available_students_names
+
+    all_form_ids = existing_members_ids + available_user_ids
+    all_form_names = existing_members_names + available_user_names
 
     # create list of (id, name) pairs, sorted by name
     all_options = sorted(zip(all_form_ids, all_form_names), key=lambda x: x[1])
@@ -477,15 +476,15 @@ def modify_group(course_name, semester, section_num, psa_num, group_num):
 
     if update_members_form.validate_on_submit():
         # add members that weren't previously selected
-        for student_user_id in update_members_form.members.data:
-            if student_user_id not in existing_members_ids:
-                new_member = User.query.filter(User.user_id == student_user_id).first()
+        for user_id in update_members_form.members.data:
+            if user_id not in existing_members_ids:
+                new_member = User.query.filter_by(user_id=user_id).first()
                 team.members.append(new_member)
 
         # remove members that were selected previously but aren't now
-        for student_user_id in existing_members_ids:
-            if student_user_id not in update_members_form.members.data:
-                ex_member = User.query.filter(User.user_id == student_user_id).first()
+        for user_id in existing_members_ids:
+            if user_id not in update_members_form.members.data:
+                ex_member = User.query.filter_by(user_id=user_id).first()
                 team.members.remove(ex_member)
 
         db.session.commit()
@@ -498,7 +497,6 @@ def modify_group(course_name, semester, section_num, psa_num, group_num):
                                 group_num=group_num))
 
 
-    #update_members_form.members.choices = zip(all_form_ids, available_students_names)
     update_members_form.members.choices = all_options
     update_members_form.members.data = [u.user_id for u in team.members]
 
@@ -596,30 +594,28 @@ def view_tester_file(course_name, semester, section_num, psa_num, filename):
                             file_contents=formatted_file)
 
 
-def get_students_without_groups(section_id, assignment_id):
-    enrolled_students = (
-        User.query
-            .join(db_models.section_enrollment)
-            .join(Section)
-            .filter(db.and_(Section.section_id == section_id, 
-                            User.instructor == False))
-    )
+def get_users_without_groups(assignment, students_only=False):
+    if students_only:
+        enrolled_users = assignment.section.users.filter_by(instructor=False)
+    else:
+        enrolled_users = assignment.section.users
 
-    students_in_groups = (
+    users_in_groups = (
         User.query
             .join(db_models.team_enrollment)
             .join(Team)
-            .filter(Team.assignment_id == assignment_id)
+            .filter(Team.assignment_id == assignment.assignment_id)
     )
 
-    students_without_groups = (
-            enrolled_students
-                .except_(students_in_groups)
-                .order_by(User.last_name)
-                .all()
+    users_without_groups = (
+        enrolled_users
+            .except_(users_in_groups)
+            .order_by(User.instructor)
+            .order_by(User.last_name)
+            .all()
     )
 
-    return students_without_groups
+    return users_without_groups
 
 class CopyGroupsForm(FlaskForm):
     assignment_num = SelectField('Assignment', coerce=int)
@@ -674,7 +670,7 @@ def psa_overview(course_name, semester, section_num, psa_num):
 
     if not section:
         abort(404)
-    elif not (current_user.admin 
+    elif not (current_user.admin
                 or (current_user.instructor and current_user in section.users)):
         # only admins and section instructor(s) can view this page.
         abort(403)
@@ -691,16 +687,15 @@ def psa_overview(course_name, semester, section_num, psa_num):
         abort(404)
 
 
-    students_without_groups = get_students_without_groups(section.section_id,
-                                                            assignment.assignment_id)
+    users_without_groups = get_users_without_groups(assignment)
 
-    unassigned_students_ids = [s.user_id for s in students_without_groups]
-    unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})"
-                                 for s in students_without_groups]
+    unassigned_user_ids = [u.user_id for u in users_without_groups]
+    unassigned_user_names = [f"{u.last_name}, {u.first_name} ({u.username})"
+                                for u in users_without_groups]
 
     new_group_form = NewGroupForm()
-    new_group_form.members.choices = list(zip(unassigned_students_ids,
-                                              unassigned_students_names))
+    new_group_form.members.choices = list(zip(unassigned_user_ids,
+                                              unassigned_user_names))
 
     if new_group_form.validate_on_submit():
         if new_group_form.group_num.data in [t.team_num for t in assignment.teams]:
@@ -714,14 +709,14 @@ def psa_overview(course_name, semester, section_num, psa_num):
             db.session.add(new_group)
             db.session.commit() # causes DB to give the new_group a team_id
 
-            # add selected students to team
-            for student_id in new_group_form.members.data:
-                # FIXME: make this sane
-                statement = (
-                    db.insert(db_models.team_enrollment)
-                        .values(user_id=student_id, team_id=new_group.team_id)
-                )
-                db.session.execute(statement)
+            # add selected users to team
+            for user_id in new_group_form.members.data:
+                u = User.query.filter_by(user_id=user_id).first()
+                if not u:
+                    current_app.logger.error(f"User with ID {user_id} not found")
+                    continue
+
+                new_group.members.append(u)
 
             db.session.commit()
 
@@ -773,8 +768,8 @@ def psa_overview(course_name, semester, section_num, psa_num):
 
     # TRICKY: validating form seems to clear out choices so have to
     # reset them here
-    new_group_form.members.choices = list(zip(unassigned_students_ids,
-                                              unassigned_students_names))
+    new_group_form.members.choices = list(zip(unassigned_user_ids,
+                                              unassigned_user_names))
 
     copy_groups_form.assignment_num.choices = copy_choices
 
