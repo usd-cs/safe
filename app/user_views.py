@@ -691,12 +691,12 @@ def psa_overview(course_name, semester, section_num, psa_num):
         abort(404)
 
 
-    students_without_groups = get_students_without_groups(section.section_id, 
+    students_without_groups = get_students_without_groups(section.section_id,
                                                             assignment.assignment_id)
 
     unassigned_students_ids = [s.user_id for s in students_without_groups]
-    unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})" 
-                    for s in students_without_groups]
+    unassigned_students_names = [f"{s.last_name}, {s.first_name} ({s.username})"
+                                 for s in students_without_groups]
 
     new_group_form = NewGroupForm()
     new_group_form.members.choices = list(zip(unassigned_students_ids,
