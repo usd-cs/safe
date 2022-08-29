@@ -194,11 +194,14 @@
             body: JSON.stringify(data)
         }
         const response = await fetch(url, config);
-        if (!response.ok) {
-            alert(response.status);
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const content = await response.json();
+
+        if (response.ok) {
+            return `SUCCESS: ${content.message}`;
         }
-        return await response.text()
+        else {
+            return `ERROR (Code: ${response.status}): ${content.message}`
+        }
     }
 </script>
 
