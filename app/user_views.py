@@ -19,8 +19,8 @@ from wtforms import (
 from wtforms.validators import (
     DataRequired, Regexp, NumberRange, ValidationError
 )
-from wtforms.fields import DateField, TimeField
-from wtforms.widgets import CheckboxInput, HiddenInput, DateInput, TimeInput
+from wtforms.fields import DateField, TimeField, DateTimeLocalField
+from wtforms.widgets import CheckboxInput, HiddenInput, DateTimeLocalInput
 from werkzeug.utils import secure_filename
 
 from . import db_models
@@ -75,12 +75,14 @@ def permission_denied(error):
 
 
 class NewAssignmentForm(FlaskForm):
-    assignment_num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
+    num = IntegerField('Assignment Number', validators=[NumberRange(min=0)])
     base_assignment_id = SelectField('Base Assignment', coerce=int)
-    due_date = DateField('Due Date', widget=DateInput(), validators=[DataRequired()])
-    due_time = TimeField('Due Time', widget=TimeInput(), validators=[DataRequired()])
-    section_id = IntegerField('Section ID',
-                                widget=HiddenInput(), 
+    deadline = DateTimeLocalField('Deadline',
+                                  format="%Y-%m-%dT%H:%M",
+                                  widget=DateTimeLocalInput(),
+                                  validators=[DataRequired()])
+    section_id = IntegerField('Section ID', # FIXME: make this a HiddenField
+                                widget=HiddenInput(),
                                 validators=[NumberRange(min=0)])
     submit = SubmitField("Create Assignment")
 
@@ -293,21 +295,17 @@ def section_overview(course_name, semester, section_num):
     new_assignment_form = NewAssignmentForm(section_id=section.section_id)
     new_assignment_failed = False
 
-    base_choices = [(ba.assignment_id, ba.title) 
+    base_choices = [(ba.assignment_id, ba.title)
                         for ba in db.session.query(BaseAssignment.assignment_id, BaseAssignment.title)]
     new_assignment_form.base_assignment_id.choices = base_choices
 
     if new_assignment_form.validate_on_submit():
-        # combine due date and time into single datetime
-        deadline = datetime.datetime.combine(new_assignment_form.due_date.data,
-                                                new_assignment_form.due_time.data)
-
         # create new assignment based on the selected base assignment
         # and add it to our database
-        new_assignment = Assignment(num=new_assignment_form.assignment_num.data,
-                                                section_id=section.section_id,
-                                                base_assignment_id=new_assignment_form.base_assignment_id.data,
-                                                deadline=deadline)
+        new_assignment = Assignment(num=new_assignment_form.num.data,
+                                    section_id=section.section_id,
+                                    base_assignment_id=new_assignment_form.base_assignment_id.data,
+                                    deadline=new_assignment_form.deadline.data)
 
         db.session.add(new_assignment)
         db.session.commit()
@@ -653,6 +651,60 @@ def delete_assignment(course_name, semester, section_num, psa_num):
     return redirect(url_for('.section_overview',
                             course_name=course_name, semester=semester, section_num=section_num))
 
+
+
+# TODO: generalize endpoint name so assignment initials don't have to be "psa"
+@user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/edit", methods=['get', 'post'])
+@login_required
+def edit_assignment(course_name, semester, section_num, psa_num):
+    """ Route to allow editing of an existing assignment. """
+
+    section = (
+        Section.query
+            .filter(Section.course == course_name)
+            .filter(Section.semester == semester)
+            .filter(Section.section_num == section_num)
+            .first()
+    )
+
+    if not section:
+        abort(404)
+    elif not (current_user.admin
+                or (current_user.instructor and current_user in section.users)):
+        # only admins and section instructor(s) can view this page.
+        abort(403)
+
+    assignment = section.assignments.filter_by(num=psa_num).first()
+
+    if not assignment:
+        abort(404)
+
+    form_data = request.form if request.method == 'POST' else None
+    form = NewAssignmentForm(formdata=form_data, obj=assignment)
+    form.submit.label.text = "Save Changes"
+
+    base_choices = [(ba.assignment_id, ba.title)
+                        for ba in db.session.query(BaseAssignment.assignment_id, BaseAssignment.title)]
+    form.base_assignment_id.choices = base_choices
+
+    if form.validate_on_submit():
+        form.populate_obj(assignment)
+        db.session.commit()
+
+        flash(f"PSA {form.num.data} ({assignment.base_assignment.title}) updated!",
+              "success")
+
+        return redirect(url_for('.psa_overview',
+                                course_name=course_name,
+                                semester=semester,
+                                section_num=section_num,
+                                psa_num=form.num.data))
+
+    return render_template("edit_assignment.html",
+                           page_title="Edit Assignment",
+                           form=form,
+                           section=section,
+                           assignment=assignment)
 
 
 # TODO: generalize endpoint name so assignment initials don't have to be "psa"

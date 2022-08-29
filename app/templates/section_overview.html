@@ -19,6 +19,7 @@
                 <i class="bi-caret-right"></i>
                 <strong>PSA {{assignment.num}}:</strong> {{assignment.base_assignment.title}}
                 (<a class="text-decoration-none" href="{{ url_for('user_views.psa_overview', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">View</a>, 
+                <a class="text-decoration-none" href="{{ url_for('user_views.edit_assignment', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">Edit</a>, 
                 <a class="text-decoration-none text-danger" href="{{ url_for('user_views.delete_assignment', course_name=section.course, semester=section.semester, section_num=section.section_num, psa_num=assignment.num) }}">Delete</a>)
             </li>
             {% endfor %}
@@ -132,19 +133,15 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col">
-                            {{ forms.input(assignment_form.assignment_num, "Enter assignment number (e.g. 3)") }}
+                            {{ forms.input(assignment_form.num, "Enter assignment number (e.g. 3)") }}
                         </div>
                         <div class="col">
                             {{ forms.input(assignment_form.base_assignment_id, "", "form-select") }}
                         </div>
                     </div>
-                    <strong>Deadline:</strong>
+
                     <div class="row pb-3">
-                        <div class="col">
-                            {{ assignment_form.due_date(class="form-control") }}
-                        </div>
-                        <div class="col">
-                            {{ assignment_form.due_time(class="form-control") }}
+                        {{ forms.input(assignment_form.deadline) }}
                     </div>
                 </div>
                 <div class="modal-footer">
