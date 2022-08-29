@@ -4,7 +4,7 @@ from dateutil import parser
 
 from flask import (
     Blueprint, render_template, abort, current_app, request, redirect, url_for,
-    flash
+    flash, jsonify
 )
 from rq.job import Job
 
@@ -122,7 +122,7 @@ def handle_notification(course, semester, section, psa, group):
 
     if not target_group:
         current_app.logger.warning(f"No team found for {course}, {semester}, Section {section}, PSA {psa}, Group # {group}")
-        return "Invalid parameters for notify", 404
+        return jsonify(message="Repository does not exist."), 404
 
     # TODO: if there are results in progress (i.e. in queue or
     # processing), cancel them and put this in the queue instead
@@ -138,7 +138,7 @@ def handle_notification(course, semester, section, psa, group):
         # TODO: if test_code_dir doesn't exist, create it based on
         # TesterFiles associated with the assignment
         current_app.logger.critical(f"Missing Test code directory: {test_code_dir}")
-        abort(500)
+        return jsonify(message="Internal server error"), 500
 
     test_command = base_assignment.tester_run_command.split()
     source_files = [sf.filename for sf in base_assignment.files]
@@ -148,23 +148,27 @@ def handle_notification(course, semester, section, psa, group):
     group_members = [member.username for member in target_group.members]
 
     job = current_app.test_queue.enqueue('app.workers.run_test',
-                                    'code.sandiego.edu',
-                                    current_app.config['REPOSITORY_BASE_DIR'],
-                                    repo_name, test_code_dir, test_command,
-                                    max_runtime, source_files,
-                                    tester_files, group_members,
-                                    on_success=testing_successful,
-                                    on_failure=testing_failed)
+                                         'code.sandiego.edu', # FIXME: make git server part of app's config
+                                         current_app.config['REPOSITORY_BASE_DIR'],
+                                         repo_name, test_code_dir, test_command,
+                                         max_runtime, source_files,
+                                         tester_files, group_members,
+                                         on_success=testing_successful,
+                                         on_failure=testing_failed)
 
     current_app.logger.info(f"Enqueued {repo_name}. Job ID: {job.get_id()}")
 
     new_test_results = db_models.TestResults(job_id=job.get_id(),
-                                                team_id=target_group.team_id)
+                                             team_id=target_group.team_id)
 
     db.session.add(new_test_results)
     db.session.commit()
 
+    if job.get_position() is None:
+        return jsonify(message="Processing request.",
+                       status=job.get_status(refresh=True))
 
-    # TODO: add information about place in queue.
-    return "Notifcation successfully received."
+    else:
+        return jsonify(message="Successfully added request to queue.",
+                       position=job.get_position())
 
