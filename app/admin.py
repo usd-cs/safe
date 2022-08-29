@@ -111,15 +111,15 @@ class MultiCheckboxField(SelectMultipleField):
 
 
 class NewSectionForm(FlaskForm):
-    course = SelectField('Course', 
+    course = SelectField('Course',
                             choices=[('comp110', 'COMP110: Computational Problem Solving')])
-    semester = SelectField('Semester', 
-                            choices=[('sp21', 'Spring 2021'),
-                                     ('fa21', 'Fall 2021')])
-    #semester = StringField('Semester', validators=[AnyOf(['sp21', 'fa21'])])
+    semester = SelectField('Semester',
+                            choices=[('fa', 'Fall'), ('sp', 'Spring')])
+    year = IntegerField('Year', validators=[NumberRange(min=2020, max=2050)])
     section_num = IntegerField('Section Number', validators=[NumberRange(min=1)])
     instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
     submit = SubmitField("Create Section")
+
 
 class ModifySectionForm(FlaskForm):
     instructors = MultiCheckboxField('Instructors', coerce=int, validators=[DataRequired()])
@@ -203,13 +203,15 @@ def admin_sections():
     form.instructors.choices = instructor_choices
 
     if form.validate_on_submit():
+        semester = form.semester.data + str(form.year.data)[-2:]
+
         # TODO: Turn this isn't a form validator so error shows up closer to
         # where it matters (i.e. under the section field, not as a flash at
         # the top of the page.
         num_matching_sections = (
             Section.query
                 .filter(Section.course == form.course.data)
-                .filter(Section.semester == form.semester.data)
+                .filter(Section.semester == semester)
                 .filter(Section.section_num == int(form.section_num.data))
                 .count()
         )
@@ -226,7 +228,7 @@ def admin_sections():
 
         # create the new section and add it to the database
         new_section = Section(course=form.course.data,
-                              semester=form.semester.data,
+                              semester=semester,
                               section_num=int(form.section_num.data),
                               users=User.query.filter(User.user_id.in_(form.instructors.data)))
 
