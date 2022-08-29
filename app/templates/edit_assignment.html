@@ -21,6 +21,14 @@
         <div class="row pb-3">
             {{ forms.input(form.deadline) }}
         </div>
+
+        <a class="btn btn-danger"
+           role="button"
+           href="{{ url_for('user_views.psa_overview',
+                            course_name=section.course,
+                            semester=section.semester,
+                            section_num=section.section_num,
+                            psa_num=assignment.num) }}">Cancel</a>
         {{ form.submit(class_="btn btn-primary") }}
     </form>
 </div>
