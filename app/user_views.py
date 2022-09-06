@@ -204,7 +204,7 @@ def add_students_from_roster(section, file_location, add_drop=False):
 
                         # remove student from section teams they may be in
                         teams_with_student = (
-                            session.query(Team)
+                            db.session.query(Team)
                                 .join(Section.assignments)
                                 .join(Assignment.teams)
                                 .join(Team.members)
