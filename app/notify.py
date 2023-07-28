@@ -127,6 +127,11 @@ def handle_notification(course, semester, section, psa, group):
     # TODO: if there are results in progress (i.e. in queue or
     # processing), cancel them and put this in the queue instead
 
+    branch_name = request.json['branch']
+    if not branch_name:
+        current_app.logger.warning(f"Missing branch name: {course}, {semester}, Section {section}, PSA {psa}, Group # {group}")
+        return jsonify(message="Branch name not specified."), 400
+
     repo_name = f"{course}-{semester}-s{section:02}-psa{psa}-group{group}"
 
     base_assignment = target_group.assignment.base_assignment
@@ -150,7 +155,8 @@ def handle_notification(course, semester, section, psa, group):
     job = current_app.test_queue.enqueue('app.workers.run_test',
                                          'code.sandiego.edu', # FIXME: make git server part of app's config
                                          current_app.config['REPOSITORY_BASE_DIR'],
-                                         repo_name, test_code_dir, test_command,
+                                         repo_name, branch_name,
+                                         test_code_dir, test_command,
                                          max_runtime, source_files,
                                          tester_files, group_members,
                                          on_success=testing_successful,

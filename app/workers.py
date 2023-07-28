@@ -63,9 +63,9 @@ def testing_failed(job, conn, exception_type, exception_instance, traceback):
     print("Server Response:", server_response.text)
 
 
-def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
+def run_test(git_server, repo_base_dir, repo_name, branch_name, test_code_dir, test_command,
                 timeout_length, source_files, tester_files, group_members):
-    print(f"Handling request for {repo_name}")
+    print(f"Handling request for {repo_name} ({branch_name} branch)")
 
     if not os.path.exists(test_code_dir):
         raise RuntimeError(f"Testing code directory does not exist: {repo_base_dir}")
@@ -94,8 +94,11 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
         repo = Repo.clone_from(f"git@{git_server}:{repo_name}", repo_location)
         os.chdir(repo_location)
 
-    # get time, author, and message for latest commit
-    latest_commit = repo.commit('master')
+    print(f"\tChecking out {branch_name} branch")
+    repo.git.checkout(branch_name) # switch to the specified branch 
+
+    # get time, author, and message for branch that we were notified for
+    latest_commit = repo.commit(branch_name)
 
     submission_time = str(latest_commit.committed_datetime)
     author = latest_commit.author
@@ -107,6 +110,7 @@ def run_test(git_server, repo_base_dir, repo_name, test_code_dir, test_command,
     testing_dir = os.path.join(repo_location, "safe_testing", job.id)
     os.makedirs(testing_dir)
 
+    # TODO: use shutil module to copy the files
     for filename in tester_files:
         result = subprocess.call(["cp", os.path.join(test_code_dir, filename), testing_dir])
         if result != 0:
