@@ -90,7 +90,7 @@ class NewAssignmentForm(FlaskForm):
         num_matches = (
                 Assignment.query
                     .filter(Assignment.section_id == form.section_id.data)
-                    .filter(Assignment.num == form.assignment_num.data)
+                    .filter(Assignment.num == form.num.data)
                     .count()
         )
 
@@ -310,7 +310,7 @@ def section_overview(course_name, semester, section_num):
         db.session.add(new_assignment)
         db.session.commit()
 
-        flash(f"PSA {new_assignment_form.assignment_num.data} ({new_assignment.base_assignment.title}) created!",
+        flash(f"PSA {new_assignment_form.num.data} ({new_assignment.base_assignment.title}) created!",
                 "info")
 
         return redirect(url_for('.section_overview',
