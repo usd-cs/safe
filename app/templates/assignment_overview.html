@@ -193,7 +193,8 @@
 <script type="text/javascript">
     async function sendNotification(url) {
         const data = {
-            'user': {{ current_user.username|tojson }}
+            'user': {{ current_user.username|tojson }},
+            'branch': 'main'
         }
         const config = {
             method: 'POST',
