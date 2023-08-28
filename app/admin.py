@@ -112,7 +112,17 @@ class MultiCheckboxField(SelectMultipleField):
 
 class NewSectionForm(FlaskForm):
     course = SelectField('Course',
-                            choices=[('comp110', 'COMP110: Computational Problem Solving')])
+                            choices=[
+                                ('comp110', 'COMP110: Computational Problem Solving'),
+                                ('comp120', 'COMP120: Programming Abstractions and Methodologies'),
+                                ('comp230', 'COMP230: Advanced Computational Problem Modeling'),
+                                ('comp280', 'COMP280: Intro to Computer Systems'),
+                                ('comp300', 'COMP300: Principles of Digital Hardware'),
+                                ('comp305', 'COMP305: Object-Oriented Design and Programming'),
+                                ('comp370', 'COMP370: Automata, Computability and Formal Language'),
+                                ('comp375', 'COMP375: Networking'),
+                                ('comp480', 'COMP480: Algorithms')
+                            ])
     semester = SelectField('Semester',
                             choices=[('fa', 'Fall'), ('sp', 'Spring')])
     year = IntegerField('Year', validators=[NumberRange(min=2020, max=2050)])
