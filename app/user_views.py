@@ -856,7 +856,7 @@ def psa_results_shortcut(course_name, psa_num):
 
     if matched_psa_info.count() == 0:
         # no teams found for this user
-        flash(f"Could not find your group for COMP110 PSA {psa_num}. Check that you have a group listed when going to the section page.",
+        flash(f"Could not find your group for {course_name.upper()} PSA {psa_num}. Check that you have a group listed when going to the section page.",
                 "danger")
         return redirect(url_for('.root'))
 
@@ -866,7 +866,7 @@ def psa_results_shortcut(course_name, psa_num):
         section_links = ", ".join([f'<a href="{url_for(".psa_results", course_name=course_name, semester=semester, section_num=section_num, psa_num=psa_num, group_num=group_num)}">{semester}-s{section_num}-group{group_num}</a>' 
             for semester, section_num, group_num in matched_psa_info])
 
-        message = Markup(f"You are enrolled in multiple groups for COMP110 PSA {psa_num}. Select among the following: {section_links}")
+        message = Markup(f"You are enrolled in multiple groups for {course_name.uppser()} PSA {psa_num}. Select among the following: {section_links}")
         flash(message, "warning")
         return redirect(url_for('.root'))
 

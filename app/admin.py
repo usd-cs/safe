@@ -562,14 +562,14 @@ def get_gitolite_conf(assignment_id):
     response = ""
 
     for group in assignment.teams:
-        repo_name = f"comp110-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
+        repo_name = f"{section.course}-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
         response += f"repo {repo_name}\n"
 
         # set up git hook to send notification to SAFE app
         response += "\toption hook.post-receive = notify-safe\n"
 
         # add read/write permissions to course staff (i.e. instructors)
-        response += f"\tRW+ = @comp110-{section.semester}-s{section.section_num:02}-staff\n"
+        response += f"\tRW+ = @{section.course}-{section.semester}-s{section.section_num:02}-staff\n"
 
         # add read/write permissions to group members
         group_usernames = " ".join([member.username for member in group.members])
