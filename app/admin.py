@@ -277,6 +277,67 @@ class AddTesterFilesForm(FlaskForm):
     submit = SubmitField("Add Files")
 
 
+@admin.route("/assignments/<int:assignment_id>/edit", methods=['get','post'])
+@login_required
+def modify_assignment(assignment_id):
+    # TODO: remove duplicated code for checking user rights and assignment
+    # availability (this and add_tester_files)
+    
+    if not current_user.admin:
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
+        abort(403)
+
+    assignment = (
+        BaseAssignment.query
+            .filter(BaseAssignment.assignment_id == assignment_id)
+            .first()
+    )
+
+    if not assignment:
+        current_app.logger.warning(f"No assignment with id {assignment_id}")
+        abort(404)
+
+    form_data = request.form if request.method == 'POST' else None
+
+    form = NewAssignmentForm(formdata=form_data, obj=assignment)
+
+    # remove tester_files field, which can't be modified through this form
+    del form.tester_files
+
+    source_filenames = [sf.filename for sf in assignment.files]
+    form.files.data = " ".join(source_filenames)
+
+    # relabel the submit button to avoid confusion
+    form.submit.label.text = "Save Changes"
+
+    if form.validate_on_submit():
+        current_app.logger.info(f"Updating base assignment {assignment_id} ({assignment.title})")
+        form.populate_obj(assignment)
+
+        # delete the old source files
+        assignment.files = None
+        db.session.commit()
+
+        # Create separate SourceFile entries for each source file
+        # Note: We convert list to set to avoid duplicates
+        assignment_filenames = set(form.files.data.split())
+
+        for sf in assignment_filenames:
+            new_file = SourceFile(filename=sf, base_assignment=assignment)
+            db.session.add(new_file)
+            current_app.logger.info(f"Added source file {sf} to base assignment")
+
+        db.session.commit()
+
+        flash("Assignment successfully updated.", "success")
+        return redirect(url_for(".admin_assignments", course_name=course.name))
+
+
+    return render_template("modify_assignment.html",
+                           page_title="Modify Assignment",
+                           assignment_form=form)
+
+
 @admin.route("/assignments/<int:assignment_id>/tester_files/add", methods=['get','post'])
 @login_required
 def add_tester_files(assignment_id):
