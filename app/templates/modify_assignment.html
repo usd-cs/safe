@@ -11,6 +11,15 @@
         <form method="POST" action="" enctype="multipart/form-data">
             {{ assignment_form.csrf_token }}
             {{ assignment_form.assignment_id }}
+            {% if assignment_form.assignment_id.errors %} 
+            <div class="ms-1">
+                <small class="text-danger">
+                    {% for error in assignment_form.assignment_id.errors %}
+                    {{ error }}.
+                    {% endfor %}
+                </small>
+            </div>
+            {% endif %}
             {{ forms.input(assignment_form.title, "Enter assignment title") }}
             {{ forms.input(assignment_form.files, "Enter space separate list of assignment files") }}
             <div class="row">
