@@ -309,7 +309,11 @@ def modify_assignment(assignment_id):
 
     if form.validate_on_submit():
         current_app.logger.info(f"Updating base assignment {assignment_id} ({assignment.title})")
-        form.populate_obj(assignment)
+
+        # update any fields that can be changed
+        assignment.title = form.title.data
+        assignment.tester_run_command = form.tester_run_command.data
+        assignment.max_runtime = form.max_runtime.data
 
         # delete the old source files
         assignment.files = None
