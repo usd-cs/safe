@@ -541,7 +541,7 @@ class ModifyAssignmentForm(AssignmentForm):
         except:
             raise ValidationError("Assignment ID must be an integer")
 
-        if BaseAssignment.query.filter(BaseAssignment.title == field.data).count() != 1:
+        if BaseAssignment.query.filter(BaseAssignment.assignment_id == given_id).count() != 1:
             raise ValidationError("Assignment ID does not exist.")
 
     def validate_title(form, field):
