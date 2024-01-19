@@ -8,3 +8,5 @@ __pycache__
 venv/
 repositories
 tester_code
+
+.DS_Store
