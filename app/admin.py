@@ -322,6 +322,7 @@ def modify_assignment(assignment_id):
         # Create separate SourceFile entries for each source file
         # Note: We convert list to set to avoid duplicates
         assignment_filenames = set(form.files.data.split())
+        print("WTF:", assignment_filenames)
 
         for sf in assignment_filenames:
             new_file = SourceFile(filename=sf, base_assignment=assignment)
