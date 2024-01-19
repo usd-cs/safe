@@ -301,8 +301,11 @@ def modify_assignment(assignment_id):
 
     form = ModifyAssignmentForm(formdata=form_data, obj=assignment)
 
-    source_filenames = [sf.filename for sf in assignment.files]
-    form.files.data = " ".join(source_filenames)
+    # if we are getting the initial form, create a string out of the source
+    # filenames and use that as the starting point for the form's files field
+    if request.method == 'GET':
+        source_filenames = [sf.filename for sf in assignment.files]
+        form.files.data = " ".join(source_filenames)
 
     # relabel the submit button to avoid confusion
     form.submit.label.text = "Save Changes"
@@ -322,12 +325,11 @@ def modify_assignment(assignment_id):
         # Create separate SourceFile entries for each source file
         # Note: We convert list to set to avoid duplicates
         assignment_filenames = set(form.files.data.split())
-        print("WTF:", assignment_filenames)
 
         for sf in assignment_filenames:
             new_file = SourceFile(filename=sf, base_assignment=assignment)
             db.session.add(new_file)
-            current_app.logger.warning(f"Added source file {sf} to base assignment")
+            current_app.logger.info(f"Added source file {sf} to base assignment")
 
         db.session.commit()
 
