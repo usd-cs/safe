@@ -327,7 +327,7 @@ def modify_assignment(assignment_id):
         for sf in assignment_filenames:
             new_file = SourceFile(filename=sf, base_assignment=assignment)
             db.session.add(new_file)
-            current_app.logger.info(f"Added source file {sf} to base assignment")
+            current_app.logger.warning(f"Added source file {sf} to base assignment")
 
         db.session.commit()
 
