@@ -316,7 +316,7 @@ def modify_assignment(assignment_id):
         assignment.max_runtime = form.max_runtime.data
 
         # delete the old source files
-        assignment.files = None
+        assignment.files.delete()
         db.session.commit()
 
         # Create separate SourceFile entries for each source file
