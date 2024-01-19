@@ -331,7 +331,7 @@ def modify_assignment(assignment_id):
         db.session.commit()
 
         flash("Assignment successfully updated.", "success")
-        return redirect(url_for(".admin_assignments", course_name=course.name))
+        return redirect(url_for(".admin_assignments"))
 
 
     return render_template("modify_assignment.html",
