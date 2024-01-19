@@ -8,7 +8,7 @@ from flask import (
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField, SubmitField, PasswordField, SelectMultipleField, IntegerField,
-    BooleanField, SelectField, MultipleFileField
+    BooleanField, SelectField, MultipleFileField, HiddenField
 )
 from flask_wtf.file import FileField, FileRequired
 from wtforms.validators import (
@@ -299,11 +299,7 @@ def modify_assignment(assignment_id):
 
     form_data = request.form if request.method == 'POST' else None
 
-    form = NewAssignmentForm(formdata=form_data, obj=assignment)
-    form.validate_title = get_title_validator(assignment_id)
-
-    # remove tester_files field, which can't be modified through this form
-    del form.tester_files
+    form = ModifyAssignmentForm(formdata=form_data, obj=assignment)
 
     source_filenames = [sf.filename for sf in assignment.files]
     form.files.data = " ".join(source_filenames)
@@ -502,14 +498,12 @@ def admin_delete_user():
     return redirect(url_for('.admin_users'))
 
 
-class NewAssignmentForm(FlaskForm):
+class AssignmentForm(FlaskForm):
     title = StringField('Assignment Title', validators=[DataRequired()])
     tester_run_command = StringField('Tester Run Command', validators=[DataRequired()])
 
     files = StringField('Assignment Files', validators=[DataRequired()])
-    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
     max_runtime = IntegerField('Maximum Test Runtime', validators=[NumberRange(min=1)])
-    submit = SubmitField("Create Assignment")
 
     def validate_title(form, field):
         """ Validate that title isn't already used by an assignment. """
@@ -532,19 +526,36 @@ class NewAssignmentForm(FlaskForm):
         if len(bad_names) != 0:
             raise ValidationError("The following filenames are invalid: " + ", ".join(bad_names))
 
-def get_title_validator(assignment_id):
-    """ Create a form field validator for the title field, allowing for
-    updating of existing base assignments. """
+class NewAssignmentForm(AssignmentForm):
+    tester_files = MultipleFileField('Tester Files', validators=[DataRequired()])
+    submit = SubmitField("Create Assignment")
+
+class ModifyAssignmentForm(AssignmentForm):
+    assignment_id = HiddenField("Assignment ID", validators=[DataRequired()])
+    submit = SubmitField("Save Changes")
+
+    def validate_assignment_id(form, field):
+        """ Checks that there is an assignment with the given ID. """
+        try:
+            given_id = int(field.data)
+        except:
+            raise ValidationError("Assignment ID must be an integer")
+
+        if BaseAssignment.query.filter(BaseAssignment.title == field.data).count() != 1:
+            raise ValidationError("Assignment ID does not exist.")
 
     def validate_title(form, field):
-        """ Validate that title is either the same as the assignment with
-        the given assignment_id OR isn't already used by an assignment. """
-        raise ValidationError("Frogs are crying")
-        all_matches = BaseAssignment.query.filter(BaseAssignment.title == field.data).all()
-        if (len(all_matches) == 1) and (all_matches[0].assignment_id != assignment_id):
-            raise ValidationError("Another assignment with that title already exists")
+        """ Validate that title isn't one that is used by a different base assignment. """
+        existing_assignment = BaseAssignment.query.filter(BaseAssignment.title == field.data).one_or_none()
 
-    return validate_title
+        if existing_assignment is not None:
+            try:
+                given_id = int(form.assignment_id.data)
+            except:
+                raise ValidationError("Invalid Assignment ID")
+
+            if existing_assignment.assignment_id != given_id:
+                raise ValidationError("Another assignment with that title already exists")
 
 
 @admin.route('/assignments', methods=['get', 'post'])
