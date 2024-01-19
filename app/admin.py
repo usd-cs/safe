@@ -299,8 +299,8 @@ def modify_assignment(assignment_id):
 
     form_data = request.form if request.method == 'POST' else None
 
-    form = ModifyAssignmentForm(formdata=form_data, obj=assignment)
-    form.validate_title = form.get_title_validator(assignment_id)
+    form = NewAssignmentForm(formdata=form_data, obj=assignment)
+    form.validate_title = get_title_validator(assignment_id)
 
     # remove tester_files field, which can't be modified through this form
     del form.tester_files
@@ -532,16 +532,15 @@ class NewAssignmentForm(FlaskForm):
         if len(bad_names) != 0:
             raise ValidationError("The following filenames are invalid: " + ", ".join(bad_names))
 
-class ModifyAssignmentForm(FlaskForm):
-    submit = SubmitField("Save Changes")
-
-    def get_title_validator(assignment_id):
-        def validate_title(form, field):
-            """ Validate that title is either the same as the assignment with
-            the given assignment_id OR isn't already used by an assignment. """
-            all_matches = BaseAssignment.query.filter(BaseAssignment.title == field.data).all()
-            if (len(all_matches) == 1) and (all_matches[0].assignment_id != assignment_id):
-                raise ValidationError("Another assignment with that title already exists")
+def get_title_validator(assignment_id):
+    """ Create a form field validator for the title field, allowing for
+    updating of existing base assignments. """
+    def validate_title(form, field):
+        """ Validate that title is either the same as the assignment with
+        the given assignment_id OR isn't already used by an assignment. """
+        all_matches = BaseAssignment.query.filter(BaseAssignment.title == field.data).all()
+        if (len(all_matches) == 1) and (all_matches[0].assignment_id != assignment_id):
+            raise ValidationError("Another assignment with that title already exists")
 
 
 @admin.route('/assignments', methods=['get', 'post'])
