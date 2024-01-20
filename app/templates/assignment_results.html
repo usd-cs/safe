@@ -48,7 +48,7 @@
         <div class="container pb-3">
             <h4 class="text-capitalize">{{ category["category_name"] }}</h4>
             <ul class="list-group list-group-numbered">
-                {% for metric_num in category["metrics"] %}
+                {% for metric_num in sorted(category["metrics"].keys()) %}
                 {% set metric = category["metrics"][metric_num] %}
                 <li class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="ms-2 me-auto">
