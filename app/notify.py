@@ -85,20 +85,24 @@ def update_results(job_id):
 
     # add student submitted files to test results
     source_files = [sf.filename for sf in test_results.team.assignment.base_assignment.files]
+    source_files.extend(['stdout.txt', 'stderr.txt'])
     source_filenames = get_filenames(source_files, repo_dir)
 
     for filename in source_filenames:
         file_path = os.path.join(testing_dir, filename)
 
-        with open(file_path, 'rb') as source_file:
-            file_contents = source_file.read()
+        try:
+            with open(file_path, 'rb') as source_file:
+                file_contents = source_file.read()
 
-        submitted_file = db_models.SubmittedFile(filename=filename,
-                                                    data=file_contents,
-                                                    job_id=job_id)
+            submitted_file = db_models.SubmittedFile(filename=filename,
+                                                        data=file_contents,
+                                                        job_id=job_id)
 
-        db.session.add(submitted_file)
-        current_app.logger.debug(f"Saved file {filename}")
+            db.session.add(submitted_file)
+            current_app.logger.debug(f"Saved file {filename}")
+        except:
+            current_app.logger.warning(f"Could not open file {file_path}")
 
     db.session.commit()
 
