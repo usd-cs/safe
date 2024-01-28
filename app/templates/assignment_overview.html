@@ -49,15 +49,13 @@
             </a>
         </li>
         {% endif %}
-        {% if current_user.instructor %}
         <li class="list-group-item">
             <strong>Permission Commands:</strong>
             <a class="text-decoration-none"
-				href="{{ url_for('admin.get_gitolite_permission_commands', assignment_id=assignment.assignment_id) }}">
+				href="{{ url_for('user_views.get_gitolite_permission_commands', assignment_id=assignment.assignment_id) }}">
                 View
             </a>
         </li>
-        {% endif %}
         <li class="list-group-item">
             <a class="btn btn-sm btn-outline-primary"
                role="button"

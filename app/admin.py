@@ -674,35 +674,3 @@ def get_gitolite_conf(assignment_id):
 
     return response, 200, {'Content-Type': 'text/plain'}
 
-@admin.route("/gitolite/assignment/<int:assignment_id>/permissions")
-@login_required
-def get_gitolite_permission_commands(assignment_id):
-    """ Generates a list of gitolite SSH commands to set permissions for the
-    groups in this assignment. """
-
-    if not current_user.admin:
-        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
-        abort(403)
-
-    assignment = (
-        Assignment.query
-            .filter(Assignment.assignment_id == assignment_id)
-            .first()
-    )
-
-    if not assignment:
-        abort(404)
-        current_app.logger.error(f"No assignment found with id {assignment_id}")
-
-    section = assignment.section
-
-    response = ""
-
-    for group in assignment.teams:
-        repo_name = f"{section.course}-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
-
-        for member in group.members:
-            response += f"ssh git@code.sandiego.edu perms {repo_name} + WRITERS {member.username}\n"
-
-
-    return response, 200, {'Content-Type': 'text/plain'}

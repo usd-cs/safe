@@ -85,6 +85,10 @@ class Section(db.Model):
         """ Returns all of the instructors for this section. """
         return self.users.filter_by(instructor=True).all()
 
+    def is_instructor(self, user):
+        """ Returns true if the given user is an instructor for this section. """
+        return self.users.filter_by(instructor=True, user_id=user.user_id).count() == 1
+
     def students(self):
         """ Returns all of the instructors for this section. """
         return self.users.filter_by(instructor=False).all()

@@ -707,6 +707,47 @@ def edit_assignment(course_name, semester, section_num, psa_num):
                            assignment=assignment)
 
 
+@user_views.route("/gitolite/assignment/<int:assignment_id>/permissions")
+@login_required
+def get_gitolite_permission_commands(assignment_id):
+    """ Generates a list of gitolite SSH commands to set permissions for the
+    groups in the given assignment. """
+
+    """
+    if not (current_user.admin or current_user.instructor):
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
+        abort(403)
+    """
+
+    assignment = (
+        Assignment.query
+            .filter(Assignment.assignment_id == assignment_id)
+            .first()
+    )
+
+    if not assignment:
+        current_app.logger.error(f"No assignment found with id {assignment_id}")
+        abort(404)
+
+    elif not (current_user.admin or assignment.section.is_instructor(current_user)):
+        # only admins and relevant instructors can view this page.
+        current_app.logger.warning(f"Unauthorized admin access attempt: {current_user.username}")
+        abort(403)
+
+    section = assignment.section
+
+    response = ""
+
+    for group in assignment.teams:
+        repo_name = f"{section.course}-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
+
+        for member in group.members:
+            response += f"ssh git@code.sandiego.edu perms {repo_name} + WRITERS {member.username}\n"
+
+
+    return response, 200, {'Content-Type': 'text/plain'}
+
+
 # TODO: generalize endpoint name so assignment initials don't have to be "psa"
 @user_views.route("/<course_name>/<semester>/s<int:section_num>/psa<int:psa_num>/", methods=['get', 'post'])
 @login_required
