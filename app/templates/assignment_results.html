@@ -36,10 +36,12 @@
                 <i class="bi-files"></i>
                 <strong>Submitted Files:</strong>
                 {% for sf in results.submitted_files %}
+                    {% if current_user.admin or assignment.section.is_instructor(current_user) or (sf.filename not in ['stdout.txt', 'stderr.txt']) %}
                     <a class="text-decoration-none" href="{{
                         url_for('user_views.view_submitted_file', course_name=assignment.section.course, semester=assignment.section.semester, section_num=assignment.section.section_num, psa_num=assignment.num, group_num=group_num, filename=sf.filename, id=results.job_id) }}">
                         {{sf.filename}}
                     </a>
+                    {% endif %}
                 {% endfor %}
             </li>
         </ul>
