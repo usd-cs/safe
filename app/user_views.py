@@ -738,11 +738,13 @@ def get_gitolite_permission_commands(assignment_id):
 
     response = ""
 
+    git_server_name = current_app.config['GIT_SERVER_NAME']
+
     for group in assignment.teams:
         repo_name = f"{section.course}-{section.semester}-s{section.section_num:02}-psa{assignment.num}-group{group.team_num}"
 
         for member in group.members:
-            response += f"ssh git@code.sandiego.edu perms {repo_name} + WRITERS {member.username}\n"
+            response += f"ssh git@{git_server_name} perms {repo_name} + WRITERS {member.username}\n"
 
 
     return response, 200, {'Content-Type': 'text/plain'}
