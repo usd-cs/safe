@@ -157,7 +157,7 @@ def handle_notification(course, semester, section, psa, group):
     group_members = [member.username for member in target_group.members]
 
     job = current_app.test_queue.enqueue('app.workers.run_test',
-                                         'code.sandiego.edu', # FIXME: make git server part of app's config
+                                         current_app.config['GIT_SERVER_NAME'],
                                          current_app.config['REPOSITORY_BASE_DIR'],
                                          repo_name, branch_name,
                                          test_code_dir, test_command,
