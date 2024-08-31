@@ -1,6 +1,7 @@
 import os
 import subprocess
 import datetime
+from zoneinfo import ZoneInfo
 import json
 import requests
 from glob import glob
@@ -142,7 +143,7 @@ def run_test(git_server, repo_base_dir, repo_name, branch_name, test_code_dir, t
     try:
         os.putenv('PYTHONDONTWRITEBYTECODE', 'TRUE')
         result = subprocess.run(final_test_command, capture_output=True, timeout=timeout_length)
-        runner_output['results_time'] = str(datetime.datetime.now())
+        runner_output['results_time'] = str(datetime.datetime.now(ZoneInfo('US/Pacific')))
 
         # TODO: if result.returncode isn't 0, raise an exception
 
